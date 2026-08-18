@@ -53,6 +53,14 @@ Shoshana Zuboff has described how Surveillance Capitalism collects the data of u
 
 ### Laclau: Discourse, Articulation and Hegemony
 
+Ferdinand de Saussure and Jacques Derrida
+Austin Kozlowski (2025) has presented a theory of computational structuralism, which argues that Ferdinand de Saussures stucturalism is the best theory for how LLMs work.
+Jacques Derrida's poststructuralism...
+
+Several recent publications argue that LLMs work in a way extremely similar to Ferdinand de Saussure's structuralism. Saussure's signifiers are defined by their relation to other signifiers:  
+
+computational structuralism 
+
 There are 
 Ferdinand Saussure
 
@@ -238,6 +246,8 @@ Huh, M., Cheung, B., Wang, T., & Isola, P. (2024). Position: The Platonic Repres
 Clegg, S. R. (1989). Frameworks of power / Stewart R. Clegg. Sage.
 
 Kozlowski, A.C. Computational structuralism: Toward a formal theory of meaning in the age of digital intelligence. Theor Soc 55, 35 (2026). https://doi.org/10.1007/s11186-026-09685-z
+
+Elad Vromen (2024), “Language Models as Semiotic Machines: Reconceptualizing AI Language Systems through Structuralist and Post-Structuralist Theories of Language.”
 
 Magnani, L. (2026). Beyond stochastic parrots: Lacanian reflections on LLMs as superior masters of the symbolic. Synthese, 207, 260. https://doi.org/10.1007/s11229-026-05648-0
 
