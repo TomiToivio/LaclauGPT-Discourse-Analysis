@@ -77,17 +77,19 @@ Platonic Representation Hypothesis suggests that LLMs are converging towards sim
 * Explain human-in-the-loop.
 * Explain LLM results are to be validated by a human. Human results are final.
 
-Explain Laclau/Mouffe terminology (for humans and LLMs):
+Explain Laclau/Mouffe/Palonen terminology (for humans and LLMs):
 * hegemony
 * articulation
+* nodal point
 * chain of equivalence
 * discursive field
 * polarisation
 * agonism/antagonism
-* imaginary/myth (note: different from sociotechnical imaginary)
+* imaginary/myth (note: different from Jasanoff's sociotechnical imaginary)
 * us
 * frontier
 * affect
+* fringe, mainstream and competing populist dynamics
 
 Palonen distinguishes between fringe and mainstream populist dynamics. (Palonen 2025) Fringe populism dynamic attempts can be seen in the doomer and protest movements opposed to AI accelerationism. Mainstream populists reject the groups who are seen as not fitting the imagined community. Populists often follow mainstream populist dynamics after they reach hegemony: the accelerationist alliance of Elon Musk and Donald Trump is an example of this. Competing populism is a situation in which two movements constitute themselves through their mutual opposition.
 
