@@ -77,6 +77,21 @@ Platonic Representation Hypothesis suggests that LLMs are converging towards sim
 * Explain human-in-the-loop.
 * Explain LLM results are to be validated by a human. Human results are final.
 
+Explain terminology (for humans and LLMs):
+* hegemony
+* articulation
+* chain of equivalence
+* discursive field
+* polarisation
+* agonism/antagonism
+* imaginary/myth (note: different from sociotechnical imaginary)
+* us 
+* frontier
+* 
+"Political identity mobilisation includes a combination of ‘us’, the community that needs to be articulated to exist, and the frontier that is the
+limit of such a community. Antagonism, the emphasis on the limit, is
+crucial for this sort of populism. Populism does not equate to polarisation – it is a form that may become sedimented as polarisation, when the two sides of the debate co-constitute themselves through the negation of the other." (Palonen 2025)
+
 ### LaclauGPT: Method and Operationalisation
 
 #### Data Collection
