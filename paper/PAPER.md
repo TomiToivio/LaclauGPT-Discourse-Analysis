@@ -77,7 +77,7 @@ Platonic Representation Hypothesis suggests that LLMs are converging towards sim
 * Explain human-in-the-loop.
 * Explain LLM results are to be validated by a human. Human results are final.
 
-Explain terminology (for humans and LLMs):
+Explain Laclau/Mouffe terminology (for humans and LLMs):
 * hegemony
 * articulation
 * chain of equivalence
@@ -91,6 +91,18 @@ Explain terminology (for humans and LLMs):
 "Political identity mobilisation includes a combination of ‘us’, the community that needs to be articulated to exist, and the frontier that is the
 limit of such a community. Antagonism, the emphasis on the limit, is
 crucial for this sort of populism. Populism does not equate to polarisation – it is a form that may become sedimented as polarisation, when the two sides of the debate co-constitute themselves through the negation of the other." (Palonen 2025)
+
+"In order to investigate the making of political identities in an undecidable terrain, it is important to somehow capture this logic of constitutive antagonism and the chain of equivalences that operates within it. As a solution to this, I have proposed a formula that captures the affective-antagonistic articulation of political identities as follows:
+
+Populism = Us^(Affects1) + Frontier^(Affects2)
+
+This is the form of populism at its purest and most naked manifestation. What is visible is, on the one hand, the element of temporary togetherness, ‘us’ or the imagined community, the collective subject  the recognition. On the other hand, there is the constitutive otherness – not merely another ‘other’, group, signifier or oppressor but, at its most abstract, the difference itself. This antagonism generates the logic of equivalence that constitutes ‘us’ through misrecognition. The affective element can be an emotion but it can equally be an emotionally loaded signifier, such as democracy or communism, tax cuts or
+migrants."
+
+Concepts from other theories:
+* Sociotechnical imaginaries (Jasanoff)
+* Network Power (Castells)
+* 
 
 ### LaclauGPT: Method and Operationalisation
 
