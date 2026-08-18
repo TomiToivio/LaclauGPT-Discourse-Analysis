@@ -243,4 +243,4 @@ Kabashkin, I., Zervina, O., & Misnevs, B. (2025). AI narrative modeling: How mac
 
 Stavrakakis, Y. (1999). Lacan and the Political (1st ed.). Routledge. https://doi.org/10.4324/9780203006160
 
-
+Kirk, H. R., Vidgen, B., Röttger, P., & Hale, S. A. (2023). The empty signifier problem: Towards clearer paradigms for operationalising “alignment” in large language models. Socially Responsible Language Modelling Research.
