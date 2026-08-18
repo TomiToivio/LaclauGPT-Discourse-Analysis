@@ -85,9 +85,12 @@ Explain Laclau/Mouffe terminology (for humans and LLMs):
 * polarisation
 * agonism/antagonism
 * imaginary/myth (note: different from sociotechnical imaginary)
-* us 
+* us
 * frontier
-* 
+* affect
+
+Palonen distinguishes between fringe and mainstream populist dynamics. (Palonen 2025) Fringe populism dynamic attempts can be seen in the doomer and protest movements opposed to AI accelerationism. Mainstream populists reject the groups who are seen as not fitting the imagined community. Populists often follow mainstream populist dynamics after they reach hegemony: the accelerationist alliance of Elon Musk and Donald Trump is an example of this. Competing populism is a situation in which two movements constitute themselves through their mutual opposition.
+
 "Political identity mobilisation includes a combination of ‘us’, the community that needs to be articulated to exist, and the frontier that is the
 limit of such a community. Antagonism, the emphasis on the limit, is
 crucial for this sort of populism. Populism does not equate to polarisation – it is a form that may become sedimented as polarisation, when the two sides of the debate co-constitute themselves through the negation of the other." (Palonen 2025)
