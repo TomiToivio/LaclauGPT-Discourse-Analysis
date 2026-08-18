@@ -53,14 +53,10 @@ Shoshana Zuboff has described how Surveillance Capitalism collects the data of u
 
 ### Laclau: Discourse, Articulation and Hegemony
 
-
-Cover both Ferdinand de Saussure and Jacques Derrida
+* Cover both Ferdinand de Saussure and Jacques Derrida very briefly.
 Austin Kozlowski (2025) has presented a theory of computational structuralism, which argues that Ferdinand de Saussure's stucturalism is the best theory for how LLMs work.
 Elad Vromen (2024) calls LLMs semiotic machines: in his view LLMs validate Saussure's structuralism and Derrida's poststructuralism. 
-Jacques Derrida's poststructuralism...
-
 Several recent publications argue that LLMs work in a way extremely similar to Ferdinand de Saussure's structuralism. Saussure's signifiers are defined by their relation to other signifiers: LLM tokens are multisimilar vectors and get their meaning from their location relative to other vectors. 
-
 Leif Weatherby (2025) talks about language machines and argues that structuralism is validated more than poststructuralism.
 
 Add word2vec visualization as an example? 
