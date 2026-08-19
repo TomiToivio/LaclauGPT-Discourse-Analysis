@@ -54,6 +54,15 @@ Shoshana Zuboff has described how Surveillance Capitalism collects the data of u
 ### Laclau: Discourse, Articulation and Hegemony
 
 * Cover both Ferdinand de Saussure and Jacques Derrida very briefly.
+
+Anybody know if there is some book like Bourdieu for Dummies? Saussure and Levi-Strauss are easy to read fast. Unfortunately Bourdieu sounded very bourgeois which is why I always ignored him. 
+ 
+Kozlowski: "In some ways, however, LLMs are realizing the visions of Lévi-Strauss and Bourdieu more than that of Saussure."
+ 
+The consensus view seems to be that Saussure > Derrida but the entire structuralism/post-structuralism field is validated. 
+ 
+Vromen: "Drawing from structuralist and post-structuralist theories of language—specifically the works of Ferdinand de Saussure and Jacques Derrida—I argue that LLMs should be understood as models of language itself, aligning with Derrida’s concept of ”writing” (l’´ecriture)."
+
 Austin Kozlowski (2025) has presented a theory of computational structuralism, which argues that Ferdinand de Saussure's stucturalism is the best theory for how LLMs work.
 Elad Vromen (2024) calls LLMs semiotic machines: in his view LLMs validate Saussure's structuralism and Derrida's poststructuralism. 
 Several recent publications argue that LLMs work in a way extremely similar to Ferdinand de Saussure's structuralism. Saussure's signifiers are defined by their relation to other signifiers: LLM tokens are multisimilar vectors and get their meaning from their location relative to other vectors. 
@@ -66,7 +75,7 @@ Add word2vec visualization as an example?
 * Explain Laclaudian discourse theory.
 * Also mention Platonic Representation Hypothesis because it is nice.
 
-Platonic Representation Hypothesis suggests that LLMs are converging towards similar ideal representations of the world. This happens even though the models use very different architectures and training data. The convergence happens across modalities, affecting both language and vision. (Huh et al. 2024)
+Platonic Representation Hypothesis suggests that LLMs are converging towards similar ideal representations of the world. This happens even though the models use very different architectures and training data. The convergence happens across modalities, affecting both language and vision. (Huh et al. 2024) <- this is super funny and important philosophically but just a waste of bandwidth here
 
 * Possibly short description of how LLMs work (why?) and maybe papers about use in social sciences etc.
 * Then add explanation of LaclauGPT.
