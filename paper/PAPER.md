@@ -70,6 +70,8 @@ Leif Weatherby (2025) talks about language machines and argues that structuralis
 
 LaclauGPT uses LLM Structuralism heavily. It brings structuralism back to post-structuralism.
 
+So what we want is this LLM Structuralism (structuralism/post-structuralism) LaclauGPT where we use Saussure and LLM Structuralism heavily. Then we use the post-structuralist parts of Laclau more carefully, as they are the ones that are often more difficult to define. Is there a theory of discourse analysis which is even more purely structuralist? Also, compatibility of structuralism with other common social data science methods: SNA? LDA? NLP? NER? Sentiment Analysis? If we can wrap this up in one big theoretical-methodological-technological package?
+
 Add word2vec visualization as an example? 
 
 * Cite two LLM Structuralism papers.
