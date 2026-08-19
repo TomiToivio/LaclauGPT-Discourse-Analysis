@@ -102,6 +102,16 @@ LLMs are generating language without ability to access the external world which 
 * Explain human-in-the-loop.
 * Explain LLM results are to be validated by a human. Human results are final.
 
+Explain the use of populist theory while this is not all populist ideologies.
+Theory can be fitted to all politics, not just populism. Explain why? 
+It could be argued that the AI Core already has populist hegemony, with the open alliance of accelerationist Musk and Trump etc.
+Also explain Wallerstein's Core/Periphery/Semiperiphery as well as some paper using it for AI Core etc. 
+Millennarianism is extremely common in singularitarianism, doomerism etc.
+AI is the other. AI is us. Maybe this is the key distinction, but you could divide it into two different things:
+AI as capitalist property: populism directed at AI Capitalism vs. people who support AI Capitalism. 
+Donna Haraway and AI: human + AI still remains a cyborg? This theme goes deeply philosophical.
+Basically the entire theme goes too deep like this. Should split methodology and research plan into two completely different papers. And the research plan should be simplified.
+
 Explain Laclau/Mouffe/Palonen terminology (for humans and LLMs):
 * hegemony
 * articulation
@@ -137,6 +147,9 @@ Concepts from other theories:
 ### LaclauGPT: Method and Operationalisation
 
 #### Data Collection
+
+Note: simplify this a lot, go into something like targeted data collection of certain events or ideologies.
+This paper might not even need any massive data collection: could use a subset of some election study's data.
 
 * Automatic web scrapers are used to collect data from sources such as forums and blog posts.
 * Custom X scraper is used to collect feeds of ideological influencers.
