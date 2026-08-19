@@ -86,11 +86,12 @@ The ideology of the LLMs reflects the training data consisting of human-generate
 LLMs are a compressed statistical model of the available text (and multimodal) data produced by the human culture. I like to think about them as a statistical representation of the collective culture of humanity, that they can be used to reproduce the repeating patterns of human language and culture. (How can I refer to my own thoughts?)
 
 Platonic Representation Hypothesis suggests that LLMs are converging towards similar ideal representations of the world. This happens even though the models use very different architectures and training data. The convergence happens across modalities, affecting both language and vision. (Huh et al. 2024) 
+(Remove stuff with only philosophical (not sociological) relevance or this paper will explode.)
 
 LLMs are generating language without ability to access the external world which the language is describing. LLMs can be used to analyze text as discourse, it can analyze what the ideology claims to be real, but I would never use an LLM to test the semantic truthfullness of these claims. It should be noted that language describes the internal experience of a human, which includes sensory perceptions of the external world. 
 (How to even explain this without going full Donald Hoffman? Language describes whatever the human is experiencing. Human experience includes the external world. LLMs cannot verify that without some external tool.)
 (This is fun, LLMs simulate human language which tries to describe the internal consciousness of a human, which includes statements of what is thought to be outside of humans. Solipsistic LLM hypothesis?)
-(Add Floridi or suitable reference) 
+(Add Floridi or suitable reference)
 
 * Possibly short description of how LLMs work (why?) and maybe papers about use in social sciences etc.
 * Then add explanation of LaclauGPT.
