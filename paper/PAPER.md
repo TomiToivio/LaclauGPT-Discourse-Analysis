@@ -68,6 +68,8 @@ Elad Vromen (2024) calls LLMs semiotic machines: in his view LLMs validate Sauss
 Several recent publications argue that LLMs work in a way extremely similar to Ferdinand de Saussure's structuralism. Saussure's signifiers are defined by their relation to other signifiers: LLM tokens are multisimilar vectors and get their meaning from their location relative to other vectors. 
 Leif Weatherby (2025) talks about language machines and argues that structuralism is validated more than poststructuralism.
 
+LaclauGPT uses LLM Structuralism heavily. It brings structuralism back to post-structuralism.
+
 Add word2vec visualization as an example? 
 
 * Cite two LLM Structuralism papers.
