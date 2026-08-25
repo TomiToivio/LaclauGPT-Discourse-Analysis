@@ -1,327 +1,242 @@
-# LaclauGPT: AGI and Ideology
+# **LaclauGPT: Ideology of AI**
+## **1. Introduction**
+Artificial Intelligence is currently a key technology determining the technological, social and economic trajectory of the future. The way it is used depends on ideological choices: how will it solve the balance between users and AI corporations, agency and intelligence, environment and data centers, potential disbalance with AI potentially increasing both unemployment and economic growth at the same time. 
 
-## Abstract
+This paper proposes to study the Ideology of AI within the emerging field of Critical AI Studies, using Ernesto Laclau’s discourse theory as its primary theoretical framework and developing LaclauGPT as a computational methodology for its analysis.
 
-## Introduction
-This paper describes the use of LLM tools for Laclaudian discourse analysis.
-The political discourse surrounding the accelerating AI race. 
+The research questions are:
 
-## Ideology and Politics of AGI
+1. What are the major ideologies competing for hegemony within the AI industry, global culture, and political decision-making?  
 
-In this paper we talk about AGI rather than just AI to highlight that AGI is an empty signifier: we might be there soon. The imaginaries and ideologies of AGI are shaping the policies that will determine how the future of humanity turns out.
+2. How are these ideological positions articulated by AI elites, ideological movements, and actors in parliamentary politics?  
 
-I research ideological groups that are directly involved with AGI: effective accelerationists (e/acc), doomers, luddites...
+3. How can LLMs be used to operationalize Laclaudian discourse analysis for the analysis of large textual datasets?
 
-Technology can be a benefit or a hazard depending on how humans decide to use it: in this sense I am extremely optimistic about the possibilities of AGI while simultaneously being highly critical about the way humanity (or capitalism, nationalism etc.) will manage it. 
+Additionally, this paper proposes the continued development of LaclauGPT as a methodological and technological framework for social data science.
 
-One key influence informing this paper is Simon Lindgren’s Critical Theory of AI (Lindgren 2023). In some ways my focus is more on the extremist ideologies of AGI including effective accelerationism and what what Timnit Gebru and Emilio Torres have termed the TESCREAL bundle (Gebru & Torres 2024).
+## **2. Ideology of AI**
+### **2.1 AI and AGI**
+This paper can be seen as combining both sides of Simon Lindgren: Critical AI Studies (Lindgren 2023, Lindgren 2024\) and social data science (Lindgren 2020\) with Ernesto Laclau’s discourse analysis (Laclau 2005). 
 
-## Theoretical Framework
+### **2.2 Ideologies of AI**
+Critical AI Studies can also be seen as an extension to theories of data colonialism (Couldry & Mejias, 2019), platform capitalism (Srnicek 2017\) and surveillance capitalism (Zuboff 2019\) as these practices remain at the core of the big data corporations now at the heart of AI capitalism.    
 
-### Anarcho-Computational / Discourse-Theoretical Framework
+The contemporary global AI system can be understood as increasingly dual-core, structured primarily around the United States and China as AI cores (Zhang et al., 2026). It is more difficult to research Chinese ideology of AI, which means this research is more centered on the ideology of the western core as well as discourse within EU and Finland. 
 
-The paper is based on tools and methods developed for the Anarcho-Computational / Discourse-Theoretical framework. 
+Sociotechnical imaginaries inside the more academic discussion about AI can be divided into three main groups: Critical AI scholars, techno-optimist accelerationists and X-Risk doomers warning about the existential risks posed by AI. (Oldenburg & Papyshev, 2025\)  
 
-Anarchism refers to Feyerabend’s demand for creative experimentation with methodologies and theories, abandoning all dogmaticism in science. 
+It is noticeable that techno-optimists and doomers tend to come from technical professions while the critical AI views are often represented by social science views. The X-Risk doomer argument is crystallized in **If anyone builds it, everyone dies: Why superhuman AI would kill us all** (Yudkowsky & Soares 2025). 
 
-Computational refers to the use of computational social science tools for analysis of textual and multimodal data. The framework combines older social data science tools such as topic modeling and peak analysis. LLMs for discourse analysis, and finally human analysis of the final LLM results. 
+Oldenburg and Papyshev (2025) use the DAIR institute as an example of AI criticism. Gebru and Torres of DAIR have criticized the AI ideologies as the TESCREAL bundle of ideologies: TESCREAL comes from Transhumanism, Singularitarianism, Extropianism, Cosmism, Rationalism, Effective Altruism and Longtermism. Gebru and Torres criticize the TESCREAL ideologies for recycling old eugenicist views of intelligence. (Gebru & Torres 2023\) 
 
-Discourse-Theoretical refers to the use of discourse theory for text analysis. This is based on the theories of Ernesto Laclau, Chantal Mouffe and Emilia Palonen. 
+It is not necessary to define all of the TESCREAL ideologies in this paper, but Ray Kurzweil’s theory of the technological singularity (Kurzweil, 2005, 2024\) can be seen as one of the most influential ideas associated with them. According to the singularity hypothesis, accelerating technological development, including advances in artificial intelligence and recursive machine improvement, could lead to extremely rapid growth in machine intelligence and eventually to a radically transformed transhuman future.
 
-The main focus is on the use of LLMs for discourse analysis. Supporting methods include digital ethnography, natural language processing, social network analysis, generative agent-based simulation.
+Marc Andreessen’s The techno-optimist Manifesto (Andreessen 2023\) is seen as an example of accelerationism. Effective Accelerationism (styled as e/acc online) (Okolo 2025), is described as a combination of Effective Altruism and Nick Land’s nineties accelerationism. This has been visible in the populist alliance of Elon Musk and Donald Trump. 
 
-The focus is on discourse analysis but it is augmented with the use of other social data science methods
+There is an emerging backlash against AI as a technology (Borwein et al., 2026), currently visible in the movement against data centers in the United States, fears of job losses, and broader cultural anti-AI perspectives. Elements of this backlash are increasingly championed by Bernie Sanders in US politics (Sanders, 2026), but appear to be considerably less visible in Finnish politics.
 
-Multimodal LLMs were added to the LaclauGPT data collection, analysis and visualization pipeline created for research of European Parliament elections in 2024.
+There are also left-wing techno-optimist perspectives on AI. Cugurullo’s (2026) concept of **AIdeology** includes visions of sustainable AI addressing environmental problems, a posthuman society populated by humans and artificial intelligences, and a post-work society in which both labour and capitalism become obsolete. Similar left-wing techno-optimist visions can be found in Srnicek and Williams’s (2015) postcapitalist politics and Bastani’s (2019) **Fully Automated Luxury Communism**. These perspectives also resonate with Haraway’s (1991) **Cyborg Manifesto**, which challenges the boundaries between humans and machines and uses the cyborg as a figure for imagining new forms of socialist and feminist politics.
 
-### Power in the Network Society
+The purpose of this study is to determine which groups are reaching hegemonic status when political decisions are made: the data sources include ideological movements fundamentally linked to AI like accelerationists and doomers, the more grass-roots anti-AI backlash, and the question of AI in elections and parliamentary policies in various countries.  
 
-I wanted to use the methodology of Social Network Analysis to analyze the power of the communication network itself. This had to be left out, but it is good to note some of the key issues here.
+The discourse has been largely going on inside ideological groups involved with AI: we can talk about techno-optimists who want to accelerate the development of AI and the techno-pessimists who see AI as destabilizing to the society, possibly even an existential risk.
 
-Manuel Castells’ Rise of the Network Society (Castells 2010) is a key text for understanding the ongoing technological and social change. Castells described how the internet revolution of the 1990s created a new type of global network society. The ongoing artificial intelligence revolution should perhaps be seen 
-as an even more radical phase of the same revolution.
+### **2.3 AI as a contested signifier**
+Simon Lindgren (2023, 2024\) has called AI an “empty signifier” in Laclaudian sense: it is in becoming, it promises utopia to some and dystopia to others. The key question can be formulated in Laclaudian terms: ideology may construct AI as part of “us” while some may see it as part of the “frontier”. 
 
-Networking power refers to the power of the actors and organizations included in the networks that constitute the core of the global network society over human collectives or individuals who are not included in these global networks. Gatekeepers have the power to decide who is included or excluded from the network.
+So this paper does not propose there is a single ideology of AI: different ideologies are contesting for hegemonic position.
 
-Network power is the ability to set the protocol or communication rules of the network, perhaps not allowing some topics and not others. (Castells 2013) Alexander Galloway describes the technological internet protocols as decentralized control systems. (Galloway 2004). 
+## **3. LaclauGPT**
+### **3.1 Theoretical foundation**
+LaclauGPT is named after the political theorist Ernesto Laclau as his discourse theory (Laclau 2005\) is used as the main component of the theory. Emilia Palonen’s Formula of Populism (Palonen 2025\) is used with Laclau’s theory to create a more compact summary of the Laclaudian theory. 
 
-Network-making power is (1) the ability to constitute network(s), and to program/reprogram the network(s) in terms of the goals assigned to the network; and (2) the ability to connect and ensure the cooperation of different networks by sharing common goals and combining resources, while fending off competition from other networks by setting up strategic cooperation. I call the holders of the first power position the programmers; I call the holders of the second power position the switchers.
+Sociotechnical imaginaries (Jasanoff & Kim 2005\) are another key addition to Laclau’s theory: The way AI is seen as a threat or opportunity is a key determinant in the ideological stance as there is no way to predict the true social effects of AI. 
 
-"How does networked power operate? As I proposed above, power is the relational capacity to impose an actor’s will over another actor’s will on the basis of the structural capacity of domination embedded in the institutions of society. Following this definition, the question of power-holding in the networks of the network society could be either very simple or impossible to answer." (Castells 2013)
+Palonen distinguishes between fringe and mainstream populist dynamics. (Palonen 2025\) Fringe populism dynamic attempts can be seen in the doomer and protest movements opposed to AI accelerationism. Mainstream populists reject the groups who are seen as not fitting the imagined community. Populists often follow mainstream populist dynamics after they reach hegemony: the accelerationist alliance of Elon Musk and Donald Trump is an example of this. Competing populism is a situation in which two movements constitute themselves through their mutual opposition.
 
-Shoshana Zuboff has described how Surveillance Capitalism collects the data of users and then uses this data to control users algorithmically. (Zuboff 2019)
+Palonen (2025) proposes a Formula of Populism, in which the antagonistic sides are articulated as Us and the Frontier. Us is the community populism argues for, frontier is the limit of the community. The formula also captures the affects related to the Us and Frontier elements. 
 
-### Laclau: Discourse, Articulation and Hegemony
+Populism \= Us^(Affects1) \\+ Frontier^(Affects2)
 
-* Cover both Ferdinand de Saussure and Jacques Derrida very briefly.
+Empty and floating signifiers are the contested meanings…
 
-Anybody know if there is some book like Bourdieu for Dummies? Saussure and Levi-Strauss are easy to read fast. Unfortunately Bourdieu sounded very bourgeois which is why I always ignored him. 
- 
-Kozlowski: "In some ways, however, LLMs are realizing the visions of Lévi-Strauss and Bourdieu more than that of Saussure."
- 
-The consensus view seems to be that Saussure > Derrida but the entire structuralism/post-structuralism field is validated. 
- 
-Vromen: "Drawing from structuralist and post-structuralist theories of language—specifically the works of Ferdinand de Saussure and Jacques Derrida—I argue that LLMs should be understood as models of language itself, aligning with Derrida’s concept of ”writing” (l’´ecriture)."
+As affect to be invested in the “us” and “frontier” sides of the equation. 
 
-Austin Kozlowski (2025) has presented a theory of computational structuralism, which argues that Ferdinand de Saussure's stucturalism is the best theory for how LLMs work.
-Elad Vromen (2024) calls LLMs semiotic machines: in his view LLMs validate Saussure's structuralism and Derrida's poststructuralism. 
-Several recent publications argue that LLMs work in a way extremely similar to Ferdinand de Saussure's structuralism. Saussure's signifiers are defined by their relation to other signifiers: LLM tokens are multisimilar vectors and get their meaning from their location relative to other vectors. 
-Leif Weatherby (2025) talks about language machines and argues that structuralism is validated more than poststructuralism.
+Antagonistic frontier is the “other” that is being externalized. 
 
-LaclauGPT uses LLM Structuralism heavily. It brings structuralism back to post-structuralism.
+The ideologies are contesting for a hegemonic position: here to be seen as what affects the real policies of the society. 
 
-So what we want is this LLM Structuralism (structuralism/post-structuralism) LaclauGPT where we use Saussure and LLM Structuralism heavily. Then we use the post-structuralist parts of Laclau more carefully, as they are the ones that are often more difficult to define. Is there a theory of discourse analysis which is even more purely structuralist? Also, compatibility of structuralism with other common social data science methods: SNA? LDA? NLP? NER? Sentiment Analysis? If we can wrap this up in one big theoretical-methodological-technological package?
+Define:
 
-Add word2vec visualization as an example? 
+* discourse  
 
-Nelimarkka (2026) has proposed fine-tuning an LLM with Marxist ideology to create a MarxistLLM. This has parallels with LaclauGPT, but LaclauGPT uses prompt and context engineering as there is no human-generated training data good enough to actually improve the mode. Human social scientists should write high-quality discourse analysis of a huge dataset to create training data. Instead LaclauGPT is used to pre-analyze large datasets for human researchers to create the final discourse analysis based on the LLM analysis results. 
+* articulation  
 
-The ideology of the LLMs reflects the training data consisting of human-generated texts, so the LLMs have an ideology which is similar to the hegemonic ideology of human societies. In this sense it is not different from human researchers: we have been indoctrinated into the hegemonic ideology too. It has to be kept in mind that the analysis generated by the LLM is an ideological interpretation.  
+* nodal points  
 
-* Cite two LLM Structuralism papers.
-* We start from LLM structuralism validating Saussure, Derrida, Lacan, Laclau...
-* Explain Laclaudian discourse theory.
-* Also mention Platonic Representation Hypothesis because it is nice.
+* empty/floating signifiers  
 
-LLMs are a compressed statistical model of the available text (and multimodal) data produced by the human culture. I like to think about them as a statistical representation of the collective culture of humanity, that they can be used to reproduce the repeating patterns of human language and culture. (How can I refer to my own thoughts?)
+* equivalence and difference  
 
-Platonic Representation Hypothesis suggests that LLMs are converging towards similar ideal representations of the world. This happens even though the models use very different architectures and training data. The convergence happens across modalities, affecting both language and vision. (Huh et al. 2024) 
-(Remove stuff with only philosophical (not sociological) relevance or this paper will explode.)
+* antagonism/frontier  
 
-LLMs are generating language without ability to access the external world which the language is describing. LLMs can be used to analyze text as discourse, it can analyze what the ideology claims to be real, but I would never use an LLM to test the semantic truthfullness of these claims. It should be noted that language describes the internal experience of a human, which includes sensory perceptions of the external world. 
-(How to even explain this without going full Donald Hoffman? Language describes whatever the human is experiencing. Human experience includes the external world. LLMs cannot verify that without some external tool.)
-(This is fun, LLMs simulate human language which tries to describe the internal consciousness of a human, which includes statements of what is thought to be outside of humans. Solipsistic LLM hypothesis?)
-(Add Floridi or suitable reference)
+* collective subject  
 
-* Possibly short description of how LLMs work (why?) and maybe papers about use in social sciences etc.
-* Then add explanation of LaclauGPT.
-* Also explain old school AC/DT Text as Data methods and NLP is still used here.
-* Summarize Laclau/Mouffe/Palonen theories.
-* Why theory of populism works with even non-populist ideologies.
-* Formula of Populism.
-* Explain human-in-the-loop.
-* Explain LLM results are to be validated by a human. Human results are final.
-
-Explain the use of populist theory while this is not all populist ideologies.
-Theory can be fitted to all politics, not just populism. Explain why? 
-It could be argued that the AI Core already has populist hegemony, with the open alliance of accelerationist Musk and Trump etc.
-Also explain Wallerstein's Core/Periphery/Semiperiphery as well as some paper using it for AI Core etc. 
-Millennarianism is extremely common in singularitarianism, doomerism etc.
-AI is the other. AI is us. Maybe this is the key distinction, but you could divide it into two different things:
-AI as capitalist property: populism directed at AI Capitalism vs. people who support AI Capitalism. 
-Donna Haraway and AI: human + AI still remains a cyborg? This theme goes deeply philosophical.
-Basically the entire theme goes too deep like this. Should split methodology and research plan into two completely different papers. And the research plan should be simplified.
-
-Explain Laclau/Mouffe/Palonen terminology (for humans and LLMs):
-* hegemony
-* articulation
-* nodal point
-* chain of equivalence
-* discursive field
-* polarisation
-* agonism/antagonism
-* imaginary/myth (note: different from Jasanoff's sociotechnical imaginary)
-* us
-* frontier
-* affect
-* fringe, mainstream and competing populist dynamics
-
-Palonen distinguishes between fringe and mainstream populist dynamics. (Palonen 2025) Fringe populism dynamic attempts can be seen in the doomer and protest movements opposed to AI accelerationism. Mainstream populists reject the groups who are seen as not fitting the imagined community. Populists often follow mainstream populist dynamics after they reach hegemony: the accelerationist alliance of Elon Musk and Donald Trump is an example of this. Competing populism is a situation in which two movements constitute themselves through their mutual opposition.
-
-"Political identity mobilisation includes a combination of ‘us’, the community that needs to be articulated to exist, and the frontier that is the
-limit of such a community. Antagonism, the emphasis on the limit, is
-crucial for this sort of populism. Populism does not equate to polarisation – it is a form that may become sedimented as polarisation, when the two sides of the debate co-constitute themselves through the negation of the other." (Palonen 2025)
-
-"In order to investigate the making of political identities in an undecidable terrain, it is important to somehow capture this logic of constitutive antagonism and the chain of equivalences that operates within it. As a solution to this, I have proposed a formula that captures the affective-antagonistic articulation of political identities as follows:
-
-Populism = Us^(Affects1) + Frontier^(Affects2)
-
-This is the form of populism at its purest and most naked manifestation. What is visible is, on the one hand, the element of temporary togetherness, ‘us’ or the imagined community, the collective subject  the recognition. On the other hand, there is the constitutive otherness – not merely another ‘other’, group, signifier or oppressor but, at its most abstract, the difference itself. This antagonism generates the logic of equivalence that constitutes ‘us’ through misrecognition. The affective element can be an emotion but it can equally be an emotionally loaded signifier, such as democracy or communism, tax cuts or
-migrants."
+* hegemony  
 
-Concepts from other theories:
-* Sociotechnical imaginaries (Jasanoff)
-* Network Power (Castells)
-* 
+* affective investment 
 
-### LaclauGPT: Method and Operationalisation
+****What is being connected to what?****
 
-#### Data Collection
+### **3.2 Computational discourse analysis**
+Anarcho-Computational / Discourse-Theoretical (AC/DT) framework (Koljonen et al. 2025\) is inspired by Laclaudian discourse theory, Feyerabendian methodological experimentation (Feyerabend 1975\) and computational social science methods presented in books Text as Data (Grimmer et al. 2022\) and Data Theory (Lindgren 2020). 
 
-Note: simplify this a lot, go into something like targeted data collection of certain events or ideologies.
-This paper might not even need any massive data collection: could use a subset of some election study's data.
+It is important to notice that computational social science tools are always used as interpretive tools that form a preanalysis with human researchers providing the final analysis. There is also a human in the loop element in the way LaclauGPT is developed. 
 
-* Automatic web scrapers are used to collect data from sources such as forums and blog posts.
-* Custom X scraper is used to collect feeds of ideological influencers.
-* Data may be collected from TikTok and similar platforms during elections. 
+LaclauGPT is the LLM-powered version of AC/DT. Multimodal LLMs were needed to convert TikTok and Instagram videos to text data to be analyzed; after this LLMs were also used to create a Laclaudian pre-analysis for human researchers to verify and use as a basis of their work. LaclauGPT is used together with older, more established social data science tools. 
 
-#### Digital Ethnography
-Long-running, low volume version of the AC/DT digital ethnography data collection.
-This project has only one researcher collecting data and making digital ethnography notes. 
-Digital ethnography reports and collected data are posted to the LaclauGPT data analysis pipeline to be analyzed.
-This is important for opportunistic data collection during events of peak activity: major events related to AI may provide such opportunities.
-Manual data collection can use a browser plugin tool such as Zeeschuimer.
+Recent scholarship has drawn connections between large language models and structuralist theories of language. Kozlowski (2025) describes this approach as **computational structuralism**, arguing that LLMs provide computational models in which linguistic meaning emerges relationally rather than from isolated symbols. Vromen (2024) similarly describes LLMs as **semiotic machines**, while Weatherby (2025) interprets contemporary language models through the history of structuralist theories of language. These approaches share an important affinity with Saussure's conception of linguistic value: signs acquire meaning through their relations and differences with other signs rather than through an intrinsic correspondence between individual signs and objects.
 
-#### LaclauGPT Discourse Analysis
+This relational conception of meaning provides a useful bridge between LLMs and Laclaudian discourse analysis. Laclau and Mouffe (2001) extend the structuralist insight into a poststructuralist theory in which meanings are relational but never permanently fixed; political discourse consists of attempts to articulate and temporarily stabilise these relations. LLMs need not be understood as validating this theory in order to be useful for its computational operationalisation. Rather, their capacity to represent and process contextual relationships between linguistic elements makes them potentially useful instruments for identifying relational patterns of articulation in large textual datasets.
 
-* Discourse analysis is the main focus of the LaclauGPT. 
-* Ollama is used to run local LLM models on CSC Roihu supercomputer.
-* Social Network Analysis (Nelimarkka 2023) will be added later. Used with an RDF ontology to build a knowledge graph of the results of the discourse. 
-* It will use a special RDF ontology which will be used to build a knowledge graph of the discourse.  
-* Data/corpus.
-* LLM extraction.
-* Actors/signifiers/relations.
-* Laclau concepts and network indicators.
-* Technical pipeline.
-* Data Visualization
+Nelimarkka (2026) demonstrates an alternative approach to theory-guided LLM analysis by fine-tuning a language model on Marxist texts to create MarxistLLM. This illustrates how an explicit theoretical worldview can be incorporated into an LLM and subsequently influence computational analysis. LaclauGPT takes a different approach. Rather than fine-tuning the underlying model, it uses prompt and context engineering to operationalise concepts derived from Laclaudian discourse theory. One practical reason is the absence of a sufficiently large gold-standard dataset of human-coded Laclaudian discourse analysis suitable for supervised fine-tuning. Creating such a dataset would itself require extensive expert annotation and interpretation.
 
-## Research Plan: Ideology of AGI
+LaclauGPT therefore does not attempt to train an LLM to become an autonomous Laclaudian discourse analyst. Instead, it uses existing LLMs as theory-guided analytical instruments for the preliminary analysis of large textual datasets. The model identifies candidate discursive structures and provides evidence from the source material, while human researchers remain responsible for validation and final discourse-theoretical interpretation.
 
-The research plan consists of two parts. The first part consists of methodological development of LaclauGPT based on the experiences of the previous project.
+Ollama is used to run local open source LLMs on CSC Roihu computer: this is mandated by the GDPR which does not allow the use of non-European LLM APIs for data processing. Additionally AC/DT strongly prefers the use of open source solutions. The LLM models have improved at an extremely fast rate, with late 2024 models like Llama3.2. underperforming 2026 models like Gemma4 by a wide degree. 
 
-### 1. Methodological development of LaclauGPT
+Streamlit dashboard is used to create a human interface to the analyzed data: this code is not yet available as an open source repository. The Streamlit dashboard contains the analyzed data and various visualizations of it. 
 
-The research questions can be divided into two broad areas. The first concerns improvements to the earlier LaclauGPT methodology, while the second concerns substantive questions about the ideology of AI.
+These can be augmented with other theoretical and methodological tools but it will be a question of continuous development. For the earlier version these tools included topic modeling (ManifestoBERTa and Gensim LDA) and Named Entity Recognition (Spacy). On the other hand use of Social Network Analysis was not possible due to limitations of the collected data.
 
-* Provide a clearer and more systematic account of the underlying theoretical framework derived from Laclau, Mouffe, and Palonen.
-* Reduce the uncontrolled proliferation and duplication of named entities, topics, sentiment targets, and other analytical categories across the pipeline.
-* Introduce a persistent contextual memory across the full analysis pipeline in order to maintain consistency between documents, batches, and analytical stages.
-* Enable results to be grouped and compared by time period, ideological formation, actor group, source type, and other relevant dimensions.
-* Produce different types of summaries and post-hoc analyses based on, for example, ideological formations, empty and floating signifiers, antagonisms, and chains of equivalence.
-* Develop visualisations of the Formula of Populism and the wider discursive field, for example through embeddings and dimensionality-reduction techniques.
-* Adapt the pipeline to heterogeneous data. Unlike the earlier version, the new corpus will be predominantly textual, while only some sources will contain images or video.
-* Develop a new web-scraping infrastructure for collecting data from multiple online sources.
-* Implement a substantially revised version of the LaclauGPT analysis pipeline, incorporating the methodological improvements described above.
-* Introduce LLM Structuralism as part of the theoretical rationale for using language models, linking contemporary LLMs to relational conceptions of language associated with structuralism while retaining the post-structuralist emphasis on contingency and unstable meaning.
-* Incorporate sociotechnical imaginaries (Jasanoff) into the theoretical and analytical framework.
-* Explain why Laclau’s theory of populism remains analytically useful even where the ideological formations under study are not themselves straightforwardly populist.
-* Allow digital ethnography field reports and manually collected research materials to be submitted directly into the analytical pipeline.
-* Add a research agent that can answer researcher queries, collect new data, generate daily analytical summaries, and perform scheduled research tasks. The system should support both manual researcher-initiated use and automated recurring tasks.
+One of the key issues with the earlier LaclauGPT is multiplication of NER entities, topics and targets of sentiments: it was not possible to fix these using RAG or similar context memory tool with 2025 LLM models, but technical advances should make it possible in the future. Many of the limitations of the earlier 2025 version can already be fixed with the more improved LLM models and related technologies of 2026. 
 
-### Research programme and empirical demonstration
+Hyperparameter tuning is another method of fine-tuning LLM results: in the original version various temperatures were tested, with high temperature giving more random results and low temperature giving more deterministic results: human verification found 0.0 minimum temperature to give the best results, with higher temperatures just hallucinating more. 
 
-The empirical component will examine the principal ideological formations surrounding AI and AGI, including doomerism, accelerationism, AI-critical positions, and forms of Luddism or anti-AI politics.
+Multimodal LLMs were originally used since there was no other way to turn video to text for analysis: in this case most of the data to be analyzed is likely to be text and the multimodal LLM as such is not so important, with actual multimodality needed in a smaller number of cases.   
 
-The initial empirical programme consists of four possible targets:
+Data collection uses two methods: digital ethnography with human researchers collecting data (using a plugin like Zeeschuimer) and adding their own digital ethnography reports, additionally data is collected using automatic data collection tools (Toivio 2025b) based on hashtags, user accounts and search terms.  
 
-1. Ideological extremes within AI discourse.
-Conduct a discourse analysis of doomerism and accelerationism, focusing particularly on activist and intellectual communities whose political identity is explicitly organized around AI and AGI.
-2. The ideology of the global AI elite.
-Analyse the discourse of influential actors such as technology executives, AI researchers, entrepreneurs, and public intellectuals.
-3. AI ideology in electoral politics.
-Examine how competing ideological positions toward AI appear in election campaigns, including how politicians, parties, activists, and voters articulate AI-related political positions.
-4. Emerging anti-AI populism.
-Examine the ideology of anti-AI political movements and protests if and when such movements become significant enough to constitute a meaningful empirical object.
+LaclauGPT analyses the discursive construction of power and hegemony rather than attempting to measure the structural power of communication networks themselves.
 
-Data will be collected through a combination of automated web scrapers and research agents and manual collection conducted alongside digital ethnography. LaclauGPT will analyse the resulting corpus using discourse analysis, LLM-assisted coding, NLP methods, and other computational tools.
+Questions concerning the structural power of communication networks, platforms, and technological infrastructures (Castells, 2013; Galloway, 2004; Zuboff, 2019\) remain outside the scope of the present methodology.
 
-The system will generate daily analytical summaries, while the accumulated results will be explored through a Streamlit-based research interface. The interface should support human-in-the-loop validation and correction, an agent-based research chatbot, manual submission of digital ethnography notes and other collected material, and interactive exploration of analytical results. The final interpretation will remain the responsibility of the human researcher, based on the structured outputs produced by LaclauGPT.
+### **3.3 Operationalising Laclau**
+The source code of the older version is available online divided into multimodal data analysis (Toivio 2025a) and data collection (Toivio 2025b) repositories. 
 
-The substantive research questions include:
+LaclauGPT is a political science multimodal data collection and analysis pipeline. It is called LaclauGPT as a tribute to [Ernesto Laclau](https://en.wikipedia.org/wiki/Ernesto_Laclau).  
 
-* What are the principal competing ideological formations surrounding AI and AGI?
-* How are these ideological formations articulated in practical politics, including elections and political campaigns?
-* How do AI-related ideological formations differ across countries, political traditions, and the political left and right?
-* Which articulations become dominant or hegemonic, and under what conditions?
+LaclauGPT is developed by Tomi Toivio for three [Helsinki Hub on Emotions, Populism and Polarisation](https://www.helsinki.fi/en/researchgroups/emotions-populism-and-polarisation) research projects funded by the European Union and the Research Council of Finland:
 
-The corpus will be international in scope. Where feasible, it will include major core countries such as the United States and China, at least Finland as a semi-peripheral case, and, where suitable data are available, Kenya as a peripheral case. In practice, however, the corpus will probably be disproportionately weighted toward the United States and the wider English-language global discussion.
+* [CO3](https://www.co3socialcontract.eu/) researches the social contract.  
 
-Data collection will necessarily be opportunistic and event-sensitive. The discourse of AI activists, ideological entrepreneurs, executives, and intellectuals can be collected continuously, while elections, regulatory controversies, anti-AI protests, major technological announcements, and similar events provide additional opportunities for focused data collection.
+* [ENDURE](https://www.endure-project.org/) researches the world after the pandemic.  
 
-Some sources are comparatively straightforward, particularly the blogs, newsletters, forums, podcasts, and websites of ideological activists and influential AI figures. X is likely to be important because it is widely used by AI researchers, executives, activists, and commentators, although its fragmented content and restricted API access may require a custom collection solution. During election campaigns, TikTok may be particularly valuable for examining political communication among candidates, activists, and voters.
+* [PLEDGE](https://www.pledgeproject.eu/) researches grievance politics.
 
-## Empirical Demonstration: Ideology of AGI
+The pipeline was used to collect and analyze multimodal social media data related to the 2024 European parliament elections. Data was collected from TikTok and Instagram. Data collection started in 1st of May 2024 and continued until the election day in 9th of June 2024. Collection was based on usernames of official election candidates as well as hashtags and search queries related to the elections. Election data was collected for Bulgaria, Croatia, Finland, France, Germany, Hungary, Portugal, Spain and Sweden. Collected and analyzed data cannot be released yet due to GDPR. This open source version uses dummy data.
 
-* Collect suitable sources such as blogs, forums or podcasts.
-* Collect suitable ideological leaders of major factions: https://substack.com/@bengoertzel
-* Collect Lesswrong forum (doomers): https://www.lesswrong.com/
+### **3.4 Research design**
+The research project will analyse AI discourse across several political and social arenas, using different sources for data collection.
 
-## Discussion
+The first target is the discourse of AI elites, including entrepreneurs, researchers, and intellectuals associated with major AI companies and institutions. This also includes ideological movements associated with elite AI discourse, such as the TESCREAL ideologies identified by Torres and Gebru (2023). Relevant data sources include blogs, discussion forums, podcast interviews, and the social media accounts of AI entrepreneurs, researchers, and intellectuals.
 
-### Limitations and Validation
+The second target is grassroots mobilisation around and against AI. This includes movements seeking to challenge, restrict, or halt particular forms of AI development. PauseAI, for example, advocates pausing the development of increasingly powerful AI systems until they can be developed safely and democratically (PauseAI, 2026). Other forms of mobilisation may emerge around issues such as employment, data centres, surveillance, environmental impacts, and cultural opposition to AI.
 
-### Conclusion
+The third target is AI discourse within parliamentary and electoral politics. Here, the data would consist of AI-related subsets of larger political datasets, following an approach similar to the EP24 election research discussed above. This would enable analysis of how established political actors articulate AI in relation to issues such as technological development, employment, regulation, security, and democracy. At the European level, the EU Artificial Intelligence Act provides an important example of AI governance already translated into legislation (Regulation (EU) 2024/1689, 2024).
 
-## Sources
+### **3.5 Validation and limitations**
+There are several limitations to the use of LLMs in ideological research. The key to all of this is human validation. The final discourse analysis is a human product, with LLM analysis used only as a preliminary step. 
 
-Lindgren, S. (2023). Critical theory of AI. Polity.
+The problems to be taken into account in the final human analysis step include:
 
-Lindgren, S. (2023). Handbook of Critical Studies of Artificial Intelligence (S.Lindgren, Ed.; 1st ed.). Edward Elgar Publishing Ltd. https://doi.org/10.4337/9781803928562
+* LLMs are trained using the human-produced data available online: this means they will reproduce the ideological biases of the real world.   
 
-Lindgren, S. (2020). Data Theory: Interpretive Sociology and Computational Methods (1st ed.). Polity Press.
+* LLMs have a tendency to hallucinate: this is likely to be an unsolvable problem in LLM technology itself. ****(Xu et al., 2024\)****  
 
-White, H. C. (2008). Identity and control: How social formations emerge (2nd ed.). Princeton University Press.
+* Prompting may cause the LLM to force a theory, seeing an ideology where it is not actually existing: this is a case of forcing a theory on the data based on the prompt.   
 
-Borgatti, Stephen P., Martin G. Everett, Jeffrey C. Johnson & Filip Agneessens. 2024. Analyzing Social Networks. 3rd ed. SAGE.
+* Alignment problem is about the LLM following the intent of human users: in this case the human researcher writing the prompt. This problem may also be unsolvable. (Melo et al., 2025). 
 
-Gebru, T., & Torres, Émile P. (2024). The TESCREAL bundle: Eugenics and the promise of utopia through artificial general intelligence. First Monday, 29(4). https://doi.org/10.5210/fm.v29i4.13636
+Hallucination, bias, alignment problem and theoretical forcing are most likely unsolvable problems and have to be taken into account in the phase of final human analysis. These are however not different from the mistakes human coders would make in data analysis. The only solution is to use human judgment in the final analysis step. 
 
-Parr, A. (Ed.). (2010). The Deleuze dictionary (Rev. ed.). Edinburgh University Press.
+## **4. Conclusion**
+Ideology of AI is the research problem.
 
-Baraldi, C., Corsi, G., & Esposito, E. (2021). Unlocking Luhmann: A keyword introduction to systems theory (K. Walker, Trans.). Bielefeld University Press. https://doi.org/10.14361/9783839456743 
+LaclauGPT is an iteration of the AC/DT framework used to research the ideology of AI.
 
-Tsvetkova, Milena, et al. “A New Sociology of Humans and Machines.” Nature Human Behaviour, edited by , vol. 8, no. 10, Oct. 2024, pp. 1864–76. Crossref, https://doi.org/10.1038/s41562-024-02001-8.
+## 5. Sources
 
-Nelimarkka, M. (2023). Computational thinking and social science : combining programming, methodologies and fundamental concepts / Matti Nelimarkka. SAGE.
+Bastani, A. (2019).** **Fully automated luxury communism: A manifesto**. Verso.
 
-Grimmer, J., Roberts, M. E., & Stewart, B. M. (2022). Text as data : a new framework for machine learning and the social sciences 7 Justin Grimmer, Margaret E. Roberts, Brandon M. Stewart. Princeton University Press.
-
-Laclau, E., & Mouffe, C. (2001). Hegemony and socialist strategy : towards a radical democratic politics / Ernesto Laclau and Chantal Mouffe. (2nd ed.). Verso.
-
-Palonen, E. (2025). The Birth and Death of Liberal Democracy in Hungary: The Populist Logic of Polarisation as Hegemony (Vol. 4). Helsinki University Press. https://doi.org/10.33134/pro-et-contra-4
-
-Laclau, E. (2005). On populist reason / Ernesto Laclau. Verso.
-
-Castells, M. (2013). Communication Power (1. publ. in paperback). Oxford University Press.
-
-Ortiz-Freuler, J., & Castells, M. (2026). From search engines to AI agents: Interface control and the restructuring of communication power. New Media & Society. https://doi.org/10.1177/14614448261437812
-
-Angst M, Müller NN, Walker V. Automated extraction of discourse networks from large volumes of media data. Network Science. 2025;13:e4. doi:10.1017/nws.2025.4
-
-De Landa, M. (2006). A new philosophy of society : assemblage theory and social complexity / Manuel DeLanda. Continuum.
-
-De Landa, M. (2016). Assemblage theory / Manuel DeLanda. Edinburgh University Press.
-
-Nassehi, A. (2024). Patterns: Theory of the digital society (M. Wittwar, Trans.). Polity. (Original work published 2021).
-
-Weatherby, L. (2025). Language machines: Cultural AI and the end of remainder humanism. University of Minnesota Press.
-
-Kirk, H. R., Vidgen, B., Röttger, P., & Hale, S. A. (2023). The empty signifier problem: Towards clearer paradigms for operationalising “alignment” in large language models. In Socially Responsible Language Modelling Research. https://openreview.net/forum?id=6mHKQkV8NY 
-
-Koljonen, J., Carrilho, K., Palonen, E., Kerr, E., Bužinkić, E., Foley, J., Academic Disciplines of the Faculty of Social Sciences, Helsinki Hub on Emotions, P. and P., Political Science, Doctoral Programme in Gender, C., Doctoral Programme in Political, S. and R. C., Helsinki Institute for Social Sciences and Humanities, & Helsinki Institute of Urban and Regional Studies. (2025). The Struggle over Masks on Twitter : an AC/DT Approach to Finnish Pandemic Governance.
-
-Koljonen, J., Helsingin yliopisto, kustantaja, & Helsingin yliopisto. Valtiotieteellinen tiedekunta, oppiarvon myöntävä yhteisö. (2023). 
-
-Text as data and Finnish politics : case studies of computational text analysis methods in the Finnish political context / Juha Koljonen. Helsingin yliopisto. https://urn.fi/URN:ISBN:978-951-51-9465-7
-
-Alekseev, A., Helsingin yliopisto, valtiotieteellinen tiedekunta, Helsingfors universitet, statsvetenskapliga fakulteten, University of Helsinki, F. of S. S., Krzyzanowski, M., Palonen, E., & Fomin, I. (2025). 
-
-Hijacking Liberal Democracy? : Democracy and Rights in Populist Radical Right Discourses in France and Poland. Helsingin yliopisto.
-
-Castells, M. (2013). Communication power / Manuel Castells. (New edition.). Oxford University Press.
+Borwein et al. (2026), **Public Opinion Quarterly**
 
 Castells, M. (2010). The rise of the network society (2. ed., with a new pref., Vol. 12). Wiley-Blackwell.
 
+Castells, M. (2013). Communication power / Manuel Castells. (New edition.). Oxford University Press.
+
+Couldry, N., & Mejias, U. A. (2019).** **The costs of connection: How data is colonizing human life and appropriating it for capitalism**. Stanford University Press.
+
+Cugurullo, F. (2026). AIdeology: Unpacking the ideology of artificial intelligence and its spaces.** **Antipode, 58**(1). https://doi.org/10.1111/anti.70065
+
+Feyerabend P (1975) Against Method: Outline of an Anarchistic Theory of Knowledge. London: New Left Book.
+
 Galloway, Alexander R. 2004. Protocol: How Control Exists after Decentralization. Cambridge, MA: MIT Press.
 
-Zuboff, Shoshana. 2019. The Age of Surveillance Capitalism: The Fight for a Human Future at the New Frontier of Power. New York: PublicAffairs.
+Gebru, T., & Torres, Émile P. (2024). The TESCREAL bundle: Eugenics and the promise of utopia through artificial general intelligence. First Monday, 29(4). [https://doi.org/10.5210/fm.v29i4.13636](https://doi.org/10.5210/fm.v29i4.13636)
 
-Huh, M., Cheung, B., Wang, T., & Isola, P. (2024). Position: The Platonic Representation Hypothesis. Proceedings of the 41st International Conference on Machine Learning, 235, 20617–20642. Proceedings of Machine Learning Research.
+**Grimmer, J., Roberts, M. E., & Stewart, B. M. (2022).** **Text as data: A new framework for machine learning and the social sciences**. Princeton University Press.
 
-Clegg, S. R. (1989). Frameworks of power / Stewart R. Clegg. Sage.
+Haraway, D. J. (1991). A cyborg manifesto: Science, technology, and socialist-feminism in the late twentieth century. In** **Simians, cyborgs, and women: The reinvention of nature** **(pp. 149–181). Routledge.
 
-Kozlowski, A.C. Computational structuralism: Toward a formal theory of meaning in the age of digital intelligence. Theor Soc 55, 35 (2026). https://doi.org/10.1007/s11186-026-09685-z
+Jasanoff, S., & Kim, S.-H. (Eds.). (2015). **Dreamscapes of modernity: Sociotechnical imaginaries and the fabrication of power**. University of Chicago Press. [https://doi.org/10.7208/chicago/9780226276663.001.0001](https://doi.org/10.7208/chicago/9780226276663.001.0001)
 
-Elad Vromen (2024), “Language Models as Semiotic Machines: Reconceptualizing AI Language Systems through Structuralist and Post-Structuralist Theories of Language.”
+Koljonen, J., Carrilho, K., & Palonen, E. (2025). The struggle over masks on Twitter: An AC/DT approach to Finnish pandemic governance. In E. Kerr, E. Bužinkić, & J. Foley (Eds.), **The organisation of irresponsibility? Reassessing COVID-19 in Europe** (pp. 132–163). Brill. https://doi.org/10.1163/9789004747784\\_007
 
-Magnani, L. (2026). Beyond stochastic parrots: Lacanian reflections on LLMs as superior masters of the symbolic. Synthese, 207, 260. https://doi.org/10.1007/s11229-026-05648-0
+Kurzweil, R. (2005).** **The singularity is near: When humans transcend biology**. Viking.
 
-Kabashkin, I., Zervina, O., & Misnevs, B. (2025). AI narrative modeling: How machines’ intelligence reproduces archetypal storytelling. Information, 16(4), 319. https://doi.org/10.3390/info16040319
+Kurzweil, R. (2024).** **The singularity is nearer: When we merge with AI**. Viking.
 
-Stavrakakis, Y. (1999). Lacan and the Political (1st ed.). Routledge. https://doi.org/10.4324/9780203006160
+Laclau, E. (2005). **On populist reason**. Verso.
 
-Kirk, H. R., Vidgen, B., Röttger, P., & Hale, S. A. (2023). The empty signifier problem: Towards clearer paradigms for operationalising “alignment” in large language models. Socially Responsible Language Modelling Research.
+Laclau, E., & Mouffe, C. (2001). Hegemony and socialist strategy : towards a radical democratic politics / Ernesto Laclau and Chantal Mouffe. (2nd ed.). Verso.
 
-Müller, M. (2010). Doing discourse analysis in critical geopolitics. L’Espace Politique, 12(3). https://doi.org/10.4000/espacepolitique.1743
+**Lindgren, S. (2020).** **Data theory: Interpretive sociology and computational methods**. Polity.
+
+Lindgren, S. (2023). Handbook of Critical Studies of Artificial Intelligence (S. Lindgren, Ed.; 1st ed.). Edward Elgar Publishing Ltd. https://doi.org/10.4337/9781803928562
+
+Lindgren, S. (2024).** **Critical theory of AI: A field guide for critical theory in the age of artificial intelligence**. Polity.
+
+Melo, G. A., Máximo, M. R. O. A., Soma, N. Y., & Castro, P. A. L. (2025). Machines that halt resolve the undecidability of artificial intelligence alignment.** **Scientific Reports, 15**, 15591. https://doi.org/10.1038/s41598-025-99060-2
 
 Nelimarkka, M. (2026). MarxistLLM: Fine-tuning a language model with a Marxist worldview. Big Data & Society, 13(2).
+
+Okolo, C. T. (2025). The paradox of AI accelerationism and the promise of public interest AI.** **Science, 390**(6768), eaeb5789. https://doi.org/10.1126/science.aeb5789
+
+Oldenburg, N., & Papyshev, G. (2025).** **The stories we govern by: AI, risk, and the power of imaginaries**. arXiv. https://doi.org/10.48550/arXiv.2508.11729
+
+**Palonen, E. (2025).** **The birth and death of liberal democracy in Hungary: The populist logic of polarisation as hegemony**. Helsinki University Press. [https://doi.org/10.33134/pro-et-contra-4](https://doi.org/10.33134/pro-et-contra-4)
+
+PauseAI. (2026, April 5).** **PauseAI proposal**. [https://pauseai.info/proposal](**https://pauseai.info/proposal?utm_source=chatgpt.com**)
+
+Regulation (EU) 2024/1689 of the European Parliament and of the Council of 13 June 2024 laying down harmonised rules on artificial intelligence (Artificial Intelligence Act). (2024).** **Official Journal of the European Union, L, 2024/1689**. [https://eur-lex.europa.eu/eli/reg/2024/1689/oj](**https://eur-lex.europa.eu/eli/reg/2024/1689/oj**)
+
+Sanders, B. (2026, August 10).** **Sanders calls on tech giants to pause development of out-of-control AI**. United States Senate.
+
+Srnicek, N. (2017). **Platform capitalism**. Polity.
+
+Srnicek, N., & Williams, A. (2015).** **Inventing the future: Postcapitalism and a world without work**. Verso.
+
+Toivio, T. (2025a).** **LaclauGPT Multimodal Analysis** **\[Computer software\]. GitHub. [https://github.com/TomiToivio/LaclauGPT-Multimodal-Analysis](**https://github.com/TomiToivio/LaclauGPT-Multimodal-Analysis**)
+
+Toivio, T. (2025b).** **LaclauGPT TikTok Scraper** **\[Computer software\]. GitHub. [https://github.com/TomiToivio/LaclauGPT-TikTok-Scraper](**https://github.com/TomiToivio/LaclauGPT-TikTok-Scraper**)
+
+Weatherby, L. (2025). Language machines: Cultural AI and the end of remainder humanism. University of Minnesota Press.
+
+Xu, Z., Jain, S., & Kankanhalli, M. (2024). **Hallucination is inevitable: An innate limitation of large language models**. arXiv. [https://doi.org/10.48550/arXiv.2401.11817](https://doi.org/10.48550/arXiv.2401.11817?utm_source=chatgpt.com)
+
+Yudkowsky, E., & Soares, N. (2025). **If anyone builds it, everyone dies: Why superhuman AI would kill us all**. Little, Brown and Company.
+
+**Zhang, M. Y., Wang, S., Wei, Y., & Chen, Z. (2026).** When science meets geopolitics: Global AI research network transformation (2000–2025). **Science and Public Policy**. https://doi.org/10.1093/scipol/scag017
+
+Zuboff, S. (2019). **The age of surveillance capitalism: The fight for a human future at the new frontier of power**. PublicAffairs.
