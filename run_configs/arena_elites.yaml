@@ -1,0 +1,43 @@
+# Arena 1: AI elites (paper §3.4)
+# Entrepreneurs, researchers, intellectuals around major AI companies;
+# TESCREAL-adjacent ideological movements. Sources: blogs, forums,
+# podcasts, social media accounts of AI elites.
+
+name: arena-elites
+paper_section: "3.4"
+topic_key: ai-elites
+source_platform: web       # zeeschuimer-captured (X, blogs via 4CAT) + podcasts via transcripts
+language: en
+countries: [US, EU]
+
+memory_dir: null           # null -> LACLAUGPT_MEMORY_DIR or ./data/memory
+model: gemma4:e4b          # resolved by machine tier; gemma4:31b-cloud on weak machines
+ollama_mode: auto          # GPU box -> local Ollama; weak machine (this WSL) -> cloud gemma4:31b-cloud
+ollama_host: ""            # set explicitly (e.g. http://my-gpu-host:11434) when running on a GPU machine
+temperature: 0.0
+num_ctx: 32768             # elite blog posts run 10k-76k chars; 8192 would truncate the source
+num_predict: 4096          # discourse-stage JSON with evidence quotes is large on long posts
+stages:
+  summary: true
+  discourse: true
+  populism: true
+  postprocess: true
+
+# analytic hints injected into prompts (paper §2.2)
+seed_signifiers:
+  - artificial intelligence
+  - existential risk
+  - abundance
+  - stagnation
+  - deceleration
+  - innovation
+seed_actors:
+  - Machine Intelligence Research Institute
+  - Distributed AI Research Institute
+  - Effective Accelerationism
+seed_formations:
+  - accelerationism
+  - x-risk doomerism
+  - critical ai studies
+  - TESCREAL
+  - left techno-optimism

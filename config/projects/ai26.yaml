@@ -1,0 +1,18 @@
+project: ai26
+dataset:
+  title: Ideological contestation over AI
+  languages: [en, fi]
+analysis:
+  laclau: true
+  palonen: true
+  sociotechnical_imaginaries: true
+  sentiment: true
+  topics: true
+  entities: true
+  context_memory: true
+  sna: false
+  ant: false
+  valueflows: false
+  temporal: true
+  multimodal: true
+

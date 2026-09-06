@@ -1,0 +1,15 @@
+machine: roihu
+backends:
+  source: mongodb_remote
+  analysis: arangodb_remote
+  graph: arangodb_remote
+  vector: chromadb_remote
+  cache: redis_remote
+  analytics: duckdb_local
+  blob: filesystem
+services:
+  location: pouta
+  tls_required: true
+runtime:
+  temporary_directory: ${TMPDIR}
+
