@@ -1,0 +1,17 @@
+execution: slurm
+scheduler: slurm
+mode: batch
+recurrence: one_shot
+resources:
+  partition: gpu
+  time: "04:00:00"
+  cpus: 8
+  memory: 64G
+  gpus: 1
+runtime:
+  use_tmpdir: true
+  resume: true
+  checkpoint: true
+  retry_failed_items: true
+  skip_already_processed: true
+

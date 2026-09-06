@@ -1,0 +1,10 @@
+execution: manual
+scheduler: none
+mode: manual
+recurrence: one_shot
+runtime:
+  resume: false
+  checkpoint: true
+  retry_failed_items: false
+  skip_already_processed: true
+

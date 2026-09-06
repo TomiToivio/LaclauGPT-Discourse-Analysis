@@ -1,0 +1,11 @@
+execution: cron
+scheduler: cron
+mode: scheduled
+recurrence: recurring
+schedule: "0 */6 * * *"
+runtime:
+  resume: true
+  checkpoint: true
+  retry_failed_items: true
+  skip_already_processed: true
+
