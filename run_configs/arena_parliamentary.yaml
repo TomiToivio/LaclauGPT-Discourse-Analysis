@@ -1,0 +1,35 @@
+# Arena 3: parliamentary and electoral politics (paper §3.4)
+# AI-related subsets of larger political datasets (election corpora); EU AI Act
+# as governance anchor. Sources: party manifestos, parliamentary debates,
+# Election-corpus TikTok/Instagram subsets, news.
+
+name: arena-parliamentary
+paper_section: "3.4"
+topic_key: ai-parliamentary
+source_platform: tiktok    # election-corpus subset first, then manifestos
+language: fi
+countries: [FI, EU]
+
+memory_dir: null
+model: gemma4:e4b
+ollama_mode: auto          # GPU machine -> local Ollama; weak machine -> cloud
+temperature: 0.0
+stages:
+  summary: true
+  discourse: true
+  populism: true
+  postprocess: true
+
+seed_signifiers:
+  - artificial intelligence
+  - ai regulation
+  - innovation
+  - employment
+  - security
+  - democracy
+seed_actors: []             # parties emerge from the data; NER + resolution
+seed_formations:
+  - anti-ai backlash
+  - left techno-optimism
+  - accelerationism
+governance_anchor: "Regulation (EU) 2024/1689 (AI Act)"

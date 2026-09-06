@@ -1,0 +1,10 @@
+execution: agent
+scheduler: none
+mode: agent_triggered
+recurrence: one_shot
+runtime:
+  resume: true
+  checkpoint: true
+  retry_failed_items: true
+  skip_already_processed: true
+
