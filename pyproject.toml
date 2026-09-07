@@ -1,0 +1,93 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "laclaugpt-discourse-analysis"
+version = "2.0.0"
+description = "Evidence-linked computational discourse analysis with Laclau, Mouffe and Palonen"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "CC0-1.0"
+authors = [
+  { name = "Tomi Toivio" },
+]
+dependencies = [
+  "pydantic>=2.7,<3",
+  "PyYAML>=6.0",
+  "pandas>=2.1,<3",
+  "ollama>=0.4",
+  "networkx>=3.2",
+]
+
+[project.optional-dependencies]
+collector = [
+  "websocket-client>=1.8",
+  "tzdata>=2024.1",
+]
+test = [
+  "pytest>=8.0",
+]
+dev = [
+  "pytest>=8.0",
+  "build>=1.2",
+]
+nlp = [
+  "spacy>=3.7",
+  "scikit-learn>=1.4",
+  "gensim>=4.3",
+  "sentence-transformers>=3.0",
+  "statsmodels>=0.14",
+]
+services = [
+  "pymongo>=4.6",
+  "python-arango>=8.0",
+  "redis>=5.0",
+  "duckdb>=1.0",
+  "chromadb>=0.5",
+]
+parquet = [
+  "pyarrow>=15",
+]
+inception = [
+  "dkpro-cassis>=0.10",
+]
+
+[project.scripts]
+laclaugpt = "laclaugpt.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+py-modules = [
+  "pipeline",
+  "llm",
+  "run_config",
+  "projects",
+  "memory",
+  "seed_codebook",
+  "laclaugpt_processor",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+  "laclaugpt*",
+  "collector*",
+  "*_adapter*",
+  "prompts*",
+]
+exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+collector = [
+  "config/*.yaml",
+  "browser/*.js",
+  "browser/*.json",
+  "browser/modules/*.js",
+  "firefox/extension/*.js",
+  "firefox/extension/*.json",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
