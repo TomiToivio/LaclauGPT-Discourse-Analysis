@@ -6,6 +6,9 @@
  * responses, copy the response body to the local collector backend,
  * and leave the website's own response stream unchanged.
  *
+ * The content script can also forward embedded page-state JSON that never
+ * appears as a separate XHR. Both paths converge on the same local backend.
+ *
  * Academic research use only.
  */
 
@@ -39,17 +42,16 @@
     }
   }
 
-  async function sendCapture(details, platform, body) {
-    if (!body) return;
-    const platformUrl = await tabUrlFor(details.tabId);
+  async function postCapture({ platform, apiUrl, platformUrl, body }) {
+    if (!platform || body === null || body === undefined || body === "") return false;
     try {
       const response = await fetch(`${BACKEND_URL}/capture`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           platform,
-          api_url: details.url,
-          platform_url: platformUrl,
+          api_url: apiUrl || platformUrl || "",
+          platform_url: platformUrl || apiUrl || "",
           captured_at: new Date().toISOString(),
           body,
         }),
@@ -59,12 +61,25 @@
           "[laclaugpt-collector] backend rejected capture",
           platform,
           response.status,
-          details.url,
+          apiUrl || platformUrl,
         );
+        return false;
       }
+      return true;
     } catch (error) {
       console.warn("[laclaugpt-collector] backend unavailable", error);
+      return false;
     }
+  }
+
+  async function sendCapture(details, platform, body) {
+    const platformUrl = await tabUrlFor(details.tabId);
+    return postCapture({
+      platform,
+      apiUrl: details.url,
+      platformUrl,
+      body,
+    });
   }
 
   function captureResponse(details) {
@@ -117,6 +132,32 @@
     },
     ["blocking"],
   );
+
+  // Embedded page-state path. content.js sends already-parsed JSON, so the
+  // local backend can use the same Python parser/normalisation/store pipeline
+  // as network captures without teaching the extension any discourse logic.
+  browser.runtime.onMessage.addListener(async (message, sender) => {
+    if (message?.type !== "embedded") return undefined;
+    if (!(["tiktok", "instagram"].includes(message.platform))) {
+      return { accepted: 0 };
+    }
+
+    const payloads = Array.isArray(message.payloads) ? message.payloads : [];
+    const pageUrl = sender?.tab?.url || message.page_url || "";
+    let accepted = 0;
+
+    for (const payload of payloads) {
+      if (!payload || payload.body === undefined || payload.body === null) continue;
+      const ok = await postCapture({
+        platform: message.platform,
+        apiUrl: `${pageUrl}#embedded:${payload.kind || "json"}`,
+        platformUrl: pageUrl,
+        body: payload.body,
+      });
+      if (ok) accepted += 1;
+    }
+    return { accepted };
+  });
 
   // Keep the backend status fresh without generating collector captures.
   setInterval(() => {
