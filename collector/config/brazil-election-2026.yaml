@@ -1,17 +1,16 @@
-# Brazilian election study 2026 — LaclauGPT social-media collection
+# LaclauGPT Social Media Collector — Brazilian election 2026 study
 #
-# Study: seven main presidential candidates + two parties (PT, PL) on
-# Instagram, TikTok and X. 7 September – 10 October 2026, inclusive.
+# Issue #20: configuration as data, NOT hard-coded logic.
+# Sampling frame (source categories, NOT ideological labels):
+#   six named presidential candidates + 2 party accounts on 3 platforms.
+# NOTE (issue #20): the study design mentions SEVEN candidates; the supplied
+# list has SIX. The seventh is NOT invented — flagged in TODO.md.
 #
-# NOTE (issue #20): the researcher says SEVEN main presidential candidates,
-# but the supplied account list names SIX. The seventh candidate is NOT
-# invented here — add it below when the researchers supply the account,
-# and `expected_candidates` keeps flagging the gap until then.
+# Window & timezone per issue body. Handles stored EXACTLY as supplied —
+# no silent corrections; resolution failures are reported, not fixed.
 
-study: brazil-presidential-2026
+study: brazil-2026
 timezone: America/Sao_Paulo
-expected_candidates: 7
-
 window:
   start: "2026-09-07"
   end: "2026-10-10"
@@ -24,59 +23,83 @@ platforms:
     enabled: true
     base_urls:
       - "https://x.com/{handle}"
-      - "https://x.com/{handle}/with_replies"
+      - "https://x.com/{handle}/with_replies"   # only when configured below
+    with_replies: false
   instagram:
     enabled: true
-    base_urls:
-      - "https://www.instagram.com/{handle}/"
-      - "https://www.instagram.com/{handle}/reels/"
+    base_urls: ["https://www.instagram.com/{handle}/"]
+
+media:
+  download: true          # optional per issue; queued, never blocking capture
+  storage: filesystem      # interface supports later object-storage backends
+  verify_checksums: true
 
 candidates:
-  - name: Lula
+  - id: lula
+    name: Lula
     party: PT
-    handles:
+    accounts:
       instagram: [lulaoficial, brasilcomlula]
       tiktok: [lulaoficial, brasilcomlula_]
       x: [LulaOficial, OBrasilComLula]
-  - name: Flávio Bolsonaro
+
+  - id: flavio_bolsonaro
+    name: Flávio Bolsonaro
     party: PL
-    handles:
+    accounts:
       instagram: [flaviobolsonaro]
       tiktok: [flaviobolsonaro]
       x: [flaviobolsonaro]
-  - name: Romeu Zema
+
+  - id: romeu_zema
+    name: Romeu Zema
     party: NOVO
-    handles:
+    accounts:
       instagram: [romeuzemaoficial]
       tiktok: [romeuzemaoficial]
       x: [RomeuZema]
-  - name: Ronaldo Caiado
+
+  - id: ronaldo_caiado
+    name: Ronaldo Caiado
     party: PSD
-    handles:
+    accounts:
       instagram: [ronaldocaiado]
       tiktok: [ronaldocaiado]
       x: [ronaldocaiado]
-  - name: Renan Santos
+
+  - id: renan_santos
+    name: Renan Santos
     party: MISSÃO
-    handles:
+    accounts:
       instagram: [renansantosmbl]
       tiktok: [renansantosmbl]
       x: [RenanSantosMBL]
-  - name: Augusto Cury
+
+  - id: augusto_cury
+    name: Augusto Cury
     party: AVANTE
-    handles:
+    accounts:
       instagram: [augustocury]
       tiktok: [augustocuryoficial]
       x: [augustocury]
 
+  # TODO (issue #20): the study design says SEVEN candidates; six supplied.
+  # Do NOT invent the seventh. Add here when the researcher names them:
+  # - id: seventh_candidate
+  #   name: ???
+  #   party: ???
+  #   accounts: {instagram: [], tiktok: [], x: []}
+
 parties:
-  - name: PT
-    handles:
+  - id: pt
+    name: PT
+    accounts:
       instagram: [ptbrasil]
       tiktok: [ptbrasil]
       x: [ptbrasil]
-  - name: PL
-    handles:
+  - id: pl
+    name: PL
+    accounts:
       instagram: [plnacional22]
       tiktok: [plnacional_]
       x: [plnacional_]
