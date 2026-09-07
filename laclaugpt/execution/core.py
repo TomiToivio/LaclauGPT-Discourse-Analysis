@@ -6,7 +6,10 @@ import json
 import os
 import socket
 import sqlite3
-from datetime import datetime, timezone
+import uuid
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from enum import Enum
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
@@ -14,6 +17,24 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from laclaugpt.config import compose_config
 from laclaugpt.model import Run
+
+
+class ClaimReason(str, Enum):
+    ACQUIRED = "acquired"
+    BUSY = "busy"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True)
+class ClaimResult:
+    """Result of trying to acquire exclusive ownership of one document."""
+    claimed: bool
+    reason: ClaimReason
+    token: str | None = None
+
+    def __bool__(self) -> bool:
+        return self.claimed
 
 
 class EffectiveRunConfig(BaseModel):
@@ -45,7 +66,7 @@ class RunStore:
     def __init__(self, path: str | Path):
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.connection = sqlite3.connect(path)
+        self.connection = sqlite3.connect(path, timeout=30)
         self.connection.execute("""CREATE TABLE IF NOT EXISTS runs (
             run_id TEXT PRIMARY KEY, project TEXT, machine TEXT, execution_mode TEXT,
             started_at TEXT, finished_at TEXT, status TEXT, hostname TEXT,
@@ -53,8 +74,11 @@ class RunStore:
             pipeline_version TEXT, config_fingerprint TEXT)""")
         self.connection.execute("""CREATE TABLE IF NOT EXISTS checkpoints (
             config_fingerprint TEXT, source_id TEXT, run_id TEXT, status TEXT,
-            attempts INTEGER DEFAULT 1, updated_at TEXT, error TEXT,
+            attempts INTEGER DEFAULT 1, updated_at TEXT, error TEXT, claim_token TEXT,
             PRIMARY KEY(config_fingerprint, source_id))""")
+        columns = {row[1] for row in self.connection.execute("PRAGMA table_info(checkpoints)")}
+        if "claim_token" not in columns:
+            self.connection.execute("ALTER TABLE checkpoints ADD COLUMN claim_token TEXT")
         self.connection.commit()
 
     def create_run(self, config: EffectiveRunConfig, pipeline_version: str,
@@ -85,35 +109,65 @@ class RunStore:
         return run.model_copy(update={"status": status, "finished_at": finished})
 
     def claim(self, config: EffectiveRunConfig, run_id: str, source_id: str,
-              *, retry_failed: bool = False, skip_completed: bool = True) -> bool:
+              *, retry_failed: bool = False, skip_completed: bool = True,
+              stale_after: timedelta | None = None) -> ClaimResult:
         fingerprint = config.fingerprint()
-        row = self.connection.execute(
-            "SELECT status, attempts FROM checkpoints WHERE config_fingerprint=? AND source_id=?",
-            (fingerprint, source_id)).fetchone()
-        if row and row[0] == "completed" and skip_completed:
-            return False
-        if row and row[0] == "failed" and not retry_failed:
-            return False
-        now = datetime.now(timezone.utc).isoformat()
-        if row:
-            self.connection.execute(
-                "UPDATE checkpoints SET run_id=?, status='running', attempts=?, updated_at=?, error=NULL "
+        now = datetime.now(timezone.utc)
+        token = uuid.uuid4().hex
+        try:
+            # A reserved lock makes the read/decision/write sequence atomic across
+            # independent SQLite connections and processes.
+            self.connection.execute("BEGIN IMMEDIATE")
+            row = self.connection.execute(
+                "SELECT status, attempts, updated_at FROM checkpoints "
                 "WHERE config_fingerprint=? AND source_id=?",
-                (run_id, row[1] + 1, now, fingerprint, source_id))
-        else:
-            self.connection.execute("INSERT INTO checkpoints VALUES (?,?,?,?,?,?,?)",
-                (fingerprint, source_id, run_id, "running", 1, now, None))
-        self.connection.commit()
-        return True
+                (fingerprint, source_id)).fetchone()
+            if row and row[0] == "completed" and skip_completed:
+                self.connection.commit()
+                return ClaimResult(False, ClaimReason.COMPLETED)
+            if row and row[0] == "failed" and not retry_failed:
+                self.connection.commit()
+                return ClaimResult(False, ClaimReason.FAILED)
+            if row and row[0] == "running":
+                updated_at = datetime.fromisoformat(row[2])
+                is_stale = stale_after is not None and now - updated_at >= stale_after
+                if not is_stale:
+                    self.connection.commit()
+                    return ClaimResult(False, ClaimReason.BUSY)
+            if row:
+                self.connection.execute(
+                    "UPDATE checkpoints SET run_id=?, status='running', attempts=?, "
+                    "updated_at=?, error=NULL, claim_token=? "
+                    "WHERE config_fingerprint=? AND source_id=?",
+                    (run_id, row[1] + 1, now.isoformat(), token, fingerprint, source_id))
+            else:
+                self.connection.execute(
+                    "INSERT INTO checkpoints "
+                    "(config_fingerprint, source_id, run_id, status, attempts, updated_at, error, claim_token) "
+                    "VALUES (?,?,?,?,?,?,?,?)",
+                    (fingerprint, source_id, run_id, "running", 1,
+                     now.isoformat(), None, token))
+            self.connection.commit()
+            return ClaimResult(True, ClaimReason.ACQUIRED, token)
+        except Exception:
+            self.connection.rollback()
+            raise
 
     def checkpoint(self, config: EffectiveRunConfig, run_id: str, source_id: str,
-                   status: str = "completed", error: str | None = None) -> None:
-        self.connection.execute(
-            "UPDATE checkpoints SET run_id=?, status=?, updated_at=?, error=? "
-            "WHERE config_fingerprint=? AND source_id=?",
-            (run_id, status, datetime.now(timezone.utc).isoformat(), error,
-             config.fingerprint(), source_id))
+                   status: str = "completed", error: str | None = None,
+                   *, claim_token: str | None = None) -> bool:
+        ownership = "run_id=?"
+        parameters: list[Any] = [status, datetime.now(timezone.utc).isoformat(), error,
+                                 config.fingerprint(), source_id, run_id]
+        if claim_token is not None:
+            ownership += " AND claim_token=?"
+            parameters.append(claim_token)
+        cursor = self.connection.execute(
+            "UPDATE checkpoints SET status=?, updated_at=?, error=? "
+            "WHERE config_fingerprint=? AND source_id=? AND status='running' AND " + ownership,
+            parameters)
         self.connection.commit()
+        return cursor.rowcount == 1
 
 
 class ExecutionCoordinator:
@@ -140,16 +194,22 @@ class ExecutionCoordinator:
         results = []
         for item in items:
             source_id = getattr(item, "source_id", None) or item["source_id"]
-            if not self.store.claim(self.config, run.run_id, source_id,
+            lease_seconds = policy.get("claim_lease_seconds")
+            claim = self.store.claim(self.config, run.run_id, source_id,
                     retry_failed=policy.get("retry_failed_items", False),
-                    skip_completed=policy.get("skip_already_processed", True)):
+                    skip_completed=policy.get("skip_already_processed", True),
+                    stale_after=(timedelta(seconds=lease_seconds)
+                                 if lease_seconds is not None else None))
+            if not claim:
                 continue
             try:
                 result = analyzer(item, run.run_id)
                 results.append(_attach_run_id(result, run.run_id))
-                self.store.checkpoint(self.config, run.run_id, source_id)
+                self.store.checkpoint(self.config, run.run_id, source_id,
+                                      claim_token=claim.token)
             except Exception as exc:
-                self.store.checkpoint(self.config, run.run_id, source_id, "failed", str(exc))
+                self.store.checkpoint(self.config, run.run_id, source_id, "failed", str(exc),
+                                      claim_token=claim.token)
                 if not policy.get("retry_failed_items", False):
                     raise
         return results

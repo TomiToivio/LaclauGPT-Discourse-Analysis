@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import tempfile
+from datetime import timedelta
 from pathlib import Path
 
 from laclaugpt.execution.core import EffectiveRunConfig, RunStore
@@ -31,16 +32,18 @@ def run_canonical_pipeline(config: EffectiveRunConfig, run: Run, store: RunStore
 
     frame = pd.read_csv(input_path)
     policy = config.orchestration.get("runtime", {})
-    claimed: list[str] = []
+    claimed: dict[str, str] = {}
     keep = []
     for index, row in frame.iterrows():
         source_id = document_key(row.to_dict())
         accepted = store.claim(config, run.run_id, source_id,
             retry_failed=policy.get("retry_failed_items", False),
-            skip_completed=policy.get("skip_already_processed", True))
-        keep.append(accepted)
+            skip_completed=policy.get("skip_already_processed", True),
+            stale_after=(timedelta(seconds=policy["claim_lease_seconds"])
+                         if policy.get("claim_lease_seconds") is not None else None))
+        keep.append(bool(accepted))
         if accepted:
-            claimed.append(source_id)
+            claimed[source_id] = accepted.token
     if not claimed:
         return {"run_id": run.run_id, "processed": 0, "skipped": len(frame),
                 "annotations": []}
@@ -57,11 +60,12 @@ def run_canonical_pipeline(config: EffectiveRunConfig, run: Run, store: RunStore
         for annotation in annotations:
             annotation.run_id = run.run_id
         to_jsonl(annotations, str(output))
-        for source_id in claimed:
-            store.checkpoint(config, run.run_id, source_id)
+        for source_id, claim_token in claimed.items():
+            store.checkpoint(config, run.run_id, source_id, claim_token=claim_token)
     except Exception as exc:
-        for source_id in claimed:
-            store.checkpoint(config, run.run_id, source_id, "failed", str(exc))
+        for source_id, claim_token in claimed.items():
+            store.checkpoint(config, run.run_id, source_id, "failed", str(exc),
+                             claim_token=claim_token)
         raise
     return {"run_id": run.run_id, "processed": len(claimed),
             "skipped": len(frame) - len(claimed), "output": str(output),
