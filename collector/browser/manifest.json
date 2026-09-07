@@ -2,7 +2,7 @@
   "id": "laclaugpt-collector@laclaugpt.org",
   "name": "LaclauGPT Social Media Collector",
   "version": "0.1.0",
-  "description": "LaclauGPT collector — captures public TikTok, Instagram and X network traffic for discourse research. Adapted from Zeeschuimer (DMI, MIT) and the historical LaclauGPT-TikTok-Scraper (CC0).",
+  "description": "LaclauGPT browser collector for public TikTok, Instagram and X source material used in discourse research.",
   "author": "Tomi Toivio",
   "homepage_url": "https://github.com/TomiToivio/LaclauGPT-Discourse-Analysis",
   "manifest_version": 2,
@@ -18,7 +18,8 @@
     "*://*.twitter.com/*"
   ],
   "background": {
-    "scripts": ["background.js"]
+    "scripts": ["background.js"],
+    "type": "module"
   },
   "content_scripts": [
     {
