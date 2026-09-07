@@ -21,10 +21,10 @@ jobs:
           python-version: "3.12"
           cache: pip
 
-      - name: Install repository with test extra
+      - name: Install repository for full offline suite
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[test]"
+          python -m pip install -e ".[collector,test]"
           python -m pip check
 
       - name: Compile shipped Python
