@@ -39,6 +39,7 @@ therefore do not need to choose between memory generations.
 | Concern | Current path | Status |
 |---|---|---|
 | Public CLI | `python -m laclaugpt.cli` / `laclaugpt` | **Canonical entry point** |
+| Configuration chain | `config/projects/` → `config/arenas/` → `config/machines/` → `config/execution/` | **Single runtime configuration chain** |
 | Execution/orchestration | `laclaugpt/canonical_pipeline.py`, `laclaugpt/execution/` | **Canonical orchestration layer** |
 | Evidence-linked paper analysis | root `pipeline.py` | **Current analysis implementation**, called by the canonical dispatcher |
 | Domain model | `laclaugpt/model/` | **Canonical storage-neutral domain model for new code** |
@@ -50,7 +51,17 @@ therefore do not need to choose between memory generations.
 | Package adapters/integrations | `laclaugpt/adapters/`, `laclaugpt/integrations/` | **Shipped implementations**, using `laclaugpt.model` for canonical package objects |
 | Older model package | `laclaugpt_model/` | **Frozen compatibility model**; emits a deprecation warning and is not extended |
 | Root memory shim | `memory.py` | **Legacy compatibility only**; replacement is `laclaugpt.memory` |
-| Other compatibility helpers | `projects.py`, `run_config.py` | Supported by the current paper pipeline, but not the primary package API |
+| Root run-config adapter | `run_config.py` | **Pipeline adapter + legacy YAML compatibility**, not a second configuration authority |
+
+The canonical analysis chain is:
+
+`project -> arena/dataset -> machine -> execution -> effective run config -> run`
+
+Project profiles own the authoritative analysis-module switches. Arena profiles
+own dataset/source metadata, analytic hints, model options and data-boundary
+policy. Machine profiles own infrastructure and execution profiles own scheduler,
+retry and checkpoint policy. See
+[`docs/CANONICAL_CONFIGURATION.md`](docs/CANONICAL_CONFIGURATION.md).
 
 The older `laclaugpt_model/` store/projection helpers remain because they do not
 yet have exact tested canonical replacements. Historical data and scripts stay
@@ -74,7 +85,8 @@ pyproject.toml          package metadata, base dependencies and optional extras
 pipeline.py             lower-level evidence-linked analysis pipeline
 laclaugpt/              canonical package: model, memory facade, config,
                         adapters, execution, integrations and CLI
-run_config.py           compatibility YAML loader for paper arena runs
+run_config.py           adapter from EffectiveRunConfig to the root pipeline;
+                        also loads historical/custom YAML for compatibility
 projects.py             compatibility project-preset helper; canonical project
                         YAML lives in config/projects/
 llm.py                  machine-tier LLM routing (local / cloud / external)
@@ -84,15 +96,15 @@ laclaugpt_interchange/  interchange schema (JSONL, Pydantic), schema 1.3
 laclaugpt_memory/       persistent Context Memory implementation
 laclaugpt_model/        frozen older model/store/projection compatibility package
 prompts/                theory-guided prompt modules
-run_configs/            paper arena YAMLs: elites / grassroots / parliamentary
-config/                 canonical project, machine and execution profiles
+run_configs/            deprecated AI arena YAML aliases + historical compatibility
+config/                 canonical project, arena, machine and execution profiles
 collector/              social-media collection subsystem and browser extensions
 dats_adapter/
 dna_adapter/
 inception_adapter/
 minet_adapter/          shipped format-specific adapter modules
 tests/                  public offline regression tests + synthetic fixture
-docs/                   implementation audit, interop specification and design plans
+docs/                   implementation audit, config/interop specs and design plans
 paper/PAPER.md          current manuscript
 LICENSE                 repository license
 README.md               this file
@@ -192,15 +204,26 @@ clients. Backend selection raises an explicit configuration/import error when a
 requested optional service is unavailable rather than failing during an
 unrelated import.
 
-Run an analysis after configuring Ollama and supplying your own CSV:
+Run an analysis after configuring Ollama and supplying your own CSV plus an
+explicit arena:
 
 ```bash
-python -m laclaugpt.cli analyze my_corpus.csv --project ai26 --machine roihu \
-  --execution cli --pipeline-config run_configs/arena_elites.yaml
+python -m laclaugpt.cli analyze my_corpus.csv \
+  --project ai26 --arena elites --machine roihu --execution cli
 ```
 
-The root `pipeline.py` command remains available for compatibility and direct
-paper-pipeline development, but new users should prefer `python -m laclaugpt.cli`.
+Inspect the fully composed configuration without changing the chain:
+
+```bash
+python -m laclaugpt.cli analyze my_corpus.csv \
+  --project ai26 --arena grassroots --machine roihu --execution cli --show-config
+```
+
+The three historical `run_configs/arena_*.yaml` paths remain accepted through
+`--pipeline-config` as deprecated compatibility aliases, but new runs should use
+`--arena` directly. The root `pipeline.py` implementation remains available for
+compatibility and direct development; canonical execution reaches it through an
+adapter built from the same `EffectiveRunConfig` used by CLI and schedulers.
 
 ## Tests and CI
 
@@ -214,9 +237,9 @@ python -m pytest -q tests
 ```
 
 `tests/fixtures/synthetic_ai.csv` is a small public synthetic corpus. The mocked
-end-to-end test runs the real pipeline I/O, Context Memory and success-artifact
-publication path while replacing only model calls, then round-trips the emitted
-current-schema annotation JSONL.
+end-to-end tests run the real pipeline I/O, canonical configuration adapter,
+Context Memory and success-artifact publication path while replacing only model
+calls, then round-trip the emitted current-schema annotation JSONL.
 
 `.github/workflows/ci.yml` runs on every pull request and every push to `main`.
 Its core job installs `.[collector,test]`, compiles the shipped Python surface,
@@ -230,6 +253,10 @@ The consolidation is intentionally non-destructive:
 
 - schema-1.3 interchange files remain readable;
 - existing `laclaugpt_memory` SQLite stores keep their on-disk schema;
+- existing RunStore databases are migrated in place with nullable
+  `analysis_profile` and `arena_id` columns;
+- the three `run_configs/arena_*.yaml` files map to canonical arena profiles;
+- arbitrary historical/custom run YAML remains readable through `run_config.py`;
 - `memory.py` remains a warning-emitting shim for legacy callers;
 - `laclaugpt_model` remains frozen while its store/projection helpers are still
   needed for reproducibility;
@@ -237,6 +264,8 @@ The consolidation is intentionally non-destructive:
 
 ## Documentation status
 
+- [`docs/CANONICAL_CONFIGURATION.md`](docs/CANONICAL_CONFIGURATION.md) defines
+  the project/arena/machine/execution ownership boundaries and migration policy.
 - [`docs/PAPER_IMPLEMENTATION_AUDIT.md`](docs/PAPER_IMPLEMENTATION_AUDIT.md)
   records what the current code actually implements and the commit audited.
 - [`docs/INTEROPERABILITY_SPEC.md`](docs/INTEROPERABILITY_SPEC.md) is a design
