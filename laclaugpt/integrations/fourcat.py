@@ -1,13 +1,18 @@
-"""4CAT and Zeeschuimer corpus interchange."""
+"""4CAT and Zeeschuimer corpus interchange plus canonical 4CAT execution."""
 from __future__ import annotations
 
 import csv
 import json
+import re
+import shutil
 from pathlib import Path
 from typing import Any, Iterable
 
 from laclaugpt.identity import normalize_url, source_identity
 from laclaugpt.model import SourceItem
+
+
+_TEXT_FIELDS = ("text", "body", "content", "caption", "description", "transcript")
 
 
 def _source(row: dict[str, Any], platform: str | None = None) -> SourceItem:
@@ -66,3 +71,118 @@ def export_fourcat(items: Iterable[SourceItem], path: str | Path,
         writer.writeheader(); writer.writerows(rows)
     return len(rows)
 
+
+def normalize_fourcat_rows(rows: Iterable[dict[str, Any]], *,
+                           default_platform: str = "",
+                           default_language: str = "") -> list[dict[str, Any]]:
+    """Normalize only the 4CAT boundary fields needed by the shared pipeline.
+
+    Original row fields are preserved. Rows without analysable text are skipped,
+    matching the historical processor's behaviour before canonical dispatch.
+    """
+    normalized: list[dict[str, Any]] = []
+    for index, original in enumerate(rows, start=1):
+        row = dict(original)
+        body = next((str(row.get(field) or "").strip()
+                     for field in _TEXT_FIELDS if str(row.get(field) or "").strip()), "")
+        if not body:
+            continue
+        if not str(row.get("id") or row.get("document_id") or row.get("post_id") or "").strip():
+            row["id"] = f"4cat-{index}"
+        if not str(row.get("text") or "").strip():
+            # Keep the original body/content field as well; ``text`` gives the
+            # canonical CSV path one stable text-bearing column.
+            row["text"] = body
+        if default_platform and not str(row.get("platform") or row.get("source_platform") or "").strip():
+            row["platform"] = default_platform
+        if default_language and not str(row.get("language") or "").strip():
+            row["language"] = default_language
+        for key, value in list(row.items()):
+            if isinstance(value, (dict, list, tuple)):
+                row[key] = json.dumps(value, ensure_ascii=False, default=str)
+        normalized.append(row)
+    return normalized
+
+
+def _safe_key(value: str) -> str:
+    value = re.sub(r"[^A-Za-z0-9_.-]+", "-", value.strip()).strip("-.")
+    return value or "4cat"
+
+
+def run_fourcat_rows(rows: Iterable[dict[str, Any]], *, output_path: str | Path,
+                     dataset_key: str = "4cat", project: str = "ai26",
+                     arena: str = "grassroots", machine: str = "roihu",
+                     execution: str = "cli", model: str | None = None,
+                     memory_dir: str | Path | None = None,
+                     topic_key: str | None = None,
+                     default_platform: str = "", default_language: str = "",
+                     work_dir: str | Path | None = None) -> dict[str, Any]:
+    """Run 4CAT rows through the exact canonical LaclauGPT execution path.
+
+    This is the testable adapter boundary used by the 4CAT processor. It owns
+    only row normalization and 4CAT filesystem conveniences; analysis, stage
+    selection, Context Memory, provenance and interchange serialization are all
+    delegated to ``EffectiveRunConfig`` + ``run_canonical_pipeline``.
+    """
+    from laclaugpt.canonical_pipeline import run_canonical_pipeline
+    from laclaugpt.execution import EffectiveRunConfig, ExecutionCoordinator, RunStore
+
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    normalized = normalize_fourcat_rows(
+        rows, default_platform=default_platform, default_language=default_language
+    )
+    if not normalized:
+        output.write_text("", encoding="utf-8")
+        return {
+            "run": None,
+            "result": {"processed": 0, "skipped": 0, "annotations": [], "output": str(output)},
+            "config": None,
+            "work_dir": None,
+        }
+
+    namespace = _safe_key(dataset_key)
+    root = Path(work_dir) if work_dir is not None else output.parent / f".{namespace}.laclaugpt"
+    root.mkdir(parents=True, exist_ok=True)
+    input_snapshot = root / "fourcat-input.csv"
+
+    import pandas as pd
+    pd.DataFrame(normalized).to_csv(input_snapshot, index=False)
+
+    dataset_overrides: dict[str, Any] = {
+        "input": str(input_snapshot),
+        "output": str(output),
+        "storage": {"work_dir": str(root)},
+    }
+    if memory_dir:
+        dataset_overrides["storage"]["memory_dir"] = str(memory_dir)
+    if topic_key and topic_key != "generic":
+        dataset_overrides["topic_key"] = topic_key
+    if model and model != "auto":
+        dataset_overrides["model"] = {"text": model, "vision": model}
+
+    config = EffectiveRunConfig.compose(
+        project, machine, execution,
+        overrides={"dataset": dataset_overrides},
+        arena=arena,
+    )
+    store = RunStore(root / "runs.sqlite3")
+    try:
+        coordinator = ExecutionCoordinator(config, store, run_canonical_pipeline)
+        run_record, result = coordinator.execute()
+    finally:
+        store.connection.close()
+        # 4CAT already owns the source dataset. Do not retain an unnecessary
+        # second plaintext corpus copy after the canonical run finishes.
+        input_snapshot.unlink(missing_ok=True)
+
+    canonical_review = root / "logs" / "glossary_review.csv"
+    if canonical_review.exists():
+        shutil.copyfile(canonical_review, Path(str(output) + ".review.csv"))
+
+    return {
+        "run": run_record,
+        "result": result,
+        "config": config,
+        "work_dir": root,
+    }
