@@ -13,6 +13,7 @@ countries: [FI, EU]
 memory_dir: null
 model: gemma4:e4b
 ollama_mode: auto          # GPU machine -> local Ollama; weak machine -> cloud
+allow_cloud_fallback: false # local routing is a hard data boundary unless explicitly changed
 temperature: 0.0
 stages:
   summary: true

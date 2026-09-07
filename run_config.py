@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Validated run configuration for paper-driven LaclauGPT analyses.
 
-The paper defines three empirical arenas.  Their YAML files are the canonical
+The paper defines three empirical arenas. Their YAML files are the canonical
 run specifications; this module loads them instead of silently falling back to
 the old hard-coded single-topic configuration.
 """
@@ -40,6 +40,9 @@ class RunConfig:
     # cloud (too little GPU / micromodels only). auto probes the endpoint.
     ollama_mode: str = "auto"          # auto | local | cloud | external
     ollama_host: str = ""              # e.g. http://my-gpu-host:11434; default 127.0.0.1:11434
+    # Data-boundary policy: a local run must fail locally unless the dataset
+    # configuration explicitly permits one retry through Ollama Cloud.
+    allow_cloud_fallback: bool = False
     temperature: float = 0.0
     num_ctx: int = 8192
     num_predict: int = 2048
@@ -81,6 +84,7 @@ class RunConfig:
             "model_vision": self.model_vision,
             "ollama_mode": self.ollama_mode,
             "ollama_host": self.ollama_host,
+            "allow_cloud_fallback": self.allow_cloud_fallback,
             "temperature": self.temperature,
             "num_ctx": self.num_ctx,
             "num_predict": self.num_predict,
@@ -161,6 +165,7 @@ def load_run_config(path: str | Path) -> RunConfig:
         model_text=str(raw.get("model") or "gemma4:e4b"),
         ollama_mode=str(raw.get("ollama_mode", "auto")).casefold(),
         ollama_host=str(raw.get("ollama_host", "")),
+        allow_cloud_fallback=bool(raw.get("allow_cloud_fallback", False)),
         temperature=float(raw.get("temperature", 0.0)),
         num_ctx=int(raw.get("num_ctx", 8192)),
         num_predict=int(raw.get("num_predict", 2048)),
