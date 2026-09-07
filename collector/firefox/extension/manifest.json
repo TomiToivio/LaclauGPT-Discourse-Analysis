@@ -1,0 +1,31 @@
+{
+  "manifest_version": 2,
+  "name": "LaclauGPT Brazil Collector",
+  "version": "0.1.0",
+  "description": "Social-media API response capture for the LaclauGPT Brazil 2026 election study. Academic research use only.",
+  "permissions": [
+    "<all_urls>",
+    "webRequest",
+    "webRequestBlocking",
+    "tabs",
+    "storage",
+    "alarms"
+  ],
+  "background": {
+    "scripts": ["capture.js", "navigation.js"],
+    "persistent": true
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.tiktok.com/*", "*://*.instagram.com/*", "*://*.x.com/*", "*://*.twitter.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "laclaugpt-brazil-collector@helsinki.fi",
+      "strict_min_version": "115.0"
+    }
+  }
+}
