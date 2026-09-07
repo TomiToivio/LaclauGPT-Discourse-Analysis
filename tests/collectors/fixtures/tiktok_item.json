@@ -1,0 +1,32 @@
+{
+  "id": "7400000000000000001",
+  "desc": "Synthetic campaign message #test",
+  "createTime": "1725724800",
+  "author": {
+    "uniqueId": "synthetic_user",
+    "nickname": "Synthetic User",
+    "avatarThumb": "https://example.com/avatar.jpg"
+  },
+  "authorStats": {"followerCount": 1000, "diggCount": 50000, "videoCount": 300},
+  "stats": {"diggCount": 1234, "commentCount": 56, "shareCount": 78, "playCount": 90000},
+  "video": {
+    "downloadAddr": "https://example.com/video.mp4",
+    "cover": "https://example.com/cover.jpg?x-expires=9999999999",
+    "shareCover": ["https://example.com/share.jpg?x-expires=9999999999"],
+    "duration": 30,
+    "height": 1920,
+    "width": 1080
+  },
+  "music": {"id": 777, "title": "Synthetic Anthem", "authorName": "Synth Artist",
+            "playUrl": "https://example.com/music.mp3", "coverLarge": "https://example.com/music.jpg"},
+  "textExtra": [{"hashtagName": "test"}, {"hashtagName": "synthetic"},
+                {"awemeId": "", "hashtagName": null}],
+  "challenges": [{"title": "test"}],
+  "diversificationLabels": ["LabelOne", "LabelTwo"],
+  "locationCreated": "São Paulo, Brazil",
+  "effectStickers": [{"name": "SynFX"}],
+  "warnInfo": [{"text": "warning text"}],
+  "isAd": false,
+  "maskType": 0,
+  "duetInfo": {"duetFromId": "0"}
+}
