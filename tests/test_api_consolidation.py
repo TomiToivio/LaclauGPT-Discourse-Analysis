@@ -12,7 +12,14 @@ from pydantic import ValidationError
 
 from laclaugpt.adapters.interchange import interchange_to_v2
 from laclaugpt.model import DiscursiveRoleAssignment
-from laclaugpt_interchange import Discourse, DocumentAnnotation, MemoryRef, to_jsonl
+from laclaugpt_interchange import (
+    Affect,
+    Articulation,
+    Discourse,
+    DocumentAnnotation,
+    MemoryRef,
+    to_jsonl,
+)
 
 
 class ApiConsolidationTests(unittest.TestCase):
@@ -57,15 +64,34 @@ class ApiConsolidationTests(unittest.TestCase):
         self.assertTrue(any("legacy compatibility shim" in str(w.message) for w in caught))
 
     def test_schema_13_interchange_is_readable_by_canonical_and_legacy_paths(self) -> None:
-        signifier = MemoryRef(obj_id="S001", label="AI", kind="signifier", raw="AI")
+        entity = MemoryRef(obj_id="E001", label="OpenAI", kind="entity",
+                           raw="OpenAI", ner_type="ORG")
+        topic = MemoryRef(obj_id="T001", label="AI policy", kind="topic",
+                          raw="AI policy")
+        ai = MemoryRef(obj_id="S001", label="AI", kind="signifier", raw="AI")
+        abundance = MemoryRef(obj_id="S002", label="abundance", kind="signifier",
+                              raw="abundance")
         annotation = DocumentAnnotation(
             document_id="doc-1",
             source_platform="web",
             language="en",
-            summary="AI is articulated as abundance.",
-            signifiers=[signifier],
+            summary="OpenAI says AI can create abundance while regulation blocks progress.",
+            entities=[entity],
+            topics=[topic],
+            signifiers=[ai, abundance],
             discourses=[Discourse(label="abundance discourse", confidence=0.8,
-                                  elements=[signifier])],
+                                  elements=[ai, abundance])],
+            articulations=[Articulation(
+                signifier=ai,
+                related_to=[abundance],
+                relation="equivalence",
+                evidence="AI can create abundance",
+                confidence=0.9,
+            )],
+            us=[ai],
+            frontier=[abundance],
+            affects=[Affect(target=ai, affect="hope", side="us", confidence=0.8)],
+            nodal_points=[ai],
         )
 
         with tempfile.TemporaryDirectory() as tmp:
@@ -75,20 +101,31 @@ class ApiConsolidationTests(unittest.TestCase):
             canonical = interchange_to_v2(str(path))
             self.assertEqual([source.source_id for source in canonical.sources], ["doc-1"])
             self.assertEqual([d.label for d in canonical.discourses], ["abundance discourse"])
+            self.assertEqual({entity.canonical_name for entity in canonical.entities}, {"OpenAI"})
+            self.assertTrue(any(a.relation_type == "EQUIVALENT_TO"
+                                for a in canonical.articulations))
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", FutureWarning)
                 from laclaugpt_model.bridge import interchange_to_canonical
-                documents, _, concepts, _, _ = interchange_to_canonical(str(path))
+                documents, actors, concepts, statements, relations = interchange_to_canonical(
+                    str(path)
+                )
 
             self.assertEqual([document.id for document in documents], ["doc-1"])
+            self.assertEqual([actor.name for actor in actors], ["OpenAI"])
+            self.assertGreaterEqual(len(statements), 2)
+            self.assertEqual(len(relations), 1)
             discourse_concepts = [
                 concept for concept in concepts
                 if concept.attributes.get("kind") == "discourse"
             ]
             self.assertEqual(len(discourse_concepts), 1)
             self.assertEqual(discourse_concepts[0].label, "abundance discourse")
-            self.assertEqual(discourse_concepts[0].attributes["element_ids"], ["S001"])
+            self.assertEqual(
+                discourse_concepts[0].attributes["element_ids"],
+                ["S001", "S002"],
+            )
 
     def test_discursive_role_assignment_requires_evidence(self) -> None:
         with self.assertRaises(ValidationError):
