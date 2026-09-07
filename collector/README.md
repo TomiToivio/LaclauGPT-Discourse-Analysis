@@ -1,203 +1,261 @@
 # LaclauGPT Social Media Collector
 
-Collection subsystem for systematic political research on public social
-media content. Built for the Brazilian presidential-election study
-(7 September – 10 October 2026), general enough for any account-based
-longitudinal study.
+Collection subsystem for systematic political research on public social media
+content. Built for the Brazilian presidential-election study (7 September –
+10 October 2026), while keeping the core account/config/store pipeline reusable
+for other longitudinal studies.
 
-**Relationship to other projects**
+## Capture paths
+
+There are three capture implementations in the repository, but they do not
+have equal status:
+
+1. **Preferred Firefox path:** `collector/firefox/extension/` +
+   `collector/firefox/firefox_backend.py`. The extension only captures response
+   bodies and navigation; the Python backend runs the shared parsers,
+   normalisation and Store. This is the recommended systematic collection path.
+2. **CLI Chromium path:** `collector/browser.py`. `CDPCaptureDriver` uses the
+   DevTools Network domain and is the CLI default; `AgentBrowserDriver` is a HAR
+   fallback. These are useful scripted/manual paths but may miss response bodies
+   that Firefox can capture reliably.
+3. **Standalone JS extension:** `collector/browser/`. This contains the
+   LaclauGPT-native JavaScript parsers and an in-browser buffer. It is useful for
+   development/manual capture, but there is currently no repository-side
+   automatic drainer from its `get_buffer` message into the Python Store.
+
+Collection produces source material. LaclauGPT discourse analysis consumes it
+later. No ideological analysis happens inside the collector.
+
+## Relationship to other projects
 
 - **LaclauGPT-TikTok-Scraper** (historical, CC0,
-  github.com/TomiToivio/LaclauGPT-TikTok-Scraper): the 2024 EP-election
-  Firefox extension + Node/SQLite backend. Its useful ideas — provenance
-  fields on every record, hashtag/challenge side tables,
-  INSERT-OR-IGNORE-style dedup, random-walk browsing discipline — are
-  carried forward here in modernised form. The old repository is
-  historical and remains untouched.
-- **Zeeschuimer** (MPL-2.0, digitalmethodsinitiative): the platform
-  parsing logic (endpoint detection, embedded-JSON extraction, ad
-  filtering, partial-item handling) is ported from its TikTok,
-  Instagram and X/Twitter modules. See `modules/README.md` for the
-  required attribution. LaclauGPT is NOT a Zeeschuimer fork: capture is
-  CDP-based rather than an extension, and parsing outputs feed the
-  LaclauGPT interchange instead of 4CAT (4CAT remains importable via
-  the existing adapters).
+  github.com/TomiToivio/LaclauGPT-TikTok-Scraper): the 2024 EP-election Firefox
+  extension + Node/SQLite backend. Its useful ideas, including explicit request
+  routing, provenance, deduplication and researcher-driven browsing, are carried
+  forward in modernised form.
+- **Zeeschuimer** (MPL-2.0, Digital Methods Initiative): the current Python
+  platform parser modules under `collector/modules/` are ports/adaptations of
+  its TikTok, Instagram and X/Twitter parsing logic. Those files retain their
+  MPL-2.0 attribution. The browser-side LaclauGPT JS parsers under
+  `collector/browser/modules/` are a separate LaclauGPT-native implementation.
 
-## Architecture (four layers)
+## Shared Python pipeline
 
 ```
-1. browser/network capture     collector/browser.py
-      CDP Network-domain capture against a persistent logged-in
-      Chromium profile (agent-browser CLI drives navigation),
-      plus a HAR-export fallback driver
-2. platform-specific parsing   collector/modules/{tiktok,instagram,x}.py
-      Zeeschuimer-derived capture()/map_item() ports
-3. normalisation + provenance  collector/normalize.py
-      raw platform item -> stable record with full provenance;
-      raw and normalised representations stay linked via raw_ref
-4. durable metadata + media    collector/store.py, collector/media.py
-      raw/ + normalized/ + manifests/ + SQLite state (seen posts,
-      checkpoints, media index), queued sha256-checked downloads,
-      S3-swappable backend interface
+capture
+  Firefox extension -> firefox_backend.py
+  or CDP/HAR -> browser.py
+        |
+        v
+platform parsers       collector/modules/{tiktok,instagram,twitter}.py
+        |
+        v
+normalisation          collector/normalize.py
+        |
+        v
+Store                  collector/store.py
+  raw/ + normalized/ + manifests/ + SQLite state
+        |
+        +--> optional media download: collector/media.py
 ```
 
-Collection produces source material. LaclauGPT discourse analysis
-consumes it later — no ideological analysis happens inside the
-collector.
+Raw platform payloads and normalized records remain linked through `raw_ref`.
+The Store deduplicates by `(platform, document_id)` while raw captures stay
+append-only.
 
 ## Install
 
-No packaging yet (repo has no packaging manifest); the collector runs
-from the repository root with Python 3.12+ and:
+Python 3.12+ is recommended.
 
+```bash
+python -m pip install -r collector/requirements.txt
 ```
-pyyaml        # config
-websocket-client, requests   # CDP driver / media fetch
-pytest        # tests
+
+`collector/requirements.txt` includes PyYAML, websocket-client and `tzdata`.
+`tzdata` is important on Windows so the study timezone
+`America/Sao_Paulo` is available to Python's `zoneinfo` implementation.
+
+For tests:
+
+```bash
+python -m pip install pytest
+python -m pytest -q tests/collectors
 ```
 
 ## Configure accounts
 
-`config/brazil-election-2026.yaml` holds the study: window, timezone,
-enabled platforms, candidate handles (Lula has two per platform) and
-party accounts (PT, PL). Handles are stored exactly as supplied by the
-researchers; nothing is silently corrected. The configuration flags a
-gap: the researcher described SEVEN main presidential candidates but
-supplied SIX — the seventh is not invented; `expected_candidates` keeps
-the manifest flagging it.
+`config/brazil-election-2026.yaml` is the single source of truth for the study
+window, timezone, enabled platforms, target accounts and page URL templates.
+Handles are kept exactly as configured. The file currently flags that seven
+main candidates were expected while six are configured; the collector reports
+that gap instead of inventing an account.
 
-Add accounts by editing the YAML; the runner follows it.
+## Preferred run: Firefox
 
-## Run
+Start the local backend:
 
 ```bash
-# plan + config check (no browsing)
+python -m collector.firefox.firefox_backend \
+    --config collector/config/brazil-election-2026.yaml \
+    --data-root ~/laclaugpt-brasil-data
+```
+
+Then load `collector/firefox/extension/manifest.json` from
+`about:debugging#/runtime/this-firefox` in a logged-in Firefox session.
+
+Useful health endpoint:
+
+```text
+http://127.0.0.1:8765/status
+```
+
+The automatic tour is supplied by the backend from the YAML config. Each
+configured page URL is a separate tour stop, so X profile + `/with_replies` and
+Instagram profile + `/reels/` are both visited. The backend and tour stop
+collecting outside the configured study window, using the study timezone.
+
+## CLI run
+
+Plan without browsing:
+
+```bash
 python -m collector.run \
     --config collector/config/brazil-election-2026.yaml \
-    --data-root ~/laclaugpt-brasil-data --dry-run
+    --data-root ~/laclaugpt-brasil-data \
+    --dry-run
+```
 
-# one collection pass (browser capture + store)
+One Chromium/CDP pass:
+
+```bash
 python -m collector.run \
     --config collector/config/brazil-election-2026.yaml \
     --data-root ~/laclaugpt-brasil-data
-
-# with media download (videos/thumbnails/images, checksummed)
-python -m collector.run --config ... --data-root ... --download-media
 ```
 
-One pass visits every configured account/page (profile + /with_replies
-for X, profile + /reels for Instagram), captures platform API
-responses, normalises, deduplicates (platform + document_id), writes
-raw NDJSON + normalised JSONL + a per-run manifest, and records
-per-account success/failure. One account failing never aborts the run;
-checkpoints let the next pass resume. The study window (start/end in
-the config) gates execution.
-
-Data root must live OUTSIDE the repository (`.gitignore` covers
-`laclaugpt-brasil-data/`, `collection-data/`, `*.har`).
-
-## Login state (one-time setup)
-
-The CDP driver attaches to a persistent Chromium profile. Create it
-once, logged in, headed:
+HAR fallback:
 
 ```bash
-~/.hermes/hermes-agent/node_modules/.bin/agent-browser \
-    --profile ~/.hermes/chromium-laclaugpt-profile --headed \
-    open https://www.tiktok.com
-# log in to TikTok / Instagram / X once in that window; cookies persist
+python -m collector.run \
+    --config collector/config/brazil-election-2026.yaml \
+    --data-root ~/laclaugpt-brasil-data \
+    --driver har
 ```
 
-Normal authenticated browsing is how the public web interface exposes
-this content; the collector does not bypass authentication barriers,
-private accounts, or CAPTCHAs (see Research requirements below).
+With media:
 
-## Output schema (normalised record, one JSON object per line)
+```bash
+python -m collector.run \
+    --config collector/config/brazil-election-2026.yaml \
+    --data-root ~/laclaugpt-brasil-data \
+    --download-media
+```
+
+The CLI uses one stable `run_id` per pass. Per-account failures are recorded and
+do not abort the whole run. Store checkpoints capture last status; deduplication
+prevents repeated normalized rows across passes.
+
+## Output layout
+
+```text
+<data-root>/
+  raw/<platform>/<YYYYMMDD>/capture-....ndjson
+  normalized/<platform>.jsonl
+  manifests/run-....json
+  media/
+  state.sqlite3
+```
+
+A normalized record contains fields such as:
 
 ```json
 {
   "document_id": "7400000000000000001",
   "platform": "tiktok",
   "author": "lulaoficial",
-  "author_fullname": "Presidente Lula",
   "timestamp": "2026-09-07T12:00:00Z",
   "source_url": "https://www.tiktok.com/@lulaoficial/video/...",
   "text": "caption…",
-  "language": "",
   "parent_document_id": null,
-  "hashtags": ["..."], "mentions": ["..."],
+  "hashtags": ["..."],
+  "mentions": ["..."],
   "engagement": {"likes": 1234, "comments": 56, "plays": 90000},
-  "media_references": [{"kind": "video", "url": "...", "media_index": 0}],
-  "raw_ref": "raw/tiktok/20260907/capture-…ndjson",
+  "media_references": [
+    {"kind": "video", "url": "...", "media_index": 0}
+  ],
+  "raw_ref": "raw/tiktok/20260907/capture-....ndjson",
   "collection_provenance": {
-    "captured_at": "…", "collector_version": "0.1.0",
-    "module": "zeeschuimer-tiktok-2026-09", "git_commit": "abc1234",
+    "captured_at": "...",
+    "collector_version": "0.1.0",
+    "module": "zeeschuimer-tiktok-2026-09",
+    "git_commit": "abc1234",
     "visited_url": "https://www.tiktok.com/@lulaoficial",
-    "api_url": "https://www.tiktok.com/api/post/item_list/…",
-    "run_id": "…", "account": "Lula:lulaoficial",
-    "transformations": ["zeeschuimer-capture", "map_item-normalise"],
+    "api_url": "https://www.tiktok.com/api/post/item_list/...",
+    "run_id": "...",
+    "account": "Lula:lulaoficial",
+    "transformations": ["laclaugpt-network-capture", "map_item-normalise"],
     "media_downloaded": null
   }
 }
 ```
 
-X/Twitter post IDs remain exact strings (they exceed 2^53; JS Number
-would silently round them). Raw payloads are append-only NDJSON under
-`raw/` — every normalised field is re-derivable from its raw_ref.
+The parser `module` value records the Python parser implementation lineage;
+`transformations` records the actual LaclauGPT capture/normalisation pipeline.
+These are intentionally different provenance facts.
+
+X post IDs remain strings because they exceed JavaScript's exact integer range.
 
 ## Media
 
-`--download-media` enqueues every referenced public media object
-(TikTok video+thumbnail, Instagram images/carousel/reels, X images/
-videos, clearly-attributable quote media). Deterministic names:
-`platform_postID_mediaIndex.ext`. sha256 + byte size + MIME + status
-per object in the media index; verified copies are never re-downloaded;
-failures are recorded per object and the post metadata stays intact.
-Signed CDN URLs expire — download near capture time. Media never gets
-committed to Git; the backend interface (`MediaBackend`) takes a CSC
-Allas/S3 implementation later without touching the pipeline.
+`--download-media` collects public media referenced by normalized records after
+capture. Media jobs are deterministic by `platform_documentID_mediaIndex`, use
+SHA-256 checksums, record failures without damaging post metadata, and write
+through the `MediaBackend` interface. The default backend is filesystem storage;
+Allas/S3 can implement the same interface later.
+
+Signed CDN URLs can expire, so media should be downloaded close to collection
+time. Media belongs outside Git.
 
 ## Import into LaclauGPT analysis
 
-The normalised records map onto the LaclauGPT document model:
-`document_id`/`platform`/`author`/`timestamp`/`source_url`/`text` are
-the legacy CSV schema fields; `laclaugpt/adapters/legacy.py` converts
-rows with these fields, and `collector/normalize.py` keeps the raw↔
-normalised linkage required for provenance-preserving imports. A run
-manifest (collector version, git SHA, per-account results, media
-counts) is written per pass for the analysis pipeline's dataset
-registration.
+The normalized records map onto the LaclauGPT source-document conventions.
+`document_id`, `platform`, `author`, `timestamp`, `source_url` and `text` remain
+available for legacy/interchange adapters, while provenance and media fields
+keep the richer collector context.
 
-## Known platform fragility and maintenance expectations
+## Known platform fragility
 
-Social-media interfaces change constantly. These parsers require
-maintenance; when a capture returns nothing, suspect (in order):
+Social-media interfaces change constantly. When collection returns nothing,
+check these layers in order:
 
-1. **Unauthenticated browsing walls.** Verified 2026-09-07 on TikTok:
-   logged-out headless visits get a cookie-consent modal (shadow-DOM
-   buttons "Decline optional cookies"/"Allow all" — the driver clicks
-   through) and, after some navigation, a "Something went wrong"
-   feed error plus empty `item_list` bodies. Login in the persistent
-   profile restores reliability. Instagram is the most aggressive
-   about login walls; X applies aggressive rate limiting.
-2. **Response-body capture mechanics.** The CDP driver must hold the
-   response while reading it (Fetch interception); naive
-   `Network.getResponseBody` after the page consumed the stream can
-   return an empty body. This build of Chromium also lacks
-   `Fetch.takeResponseBodyForInterceptionAsStream` (-32601), so the
-   driver uses the request-stage pause + replay path with browser
-   cookies, or falls back to the HAR driver (no bodies).
-3. **Upstream parser drift.** The modules are line-comparable ports of
-   Zeeschuimer's; diff against upstream when behaviour diverges.
-4. Handle renames/deletions: edit the config, the collector follows.
+1. **Authentication / consent / rate limits.** Normal logged-in browsing may be
+   required. The collector does not bypass private accounts, CAPTCHAs or access
+   controls.
+2. **Firefox stream capture.** `filterResponseData` must forward every original
+   response chunk back to the page while keeping a private decoded copy. The
+   preferred Firefox extension does this explicitly.
+3. **Chromium body availability.** The current CDP driver waits for matching
+   requests to reach `Network.loadingFinished` and then calls
+   `Network.getResponseBody`. Some platform/browser combinations can still
+   return empty bodies after the page consumes the stream. Full Fetch-domain
+   interception/replay is **not currently implemented**. Use the Firefox path
+   when this happens. HAR may omit bodies as well.
+4. **Parser drift.** Inspect the current platform payload and update the
+   affected parser. Python ports retain upstream attribution where applicable.
+5. **Handle changes.** Edit the YAML config; the collector follows it.
+
+## Legacy helpers
+
+`collector/backend/` contains some older implementation modules. The scheduled
+entry point `collector.backend.scheduler` now delegates to the canonical
+`collector.run` pipeline instead of invoking removed `autoscraper.py` /
+`clean_captures.py` files. New development should target the shared root
+collector modules and the preferred Firefox path.
 
 ## Research requirements
 
-Only public political content is collected. The collector does not
-bypass private accounts, authentication barriers, CAPTCHAs, or platform
-access controls; normal authenticated browsing by a researcher is the
-accepted access mode. Private messages are never touched. Prefetched
-content that the visitor never saw is dropped (TikTok /api/preload/,
-Instagram graphql prefetch allowlist) so the researcher's personal feed
-is not accidentally collected — particularly important for Instagram
-and X.
+Only public political content is collected. The collector does not bypass
+private accounts, authentication barriers, CAPTCHAs or platform access
+controls. Private messages are out of scope. Collection code should avoid
+persisting unrelated prefetched content whenever the active platform view can be
+identified reliably.
