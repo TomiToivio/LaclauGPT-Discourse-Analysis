@@ -1,35 +1,32 @@
 # -*- coding: utf-8 -*-
-"""Project presets: one self-contained configuration set per research project.
+"""Compatibility project presets for the current paper pipeline.
 
-Maintainer ruling (2026-09-06): no monolithic settings — each project
-(ai26) gets its OWN run configs, prompt
-backgrounds, codebook seeds and storage defaults, selected explicitly.
-Nothing auto-mixes across projects: data, memory and seeds are
-project-scoped.
+The canonical package configuration lives under ``config/``:
 
-Layout:
+    config/projects/<project>.yaml
+    config/machines/<machine>.yaml
+    config/execution/<execution>.yaml
 
-    run_configs/
-      projects/<project>.yaml      the project preset (this module's source)
-      arena_*.yaml                 paper-arena runs (AI project)
-    prompts/topic_background.py    REGISTRY of project backgrounds
+The lower-level paper pipeline still uses arena-specific YAML files under
+``run_configs/arena_*.yaml``.  This module provides a small compatibility preset
+for utilities that still expect Python project metadata.  It does not replace
+the canonical CLI configuration chain.
 
-A project preset answers: WHAT is collected (topic background), WHERE
-data comes from (sources), WHICH codebook seeds apply, and WHERE state
-lives (memory_dir per project — never shared between projects).
+A project preset answers: WHAT topic/background is used, WHICH codebook seeds
+apply, and WHERE project-scoped Context Memory lives.  Data, memory and seeds
+must not auto-mix across projects.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
-PROJECTS_DIR = Path(__file__).resolve().parent / "run_configs" / "projects"
+PROJECTS_DIR = Path(__file__).resolve().parent / "config" / "projects"
 
 
 @dataclass(frozen=True)
 class ProjectPreset:
-    """A named research project with its own config surface."""
+    """A named research project compatibility preset."""
     name: str                       # ai26
     topic_key: str                  # key into prompts.topic_background.REGISTRY
     title: str
@@ -38,15 +35,13 @@ class ProjectPreset:
     seed_actors: list[str] = field(default_factory=list)
     seed_formations: list[str] = field(default_factory=list)
     languages: tuple[str, ...] = ()
-    memory_subdir: str = ""         # memory/<name>/ — project-scoped state
+    memory_subdir: str = ""         # memory/<name>/, project-scoped state
     notes: str = ""
 
     def memory_dir(self, base: Path | None = None) -> Path:
         base = base or Path("./data/memory")
         return base / (self.memory_subdir or self.name)
 
-
-# ── the four projects ────────────────────────────────────────────────
 
 PROJECTS: dict[str, ProjectPreset] = {
     "ai26": ProjectPreset(
@@ -76,10 +71,10 @@ PROJECTS: dict[str, ProjectPreset] = {
         ],
         languages=("en", "fi"),
         memory_subdir="ai26",
-        notes="Paper 1 locks 2026-09-07. Arena runs: run_configs/arena_*.yaml "
-              "(elites/grassroots/parliamentary) stay the arena-level specs; "
-              "this preset is the project-level umbrella (topic_key + seeds + "
-              "memory scope).",
+        notes="Arena runs live in run_configs/arena_*.yaml "
+              "(elites/grassroots/parliamentary). This preset is the "
+              "compatibility project umbrella for topic_key, seeds and memory "
+              "scope. No publication deadline is encoded here.",
     ),
 }
 
@@ -91,8 +86,7 @@ def get_project(name: str) -> ProjectPreset:
 
 
 def project_yaml_path(name: str) -> Path:
-    """Per-project YAML overrides live in run_configs/projects/<name>.yaml;
-    optional — the preset above is the fallback."""
+    """Return the canonical package YAML path for ``name``."""
     return PROJECTS_DIR / f"{name}.yaml"
 
 
