@@ -1,75 +1,84 @@
-# -*- coding: utf-8 -*-
-"""Daily cron wrapper: run the autoscraper, then clean, then z4sync.
+"""Scheduled wrapper for the canonical LaclauGPT collector.
 
-Installed as a Hermes cron job (see README section 'Automation') or a
-plain crontab entry. Failures append to scraper.log; the study window
-gate (7 Sep – 10 Oct) keeps it from running outside the collection
-period.
+This module used to invoke legacy files (`autoscraper.py`,
+`clean_captures.py`) that no longer exist in `collector/backend/`. It now
+calls the shared `collector.run` pipeline instead, so scheduled and manual
+collection use the same config, window gate, parsers, store and provenance.
+
+Example:
+    python -m collector.backend.scheduler \
+        --config collector/config/brazil-election-2026.yaml \
+        --data-root ~/laclaugpt-brasil-data
 """
 from __future__ import annotations
 
-import subprocess
-import sys
+import argparse
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-HERE = Path(__file__).parent
-sys.path.insert(0, str(HERE))
-
-WINDOW = ("2026-09-07", "2026-10-10")
-LOG = HERE / "scraper.log"
+from ..run import run_collection
 
 
-def log(msg: str) -> None:
+def _log(path: Path, message: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    LOG.open("a", encoding="utf-8").write(f"[{stamp}] {msg}\n")
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(f"[{stamp}] {message}\n")
 
 
-def in_window() -> bool:
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    return WINDOW[0] <= today <= WINDOW[1]
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog="python -m collector.backend.scheduler",
+        description="Run one scheduled pass of the canonical LaclauGPT collector",
+    )
+    parser.add_argument(
+        "--config",
+        default="collector/config/brazil-election-2026.yaml",
+        help="study YAML configuration",
+    )
+    parser.add_argument(
+        "--data-root",
+        default=str(Path.home() / "laclaugpt-brasil-data"),
+        help="persistent collection data root",
+    )
+    parser.add_argument("--scrolls", type=int, default=None)
+    parser.add_argument("--download-media", action="store_true")
+    parser.add_argument("--media-workers", type=int, default=4)
+    parser.add_argument(
+        "--log",
+        default=str(Path.home() / "laclaugpt-brasil-data" / "collector.log"),
+    )
+    args = parser.parse_args(argv)
 
-
-def run(cmd: list[str]) -> None:
-    log("RUN " + " ".join(cmd))
+    log_path = Path(args.log)
+    _log(log_path, f"RUN config={args.config} data_root={args.data_root}")
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
-        log(f"EXIT {r.returncode}")
-        tail = (r.stdout or r.stderr).strip().splitlines()
-        for line in tail[-10:]:
-            log("  " + line)
+        manifest = run_collection(
+            args.config,
+            args.data_root,
+            scrolls=args.scrolls,
+            download_media=args.download_media,
+            media_workers=args.media_workers,
+        )
     except Exception as exc:  # noqa: BLE001
-        log(f"ERROR {exc}")
+        _log(log_path, f"ERROR {type(exc).__name__}: {exc}")
+        raise
+
+    if manifest.get("skipped"):
+        _log(log_path, f"SKIP {manifest.get('reason', '')}")
+    else:
+        _log(
+            log_path,
+            "OK " + json.dumps({
+                "run_id": manifest.get("run_id"),
+                "new_posts": manifest.get("new_posts_total", 0),
+                "seen_total": manifest.get("seen_total", 0),
+                "errors": len(manifest.get("errors") or []),
+            }, ensure_ascii=False),
+        )
+    return 0
 
 
 if __name__ == "__main__":
-    if not in_window():
-        log("outside study window — skipping")
-        sys.exit(0)
-    data_root = Path.home() / "laclaugpt-brasil-data"
-    run(["python3", str(HERE / "autoscraper.py"),
-         "--accounts", str(HERE / "accounts.yaml"),
-         "--out", str(data_root / "captures")])
-    run(["python3", str(HERE / "clean_captures.py"),
-         str(data_root / "captures"), str(data_root / "clean")])
-    # z4sync: pull finished 4CAT datasets into LaclauGPT CSV. Dataset keys
-    # come from 4CAT's UI once Zeeschuimer pushes captures there; list them
-    # one per line in z4sync_datasets.txt as: platform,country,language,dataset_key
-    ds_file = HERE / "z4sync_datasets.txt"
-    if ds_file.exists():
-        for line in ds_file.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            platform, country, language, key = (line.split(",") + [""])[:4]
-            if not (platform and key):
-                log(f"bad z4sync line: {line}")
-                continue
-            run(["python3", str(HERE.parent / "z4sync" / "sync.py"),
-                 "--fourcat", "http://localhost:4544",
-                 "--dataset", key, "--platform", platform,
-                 "--country", country, "--language", language,
-                 "--out", str(data_root / "laclaugpt-csv" / f"{key}.csv")])
-    else:
-        log("no z4sync_datasets.txt — skipping 4CAT pull")
-    log("daily cycle complete")
+    raise SystemExit(main())
