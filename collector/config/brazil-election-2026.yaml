@@ -1,0 +1,105 @@
+# LaclauGPT Social Media Collector — Brazilian election 2026 study
+#
+# Issue #20: configuration as data, NOT hard-coded logic.
+# Sampling frame (source categories, NOT ideological labels):
+#   six named presidential candidates + 2 party accounts on 3 platforms.
+# NOTE (issue #20): the study design mentions SEVEN candidates; the supplied
+# list has SIX. The seventh is NOT invented — flagged in TODO.md.
+#
+# Window & timezone per issue body. Handles stored EXACTLY as supplied —
+# no silent corrections; resolution failures are reported, not fixed.
+
+study: brazil-2026
+timezone: America/Sao_Paulo
+window:
+  start: "2026-09-07"
+  end: "2026-10-10"
+
+platforms:
+  tiktok:
+    enabled: true
+    base_urls: ["https://www.tiktok.com/@{handle}"]
+  x:
+    enabled: true
+    base_urls:
+      - "https://x.com/{handle}"
+      - "https://x.com/{handle}/with_replies"   # only when configured below
+    with_replies: false
+  instagram:
+    enabled: true
+    base_urls: ["https://www.instagram.com/{handle}/"]
+
+media:
+  download: true          # optional per issue; queued, never blocking capture
+  storage: filesystem      # interface supports later object-storage backends
+  verify_checksums: true
+
+candidates:
+  - id: lula
+    name: Lula
+    party: PT
+    accounts:
+      instagram: [lulaoficial, brasilcomlula]
+      tiktok: [lulaoficial, brasilcomlula_]
+      x: [LulaOficial, OBrasilComLula]
+
+  - id: flavio_bolsonaro
+    name: Flávio Bolsonaro
+    party: PL
+    accounts:
+      instagram: [flaviobolsonaro]
+      tiktok: [flaviobolsonaro]
+      x: [flaviobolsonaro]
+
+  - id: romeu_zema
+    name: Romeu Zema
+    party: NOVO
+    accounts:
+      instagram: [romeuzemaoficial]
+      tiktok: [romeuzemaoficial]
+      x: [RomeuZema]
+
+  - id: ronaldo_caiado
+    name: Ronaldo Caiado
+    party: PSD
+    accounts:
+      instagram: [ronaldocaiado]
+      tiktok: [ronaldocaiado]
+      x: [ronaldocaiado]
+
+  - id: renan_santos
+    name: Renan Santos
+    party: MISSÃO
+    accounts:
+      instagram: [renansantosmbl]
+      tiktok: [renansantosmbl]
+      x: [RenanSantosMBL]
+
+  - id: augusto_cury
+    name: Augusto Cury
+    party: AVANTE
+    accounts:
+      instagram: [augustocury]
+      tiktok: [augustocuryoficial]
+      x: [augustocury]
+
+  # TODO (issue #20): the study design says SEVEN candidates; six supplied.
+  # Do NOT invent the seventh. Add here when the researcher names them:
+  # - id: seventh_candidate
+  #   name: ???
+  #   party: ???
+  #   accounts: {instagram: [], tiktok: [], x: []}
+
+parties:
+  - id: pt
+    name: PT
+    accounts:
+      instagram: [ptbrasil]
+      tiktok: [ptbrasil]
+      x: [ptbrasil]
+  - id: pl
+    name: PL
+    accounts:
+      instagram: [plnacional22]
+      tiktok: [plnacional_]
+      x: [plnacional_]
