@@ -38,7 +38,7 @@ therefore do not need to choose between memory generations.
 
 | Concern | Current path | Status |
 |---|---|---|
-| Public CLI | `python -m laclaugpt.cli` | **Canonical entry point** |
+| Public CLI | `python -m laclaugpt.cli` / `laclaugpt` | **Canonical entry point** |
 | Execution/orchestration | `laclaugpt/canonical_pipeline.py`, `laclaugpt/execution/` | **Canonical orchestration layer** |
 | Evidence-linked paper analysis | root `pipeline.py` | **Current analysis implementation**, called by the canonical dispatcher |
 | Domain model | `laclaugpt/model/` | **Canonical storage-neutral domain model for new code** |
@@ -70,6 +70,7 @@ adapter module is present in this tree.
 ## What is here
 
 ```text
+pyproject.toml          package metadata, base dependencies and optional extras
 pipeline.py             lower-level evidence-linked analysis pipeline
 laclaugpt/              canonical package: model, memory facade, config,
                         adapters, execution, integrations and CLI
@@ -90,7 +91,7 @@ dats_adapter/
 dna_adapter/
 inception_adapter/
 minet_adapter/          shipped format-specific adapter modules
-tests/                  public regression tests for implemented behaviour
+tests/                  public offline regression tests + synthetic fixture
 docs/                   implementation audit, interop specification and design plans
 paper/PAPER.md          current manuscript
 LICENSE                 repository license
@@ -153,17 +154,43 @@ LaclauGPT-native browser extension remain alternative capture paths. See
 [`collector/README.md`](collector/README.md) for the current status and research
 constraints.
 
-## Running
+## Installation and running
 
-The canonical entry point is the package CLI. It composes project, machine and
-execution profiles, records run/checkpoint metadata and dispatches to the
-evidence-linked pipeline. List the profiles available in this checkout:
+Python 3.11+ is supported; CI uses Python 3.12. From a fresh checkout, install
+the repository itself rather than maintaining a separate manual dependency
+list:
 
 ```bash
-python -m pip install pydantic pyyaml pandas ollama networkx pytest
+python -m pip install --upgrade pip
+python -m pip install -e .
 python -m laclaugpt.cli --help
 python -m laclaugpt.cli profiles
 ```
+
+The install also exposes the equivalent console command:
+
+```bash
+laclaugpt --help
+laclaugpt profiles
+```
+
+Optional dependency groups are deliberately separate from the core research
+pipeline:
+
+```bash
+python -m pip install -e ".[collector]"   # websocket capture + timezone data
+python -m pip install -e ".[test]"        # pytest and test-runner support
+python -m pip install -e ".[nlp]"         # spaCy / sklearn / gensim / ST / statsmodels
+python -m pip install -e ".[services]"    # MongoDB / ArangoDB / Redis / DuckDB / Chroma
+python -m pip install -e ".[parquet]"     # pyarrow bulk export
+python -m pip install -e ".[inception]"   # DKPro Cassis / UIMA XMI support
+```
+
+Optional libraries are imported only when their feature/backend is selected.
+The base install therefore does not require GPU libraries or live database
+clients. Backend selection raises an explicit configuration/import error when a
+requested optional service is unavailable rather than failing during an
+unrelated import.
 
 Run an analysis after configuring Ollama and supplying your own CSV:
 
@@ -175,15 +202,27 @@ python -m laclaugpt.cli analyze my_corpus.csv --project ai26 --machine roihu \
 The root `pipeline.py` command remains available for compatibility and direct
 paper-pipeline development, but new users should prefer `python -m laclaugpt.cli`.
 
-The public tests make no real LLM, GPU or external-database calls:
+## Tests and CI
+
+The public test suite is offline: it makes no real LLM, GPU, browser-platform,
+or external-database calls. Because `tests/` includes collector regressions,
+install both collector and test extras to run the exact full suite used by CI:
 
 ```bash
-python -m pytest tests -q
+python -m pip install -e ".[collector,test]"
+python -m pytest -q tests
 ```
 
-This checkout currently has no public synthetic end-to-end corpus fixture, so it
-does not advertise a fixture-based full annotation run. Raw research data,
-private operational tests and generated outputs are not shipped.
+`tests/fixtures/synthetic_ai.csv` is a small public synthetic corpus. The mocked
+end-to-end test runs the real pipeline I/O, Context Memory and success-artifact
+publication path while replacing only model calls, then round-trips the emitted
+current-schema annotation JSONL.
+
+`.github/workflows/ci.yml` runs on every pull request and every push to `main`.
+Its core job installs `.[collector,test]`, compiles the shipped Python surface,
+runs CLI smoke tests and executes the full Python test suite. Its collector job
+installs the same runtime extras, runs collector tests and validates both
+Firefox/browser JavaScript surfaces and extension manifests.
 
 ## Compatibility policy
 
