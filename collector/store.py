@@ -10,20 +10,15 @@ Layout (created under one data root):
         per-run manifest: config, git SHA, per-account results, errors
     <root>/state.sqlite3
         collection state: seen posts, per-account checkpoints, media index
-
-Media files live under <root>/media/ and are managed by collector.media.
-Everything is also expressible through the Store interface so a later
-CSC Allas/S3 deployment can swap the filesystem backend without touching
-the pipeline.
 """
 from __future__ import annotations
 
+import itertools
 import json
 import sqlite3
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator
 
 
 def utc_stamp() -> str:
@@ -39,13 +34,16 @@ class Store:
         self.normalized_dir = self.root / "normalized"
         self.manifests_dir = self.root / "manifests"
         self.media_dir = self.root / "media"
-        for d in (self.raw_dir, self.normalized_dir, self.manifests_dir,
-                  self.media_dir):
-            d.mkdir(parents=True, exist_ok=True)
+        for directory in (self.raw_dir, self.normalized_dir,
+                          self.manifests_dir, self.media_dir):
+            directory.mkdir(parents=True, exist_ok=True)
         self._db = sqlite3.connect(self.root / "state.sqlite3",
                                    check_same_thread=False)
         self._db_lock = threading.Lock()
-        self._counter = iter(range(0x10000))
+        # A long-running Firefox backend can exceed 65,536 captures. The old
+        # iter(range(0x10000)) silently became StopIteration at that point.
+        self._counter = itertools.count()
+        self._closed = False
         self._db.execute("""
             CREATE TABLE IF NOT EXISTS seen_posts (
                 platform TEXT NOT NULL,
@@ -79,22 +77,17 @@ class Store:
     def append_raw(self, platform: str, payload: dict) -> str:
         """Append one raw capture; returns the raw_ref pointer."""
         day = datetime.now(timezone.utc).strftime("%Y%m%d")
-        d = self.raw_dir / platform / day
-        d.mkdir(parents=True, exist_ok=True)
-        path = d / f"capture-{utc_stamp()}-{next(self._counter):04x}.ndjson"
-        with open(path, "a", encoding="utf-8") as fh:
-            fh.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
+        directory = self.raw_dir / platform / day
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"capture-{utc_stamp()}-{next(self._counter):08x}.ndjson"
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
         return str(path.relative_to(self.root))
 
-    # -- normalized layer -----------------------------------------------
+    # -- normalized layer ----------------------------------------------
 
     def upsert_post(self, record: dict, raw_ref: str) -> bool:
-        """Insert a normalised record if new; returns True when inserted.
-
-        Duplicates are ignored (first capture wins for metadata; engagement
-        updates ride in later runs' raw layer). Callers can re-derive any
-        normalised field from the raw payload via raw_ref.
-        """
+        """Insert a normalised record if new; returns True when inserted."""
         key = (record["platform"], record["document_id"])
         with self._db_lock:
             cur = self._db.execute(
@@ -103,9 +96,9 @@ class Store:
             if cur.fetchone():
                 return False
             path = self.normalized_dir / f"{record['platform']}.jsonl"
-            with open(path, "a", encoding="utf-8") as fh:
-                fh.write(json.dumps({**record, "raw_ref": raw_ref},
-                                    ensure_ascii=False, default=str) + "\n")
+            with open(path, "a", encoding="utf-8") as handle:
+                handle.write(json.dumps({**record, "raw_ref": raw_ref},
+                                        ensure_ascii=False, default=str) + "\n")
             self._db.execute(
                 "INSERT INTO seen_posts (platform, document_id, first_seen, normalized_ref)"
                 " VALUES (?, ?, ?, ?)",
@@ -124,7 +117,7 @@ class Store:
                 cur = self._db.execute("SELECT COUNT(*) FROM seen_posts")
             return cur.fetchone()[0]
 
-    # -- checkpoints (resume after interruption) ------------------------
+    # -- checkpoints ----------------------------------------------------
 
     def checkpoint(self, account: str, platform: str,
                    cursor: str | None = None, status: str = "ok") -> None:
@@ -154,7 +147,7 @@ class Store:
                 " WHERE last_status != 'ok'")
             return cur.fetchall()
 
-    # -- media index (dedup + checksum registry) -------------------------
+    # -- media index ----------------------------------------------------
 
     def media_known(self, media_key: str) -> dict | None:
         with self._db_lock:
@@ -183,13 +176,26 @@ class Store:
                   datetime.now(timezone.utc).isoformat(timespec="seconds")))
             self._db.commit()
 
-    # -- manifests --------------------------------------------------------
+    # -- manifests ------------------------------------------------------
 
     def write_manifest(self, manifest: dict) -> Path:
         path = self.manifests_dir / f"run-{utc_stamp()}.json"
+        if path.exists():
+            # Multiple short test/manual runs can finish within one second.
+            index = 1
+            while True:
+                candidate = path.with_name(f"{path.stem}-{index}{path.suffix}")
+                if not candidate.exists():
+                    path = candidate
+                    break
+                index += 1
         path.write_text(json.dumps(manifest, ensure_ascii=False, indent=1,
                                    default=str), encoding="utf-8")
         return path
 
     def close(self) -> None:
-        self._db.close()
+        if self._closed:
+            return
+        with self._db_lock:
+            self._db.close()
+            self._closed = True
