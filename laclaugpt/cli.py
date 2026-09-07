@@ -47,6 +47,16 @@ def parser() -> argparse.ArgumentParser:
         help="deprecated alias for one of the migrated run_configs/arena_*.yaml files",
     )
     run.add_argument("--inside-scheduler", action="store_true", help=argparse.SUPPRESS)
+    dashboard = sub.add_parser(
+        "dashboard",
+        help="launch local/Pouta visualization for canonical JSONL output",
+    )
+    dashboard.add_argument("data")
+    dashboard.add_argument("--project", required=True, choices=list_projects())
+    dashboard.add_argument("--arena", required=True, choices=list_arenas())
+    dashboard.add_argument("--review-db", default="")
+    dashboard.add_argument("--host", default="127.0.0.1")
+    dashboard.add_argument("--port", type=int, default=8501)
     imp = sub.add_parser("import-legacy", help="convert legacy TikTok CSV to canonical JSONL")
     imp.add_argument("input")
     imp.add_argument("--output", "-o", required=True)
@@ -80,6 +90,17 @@ def main(argv: list[str] | None = None) -> int:
             "executions": list_executions(),
         }))
         return 0
+    if args.command == "dashboard":
+        from laclaugpt.visualization.launcher import launch
+
+        return launch(
+            args.data,
+            project=args.project,
+            arena=args.arena,
+            review_db=args.review_db,
+            host=args.host,
+            port=args.port,
+        )
     if args.command in {"analyze", "run"}:
         execution = args.execution
         arena = _resolve_arena(args)
