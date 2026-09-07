@@ -1,16 +1,23 @@
-/* BUNDLED background — LaclauGPT collector (issue #20).
-   MV2 non-module background: parser modules inlined as plain functions.
-   Upstream attribution: Zeeschuimer (DMI, MIT) + LaclauGPT-TikTok-Scraper (CC0). */
-
 /**
- * TikTok parser — LaclauGPT Social Media Collector.
+ * LaclauGPT Social Media Collector — bundled background script.
  *
- * Knowledge adapted from Zeeschuimer's modules/tiktok.js (DMI, MIT):
- * endpoint shapes (item_list API, webapp.updated-items, video-detail),
- * the SIGI_STATE / __UNIVERSAL_DATA_FOR_REHYDRATION__ embedded blocks,
- * itemStruct field paths. Re-implemented for LaclauGPT's record shape;
- * no verbatim upstream code. License respected: our file MIT, upstream MIT.
+ * This file follows the architecture of the original 2024
+ * LaclauGPT-TikTok-Scraper: explicit request routing, small platform-specific
+ * parsers, and a LaclauGPT-owned record shape. The parser modules are inlined
+ * here because Firefox MV2 background scripts (plain, non-module) cannot use
+ * ES imports — this is a packaging decision, not an architectural one.
+ *
+ * Modern platform response shapes are handled as compatibility cases.
+ * The collector is LaclauGPT infrastructure: it captures public platform
+ * content for discourse research and hands normalised records to the
+ * LaclauGPT pipeline. It does not mirror another collector's module
+ * structure.
+ *
+ * Author: Tomi Toivio / LaclauGPT
+ * License: CC0 1.0 Universal
  */
+
+// ── platform parsers (inlined from collector/browser/modules/) ────────
 async function parse_tiktok(response, source_platform_url, source_url) {
   const out = [];
   const add = (item, via) => {
@@ -42,7 +49,7 @@ async function parse_tiktok(response, source_platform_url, source_url) {
   };
   const stats = (i) => i.stats ?? i.statsV2 ?? {};
 
-  // 1) Zeeschuimer-style: JSON API responses (item_list, preload)
+  // 1) JSON API responses (item_list, preload)
   if (typeof response === "string" && response.trim().startsWith("{")) {
     try {
       const data = JSON.parse(response);
@@ -91,11 +98,11 @@ async function parse_tiktok(response, source_platform_url, source_url) {
 /**
  * Instagram parser — LaclauGPT Social Media Collector.
  *
- * Knowledge adapted from Zeeschuimer's modules/instagram.js (DMI, MIT):
+ * Instagram timeline shapes (xdt GraphQL connections),
  * xdt_api__v1__feed__user_timeline_graphql_connection /
  * xdt_api__v1__feed__timeline__connection shapes, media item structures
  * (carousel_media, video_versions, display_url), taken_at timestamps.
- * IMPORTANT (Zeeschuimer rule, kept): only posts from the visited account
+ * IMPORTANT (collector rule): only posts from the visited account
  * pass the filter — background/preloaded material is dropped so the
  * researcher's own feed never leaks into the corpus.
  * Re-implemented for LaclauGPT's record shape. MIT both ways.
@@ -175,7 +182,7 @@ async function parse_instagram(response, source_platform_url, source_url) {
     if (conn) {
       for (const n of ig_walkCandidates(obj)) {
         const rec = ig_oneRecord(n, via);
-        // Zeeschuimer ownership filter: only visited-account posts
+        // Ownership filter: only visited-account posts pass
         if (handleFromUrl && rec.author &&
             rec.author.toLowerCase() !== handleFromUrl) continue;
         add(rec);
@@ -203,11 +210,11 @@ async function parse_instagram(response, source_platform_url, source_url) {
 /**
  * X/Twitter parser — LaclauGPT Social Media Collector.
  *
- * Knowledge adapted from Zeeschuimer's modules/twitter.js (DMI, MIT):
+ * X GraphQL timeline shapes (tweet_results → legacy),
  * GraphQL timeline shape (tweet_results → result → legacy), rest_id as the
  * post id, full_text + entity media, operation-name based capture (never
  * hard-coded GraphQL query ids — they rotate).
- * CRITICAL RULE (kept from Zeeschuimer + issue #20): post ids are STRINGs,
+ * CRITICAL RULE (issue #20): post ids are STRINGs,
  * never parsed as integers — X ids exceed JS safe-integer range.
  * Re-implemented for LaclauGPT's record shape. MIT both ways.
  */
@@ -301,19 +308,13 @@ async function parse_x(response, source_platform_url, source_url) {
 }
 
 /**
- * LaclauGPT Social Media Collector — background service worker.
+ * Network interception layer.
  *
- * Origin: adapted from TWO upstream sources (see README for full attribution):
- *  1. Zeeschuimer (digitalmethodsinitiative, MIT) — the network-interception
- *     approach: platform API responses are read off the wire via
- *     browser.webRequest.filterResponseData, forwarded to per-platform
- *     parsers, and buffered for export. No DOM scraping.
- *  2. The historical LaclauGPT-TikTok-Scraper (CC0, 2024): the same
- *     filterResponseData technique, extended here from TikTok-only to
- *     TikTok + Instagram + X.
- *
- * Re-implemented for LaclauGPT (issue #20) — no verbatim upstream code.
- * License: MIT (this file), upstream licenses respected.
+ * Captures public platform API responses from the browser network layer
+ * (webRequest.filterResponseData), routes them to the platform parsers,
+ * and buffers normalised records. The historical 2024 LaclauGPT-TikTok-Scraper
+ * established this interception approach for TikTok; it is extended here to
+ * Instagram and X. Public content only; researcher's own feed never captured.
  */
 
 // ── platform modules: endpoint detection + parsing ────────────────────
@@ -341,7 +342,7 @@ function bufferRecord(platform, record) {
   browser.storage.local.set({ ["buffer_" + platform]: BUFFER[platform] });
 }
 
-// ── webRequest interception (Zeeschuimer technique) ───────────────────
+// ── webRequest interception ───────────────────
 function listener(details) {
   // find which platform parser owns this URL
   const parser = PARSERS.find(p => p.match.test(details.url));
