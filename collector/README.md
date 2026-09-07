@@ -1,21 +1,22 @@
 # LaclauGPT Social Media Collector
 
-Issue-driven build: [vasama-osint lineage → LaclauGPT-Discourse-Analysis #20](https://github.com/TomiToivio/LaclauGPT-Discourse-Analysis/issues/20)
-— a general-purpose social-media collection system for systematic political
-research, first use case: the **2026 Brazilian presidential-election study**
-(2026-09-07 → 2026-10-10, America/Sao_Paulo; six named candidates + PT/PL
-party accounts on Instagram, TikTok, X).
+A **general-purpose social-media collection system** for LaclauGPT: it
+captures public platform content (TikTok, Instagram, X/Twitter) into
+normalised, provenance-complete source records that feed the LaclauGPT
+discourse-analysis pipeline. Built issue-driven ([#20](https://github.com/TomiToivio/LaclauGPT-Discourse-Analysis/issues/20));
+the **2026 Brazilian presidential-election study** is simply its first
+deployment — the collector itself knows nothing about Brazil.
 
 ## Design (issue #20 four layers)
 
 ```
 collector/
-  config/   brazil-election-2026.yaml (accounts, window, media policy)
-  modules/  platform parsers (TikTok / Instagram / X)
-  backend/  capture + normalisation + media queue + scheduler
-  media/    downloaded objects (checksummed, never committed to Git)
-  schemas/  NormalizedPost + MediaRef + interchange mapping
-  tests/    synthetic offline fixtures only
+  config/    study YAML files (accounts, window, media policy) — data, not code
+  modules/   platform parsers (TikTok / Instagram / X)
+  backend/   capture + normalisation + media queue + scheduler
+  media/     downloaded objects (checksummed, never committed to Git)
+  schemas/   NormalizedPost + MediaRef + interchange mapping
+  tests/     synthetic offline fixtures only
 ```
 
 **Origin & attribution:** the capture approach adapts
@@ -31,18 +32,30 @@ LaclauGPT's own collector code with attribution; no verbatim module copies.
 
 - Collection is **separate from discourse analysis** — the collector feeds
   LaclauGPT, never analyses.
+- One **study = one YAML config**. Any study (election, movement, crisis,
+  discourse wave) is expressed the same way: accounts + window + platforms +
+  media policy. The Brazilian study is `config/brazil-election-2026.yaml`.
 - `raw/`, `normalized/`, `media/`, `manifests/` stay **logically separate**;
   provenance answers when/by-which-version/from-which-URL/what-transforms.
 - X post IDs remain **exact strings** (beyond JS safe-integer range).
-- Handles stored **exactly as supplied** — no silent corrections; the
-  missing **seventh candidate** is flagged as TODO, never invented.
+- Handles stored **exactly as supplied** — no silent corrections; resolution
+  failures are reported.
 - **No bypassing** of private accounts/auth barriers/CAPTCHAs; public
-  political content only.
-- Media: queued (never blocks capture), dedupe by checksum,
-  deterministic names `platform_postid_index`, failures recorded —
-  metadata stays usable when a signed URL expires.
+  content only.
+- Media: queued (never blocks capture), dedupe by checksum, deterministic
+  names `platform_postid_index`, failures recorded — metadata stays usable
+  when a signed URL expires.
 - Storage: filesystem + JSONL/SQLite now; interface ready for
   CSC Allas/S3 later. No MongoDB/Kafka fashion requirements.
+
+## Usage
+
+```bash
+python -m collector.backend.scheduler --config collector/config/<study>.yaml
+```
+
+Collection runs are resumable; one failing account/platform never destroys
+a run. See issue #20 for the full requirements list.
 
 ## Status
 
