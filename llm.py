@@ -11,7 +11,8 @@ Selection order (LLM_MODE / LACLAUGPT_OLLAMA_MODE):
     2. auto: local if a reachable Ollama endpoint reports usable VRAM
        (>= LLM_LOCAL_MIN_VRAM_GB, default 16), else cloud
     3. OLLAMA_HOST is honoured for remote/local Ollama servers alike
-    4. cloud fallback if the local endpoint fails mid-run (one retry)
+    4. local -> cloud fallback is forbidden by default and must be explicitly
+       authorised by the caller or LLM_ALLOW_CLOUD_FALLBACK=1
 
 Defaults follow the LaclauGPT model tiers: Gemma 4 models are typically
 enough for LaclauGPT analysis stages.
@@ -23,6 +24,7 @@ import logging
 import os
 import platform
 import subprocess
+from dataclasses import asdict, dataclass
 from functools import lru_cache
 from typing import Any, Type
 from urllib.parse import urlparse
@@ -37,12 +39,14 @@ LLM_MODE_ENV_ALIAS = "LACLAUGPT_OLLAMA_MODE"
 LLM_HOST_ENV = "OLLAMA_HOST"             # standard Ollama var, honoured
 LLM_CLOUD_ENV = "LLM_CLOUD_MODEL"        # model to use in cloud mode
 LLM_LOCAL_MODEL_ENV = "LLM_LOCAL_MODEL"
+LLM_ALLOW_CLOUD_FALLBACK_ENV = "LLM_ALLOW_CLOUD_FALLBACK"
 LLM_LOCAL_MIN_VRAM_GB = float(os.environ.get("LLM_LOCAL_MIN_VRAM_GB", "16"))
 LLM_DEFAULT_LOCAL = "gemma4:e4b"         # enough for LaclauGPT stages
 LLM_DEFAULT_CLOUD = "gemma4:31b-cloud"   # cloud twin for weak machines
 _CAPABLE_HOST_MARKERS = os.environ.get(
     "LACLAUGPT_GPU_HOST_MARKERS", "roihu,gpu,workstation").split(",")
 _LOCAL_ENDPOINTS = {"", "127.0.0.1", "localhost", "::1"}
+_TRUE_VALUES = {"1", "true", "yes", "on"}
 
 # Ollama fallback options; callers normally override via ``options``.
 DEFAULT_OPTIONS = {
@@ -50,6 +54,30 @@ DEFAULT_OPTIONS = {
     "num_ctx": 8192,
     "num_predict": 2048,
 }
+
+
+@dataclass(frozen=True)
+class LLMCallProvenance:
+    """The routing facts for one successful model response.
+
+    ``requested_model`` is the caller's hint. ``resolved_model`` is the model
+    chosen by routing before the request. ``actual_model`` is the model that
+    produced the returned content. These values may differ only when an
+    explicitly authorised fallback occurs.
+    """
+
+    requested_mode: str
+    requested_model: str
+    resolved_model: str
+    actual_mode: str
+    actual_model: str
+    actual_model_digest: str = ""
+    endpoint: str = ""
+    fallback_used: bool = False
+    fallback_reason: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
 
 
 @lru_cache(maxsize=8)
@@ -197,6 +225,34 @@ def _client() -> ollama.Client:
     return ollama.Client(**kwargs)
 
 
+def _fallback_allowed(explicit: bool | None) -> bool:
+    if explicit is not None:
+        return explicit
+    return os.environ.get(LLM_ALLOW_CLOUD_FALLBACK_ENV, "").strip().casefold() in _TRUE_VALUES
+
+
+def _retryable_local_error(exc: Exception) -> bool:
+    """Return True only for transport/service failures worth one cloud retry.
+
+    Validation, programming and client-side request errors must propagate.
+    The Ollama Python package has changed exception classes across releases,
+    so the check uses stable attributes/class names in addition to standard
+    transport exceptions.
+    """
+    if isinstance(exc, (ConnectionError, TimeoutError, OSError)):
+        return True
+    name = type(exc).__name__.casefold()
+    if any(token in name for token in ("connect", "timeout", "network", "transport")):
+        return True
+    status = getattr(exc, "status_code", None)
+    try:
+        if status is not None and int(status) >= 500:
+            return True
+    except (TypeError, ValueError):
+        pass
+    return False
+
+
 # ── sampling defaults (paper §3.3: temperature 0.0 for verifiability) ─
 DEFAULT_OPTIONS = {
     "repeat_last_n": 64,
@@ -210,34 +266,84 @@ DEFAULT_OPTIONS = {
 }
 
 
-def chat(model: str, system_prompt: str, user_prompt: str,
-         options: dict | None = None, schema: dict | None = None) -> str:
-    """One model call. If the requested model/endpoint is a local model and
-    the local endpoint is unreachable, transparently falls back to cloud."""
+def chat_with_provenance(
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    options: dict | None = None,
+    schema: dict | None = None,
+    *,
+    allow_cloud_fallback: bool | None = None,
+) -> tuple[str, LLMCallProvenance]:
+    """One model call returning both content and the model that produced it.
+
+    Explicit ``local`` routing is a hard data boundary. A failed local call is
+    never sent to cloud unless fallback permission is separately granted and
+    the failure is a retryable transport/service error.
+    """
     mode, resolved = resolve_endpoint(model)
     use_model = resolved
+    actual_mode = mode
+    fallback_used = False
+    fallback_reason = ""
     opts = dict(DEFAULT_OPTIONS)
     if options:
         opts.update(options)
     kwargs = {"format": schema} if schema is not None else {}
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
     try:
-        response = _client().chat(model=use_model, messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ], options=opts, **kwargs)
+        response = _client().chat(model=use_model, messages=messages, options=opts, **kwargs)
     except Exception as exc:
-        if mode == "local" and not _looks_cloud(use_model):
-            logger.warning("local Ollama unreachable (%s) — falling back to cloud %s",
-                           exc, LLM_DEFAULT_CLOUD)
-            response = _client().chat(model=LLM_DEFAULT_CLOUD, messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ], options=opts, **kwargs)
-            use_model = LLM_DEFAULT_CLOUD
-        else:
+        can_fallback = (
+            mode == "local"
+            and not _looks_cloud(use_model)
+            and _fallback_allowed(allow_cloud_fallback)
+            and _retryable_local_error(exc)
+        )
+        if not can_fallback:
             raise
+        cloud_model = os.environ.get(LLM_CLOUD_ENV) or LLM_DEFAULT_CLOUD
+        logger.warning(
+            "local Ollama failed with retryable error (%s); authorised fallback to %s",
+            exc, cloud_model,
+        )
+        response = _client().chat(model=cloud_model, messages=messages, options=opts, **kwargs)
+        use_model = cloud_model
+        actual_mode = "cloud"
+        fallback_used = True
+        fallback_reason = f"{type(exc).__name__}: {exc}"
+
     content = response["message"]["content"]
-    logger.debug("LLM response via %s (%s): %s", use_model, mode, content)
+    host = os.environ.get(LLM_HOST_ENV, "").strip() or "default endpoint"
+    provenance = LLMCallProvenance(
+        requested_mode=mode,
+        requested_model=model,
+        resolved_model=resolved,
+        actual_mode=actual_mode,
+        actual_model=use_model,
+        actual_model_digest=model_digest(use_model),
+        endpoint=host,
+        fallback_used=fallback_used,
+        fallback_reason=fallback_reason,
+    )
+    logger.debug(
+        "LLM response requested=%s/%s actual=%s/%s fallback=%s: %s",
+        mode, resolved, actual_mode, use_model, fallback_used, content,
+    )
+    return content, provenance
+
+
+def chat(model: str, system_prompt: str, user_prompt: str,
+         options: dict | None = None, schema: dict | None = None,
+         *, allow_cloud_fallback: bool | None = None) -> str:
+    """Backward-compatible text-only wrapper around :func:`chat_with_provenance`."""
+    content, _ = chat_with_provenance(
+        model, system_prompt, user_prompt, options, schema,
+        allow_cloud_fallback=allow_cloud_fallback,
+    )
     return content
 
 
@@ -301,13 +407,14 @@ def _schema_example(model_cls: Type) -> str:
 
 
 def chat_structured(model: str, system_prompt: str, user_prompt: str,
-                    model_cls: Type, options: dict | None = None):
+                    model_cls: Type, options: dict | None = None, *,
+                    allow_cloud_fallback: bool | None = None,
+                    return_provenance: bool = False):
     """Structured output: pass a Pydantic model, get a validated instance.
     Retries once on JSON validation failure with a strict reminder.
 
-    The exact JSON shape is appended to the user prompt on every attempt:
-    cloud models receive no format enforcement, so the shape must be
-    visible in the prompt itself.
+    When ``return_provenance`` is true, return ``(instance, provenance)`` so
+    callers can persist the actual endpoint/model used for the valid response.
     """
     schema = model_cls.model_json_schema()
     shape = _schema_example(model_cls)
@@ -321,9 +428,13 @@ def chat_structured(model: str, system_prompt: str, user_prompt: str,
         "do not invent extra fields or nest fields differently."
     )
     for attempt in (1, 2):
-        content = chat(model, system_prompt, base_prompt, options, schema)
+        content, provenance = chat_with_provenance(
+            model, system_prompt, base_prompt, options, schema,
+            allow_cloud_fallback=allow_cloud_fallback,
+        )
         try:
-            return model_cls.model_validate_json(_strip_code_fences(content))
+            parsed = model_cls.model_validate_json(_strip_code_fences(content))
+            return (parsed, provenance) if return_provenance else parsed
         except Exception as exc:
             logger.warning("structured parse failed (attempt %d): %s", attempt, exc)
             if attempt == 2:
@@ -333,5 +444,9 @@ def chat_structured(model: str, system_prompt: str, user_prompt: str,
 
 
 def chat_text(model: str, system_prompt: str, user_prompt: str,
-              options: dict | None = None) -> str:
-    return chat(model, system_prompt, user_prompt, options, schema=None)
+              options: dict | None = None, *,
+              allow_cloud_fallback: bool | None = None) -> str:
+    return chat(
+        model, system_prompt, user_prompt, options, schema=None,
+        allow_cloud_fallback=allow_cloud_fallback,
+    )

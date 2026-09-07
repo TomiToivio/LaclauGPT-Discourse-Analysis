@@ -182,7 +182,7 @@ def source_description(run: RunConfig, row: Any) -> sm.SourceMetadata:
 
 
 class Stage:
-    """Versioned SQLite cache; prompt/model/config changes invalidate entries."""
+    """Versioned SQLite cache with actual-model provenance per stage call."""
 
     def __init__(self, run: RunConfig, memory: Memory, stage_name: str,
                  prompt_version: str):
@@ -190,30 +190,43 @@ class Stage:
         self.memory = memory
         self.stage_name = stage_name
         self.prompt_version = prompt_version
+        self.last_provenance: dict[str, Any] = {}
         run.database_dir.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(run.database_dir / f"{stage_name}.db")
-        self.table = f"{stage_name}_v2"
+        # v3 records the model/mode that actually produced the cached result.
+        self.table = f"{stage_name}_v3"
         self.conn.execute(f"""CREATE TABLE IF NOT EXISTS {self.table} (
             cache_key TEXT PRIMARY KEY,
             document_key TEXT NOT NULL,
             result TEXT NOT NULL,
             run_id TEXT NOT NULL,
             model TEXT NOT NULL,
+            model_digest TEXT NOT NULL,
+            mode TEXT NOT NULL,
+            endpoint TEXT NOT NULL,
             prompt_version TEXT NOT NULL,
+            fallback_reason TEXT NOT NULL,
             created_at TEXT NOT NULL
         )""")
         self.conn.commit()
 
-    def fingerprint(self, key: str, system: str, user: str) -> str:
+    def fingerprint(self, key: str, system: str, user: str, *,
+                    model: str | None = None, digest: str | None = None,
+                    mode: str | None = None) -> str:
+        selected_mode, selected_model = resolve_endpoint(model or self.run.model_text)
+        selected_model = model or selected_model
+        selected_mode = mode or selected_mode
+        selected_digest = model_digest(selected_model) if digest is None else digest
         payload = {
             "document_key": key,
             "run": self.run.fingerprint_payload(),
             "stage": self.stage_name,
             "prompt_version": self.prompt_version,
-            # model name alone is insufficient (paper §3.3): the digest
-            # invalidates caches when the same tag resolves to a new build,
-            # and the schema version invalidates them on schema migration.
-            "model_digest": model_digest(self.run.model_text),
+            # The cache identity follows the model that actually produced the
+            # result. A cloud fallback is therefore never cached as local.
+            "model": selected_model,
+            "model_mode": selected_mode,
+            "model_digest": selected_digest,
             "schema_version": SCHEMA_VERSION,
             "system": system,
             "user": user,
@@ -223,29 +236,70 @@ class Stage:
 
     def cached(self, cache_key: str) -> str | None:
         row = self.conn.execute(
-            f"SELECT result FROM {self.table} WHERE cache_key = ?", (cache_key,)
+            f"SELECT result, model, model_digest, mode, endpoint, fallback_reason "
+            f"FROM {self.table} WHERE cache_key = ?", (cache_key,)
         ).fetchone()
-        return row[0] if row else None
+        if not row:
+            return None
+        result, model, digest, mode, endpoint, fallback_reason = row
+        self.last_provenance = {
+            "requested_mode": mode,
+            "requested_model": model,
+            "resolved_model": model,
+            "actual_mode": mode,
+            "actual_model": model,
+            "actual_model_digest": digest,
+            "endpoint": endpoint,
+            "fallback_used": bool(fallback_reason),
+            "fallback_reason": fallback_reason,
+            "cache_hit": True,
+        }
+        return result
+
+    @property
+    def actual_model(self) -> str:
+        return str(self.last_provenance.get("actual_model") or self.run.model_text)
+
+    def provenance(self) -> dict[str, Any]:
+        return dict(self.last_provenance)
 
     def call(self, key: str, system: str, user: str, model_cls: type):
-        cache_key = self.fingerprint(key, system, user)
-        cached = self.cached(cache_key)
+        requested_mode, requested_model = resolve_endpoint(self.run.model_text)
+        requested_digest = model_digest(requested_model)
+        requested_key = self.fingerprint(
+            key, system, user, model=requested_model,
+            digest=requested_digest, mode=requested_mode,
+        )
+        cached = self.cached(requested_key)
         if cached:
             return model_cls.model_validate_json(cached)
-        result = chat_structured(
+
+        result, provenance = chat_structured(
             self.run.model_text, system, user, model_cls,
             {
                 "temperature": self.run.temperature,
                 "num_ctx": self.run.num_ctx,
                 "num_predict": self.run.num_predict,
             },
+            allow_cloud_fallback=self.run.allow_cloud_fallback,
+            return_provenance=True,
         )
+        self.last_provenance = provenance.to_dict()
+        self.last_provenance["cache_hit"] = False
         raw = result.model_dump_json()
+        actual_key = self.fingerprint(
+            key, system, user,
+            model=provenance.actual_model,
+            digest=provenance.actual_model_digest,
+            mode=provenance.actual_mode,
+        )
         self.conn.execute(
-            f"INSERT INTO {self.table} VALUES (?, ?, ?, ?, ?, ?, ?)",
+            f"INSERT OR REPLACE INTO {self.table} VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                cache_key, key, raw, self.run.run_id, self.run.model_text,
-                self.prompt_version,
+                actual_key, key, raw, self.run.run_id,
+                provenance.actual_model, provenance.actual_model_digest,
+                provenance.actual_mode, provenance.endpoint,
+                self.prompt_version, provenance.fallback_reason,
                 datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             ),
         )
@@ -296,7 +350,7 @@ class DiscourseStage(Stage):
         for coding in result.signifiers:
             resolved = self.memory.resolve(
                 coding.term, "signifier", stage="discourse", video_key=key,
-                evidence=coding.evidence_quote, model=self.run.model_text,
+                evidence=coding.evidence_quote, model=self.actual_model,
             )
             item = {
                 "obj_id": resolved.obj_id, "label": resolved.label,
@@ -318,7 +372,7 @@ class DiscourseStage(Stage):
                 if existing is None:
                     resolved = self.memory.resolve(
                         raw, "signifier", stage="discourse", video_key=key,
-                        evidence=coding.evidence_quote, model=self.run.model_text,
+                        evidence=coding.evidence_quote, model=self.actual_model,
                     )
                     existing = {
                         "obj_id": resolved.obj_id, "label": resolved.label,
@@ -343,7 +397,7 @@ class DiscourseStage(Stage):
         for coding in result.formation_candidates:
             resolved = self.memory.resolve(
                 coding.label, "formation", stage="discourse", video_key=key,
-                evidence=coding.evidence_quote, model=self.run.model_text,
+                evidence=coding.evidence_quote, model=self.actual_model,
             )
             formations.append({
                 "obj_id": resolved.obj_id, "label": resolved.label,
@@ -409,7 +463,7 @@ class PostprocessStage(Stage):
                         type_ = ner_by_index[idx] or ""
                 resolved = self.memory.resolve(
                     raw, kind, stage="postprocess", video_key=key,
-                    evidence=text[:500], model=self.run.model_text,
+                    evidence=text[:500], model=self.actual_model,
                     type_=type_,
                 )
                 refs.append({
@@ -453,7 +507,7 @@ class PopulismStage(Stage):
                 resolved = self.memory.resolve(
                     item.populism_element, "signifier", stage="populism",
                     video_key=key, evidence=item.evidence_quote,
-                    model=self.run.model_text,
+                    model=self.actual_model,
                 )
                 out.append({
                     "obj_id": resolved.obj_id, "label": resolved.label,
@@ -485,17 +539,35 @@ def _ref(item: dict) -> MemoryRef:
     )
 
 
+def _annotation_model(stage_provenance: dict[str, dict[str, Any]],
+                      fallback_model: str) -> tuple[str, str]:
+    """Return honest top-level model fields for single- or mixed-model runs."""
+    rows = [p for p in stage_provenance.values() if p and p.get("actual_model")]
+    if not rows:
+        return fallback_model, model_digest(fallback_model)
+    models = {str(p["actual_model"]) for p in rows}
+    if len(models) != 1:
+        return "mixed", ""
+    model = next(iter(models))
+    digests = {str(p.get("actual_model_digest") or "") for p in rows}
+    digests.discard("")
+    return model, (next(iter(digests)) if len(digests) == 1 else "")
+
+
 def build_annotation(run: RunConfig, row: Any, summary_json: str,
-                     discourse: dict, extracted: dict, populism: dict) -> DocumentAnnotation:
+                     discourse: dict, extracted: dict, populism: dict,
+                     stage_provenance: dict[str, dict[str, Any]] | None = None) -> DocumentAnnotation:
     data = _row_dict(row)
     modalities, transformations = source_provenance(row)
+    stage_provenance = stage_provenance or {}
+    annotation_model, annotation_digest = _annotation_model(stage_provenance, run.model_text)
     ann = DocumentAnnotation(
         document_id=document_key(row),
         source_platform=str(data.get("platform") or data.get("source_platform") or ""),
         source_country=str(data.get("country") or data.get("scrapedCountry") or ""),
         language=str(data.get("language") or ""),
-        model=run.model_text,
-        model_digest=model_digest(run.model_text),
+        model=annotation_model,
+        model_digest=annotation_digest,
         run_id=run.run_id,
         summary=summary_json,
         populist=populism.get("populist"),
@@ -522,6 +594,8 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
             "paper_section": run.paper_section,
             "collector": str(data.get("collector") or data.get("collection_method") or ""),
             "run_config": run.fingerprint_payload(),
+            "llm_stages": stage_provenance,
+            "cloud_fallback_allowed": run.allow_cloud_fallback,
             "source_spec": run.source_for_row(
                 str(data.get("language") or ""),
                 str(data.get("platform") or data.get("source_platform") or ""),
@@ -645,7 +719,10 @@ def run_pipeline(run_id: str, csv_path: str, dry_run: bool = False,
     _, run.model_text = resolve_endpoint(run.model_text)
     _, run.model_vision = resolve_endpoint(run.model_vision)
     from llm import describe_routing
-    logger.info("LLM routing: %s", describe_routing(run.model_text))
+    logger.info(
+        "LLM routing: %s; cloud fallback allowed=%s",
+        describe_routing(run.model_text), run.allow_cloud_fallback,
+    )
     df = pd.read_csv(csv_path)
     if run.languages and "language" in df.columns:
         df = df[df["language"].isin(run.languages)]
@@ -658,6 +735,7 @@ def run_pipeline(run_id: str, csv_path: str, dry_run: bool = False,
         print(json.dumps({
             "run_id": run.run_id, "rows": len(df), "stages": list(run.stages),
             "model": run.model_text, "temperature": run.temperature,
+            "allow_cloud_fallback": run.allow_cloud_fallback,
             "output": str(output_path or run.output_path),
         }, ensure_ascii=False, indent=2))
         return []
@@ -690,7 +768,18 @@ def run_pipeline(run_id: str, csv_path: str, dry_run: bool = False,
                 pop_stage.run_row(row, text, summary_json, discourse, metadata)
                 if pop_stage else {"populist": None}
             )
-            ann = build_annotation(run, row, summary_json, discourse, extracted, populism)
+            stage_provenance = {
+                "summary": summary_stage.provenance(),
+                "discourse": discourse_stage.provenance(),
+            }
+            if post_stage:
+                stage_provenance["postprocess"] = post_stage.provenance()
+            if pop_stage:
+                stage_provenance["populism"] = pop_stage.provenance()
+            ann = build_annotation(
+                run, row, summary_json, discourse, extracted, populism,
+                stage_provenance=stage_provenance,
+            )
             annotations.append(ann)
             memory.record_analysis(
                 ann.document_id, "pipeline", ann.model_dump(mode="json"),
