@@ -1,22 +1,20 @@
 # -*- coding: utf-8 -*-
 """4CAT processor: "Analyze with LaclauGPT".
 
-Runs the LaclauGPT analysis pipeline INSIDE 4CAT (top priority, Tomi
-2026-09-04). Reads any text-bearing 4CAT dataset, analyses it with the
-configured Ollama runtime, writes results as the standard LaclauGPT
-interchange schema (JSONL, schema 1.1) plus a flat CSV preview.
+This shipped compatibility processor reads text-bearing 4CAT datasets, analyses
+them with the configured Ollama runtime, and writes LaclauGPT interchange JSONL
+using the current schema 1.3 plus a flat review-oriented output surface.
+
+Important architecture note: this file currently retains its own compact
+summary/populism implementation. It is **not yet exact execution parity** with
+``python -m laclaugpt.cli`` and the canonical evidence-linked pipeline. The work
+to turn 4CAT into a thin adapter around that pipeline is tracked separately.
 
 Deployment (on the 4CAT host):
-  1. pip install this repo's requirements into 4CAT's python env
-     (or copy laclaugpt_memory/ + laclaugpt_interchange/ + prompts/ +
-     llm.py next to the processor)
-  2. Configure local, cloud, or external Ollama for the host and data policy
-  3. drop this file into 4CAT's processors/ directory (or install as
-     an extension per 4CAT's extension docs)
-  4. dataset → "Analyze with LaclauGPT" → options → run
-
-The processor is deliberately thin: all logic lives in the shared
-pipeline modules so laptop/CSC/4CAT runs stay identical.
+  1. install this repository's runtime dependencies in 4CAT's Python environment;
+  2. configure local, cloud, or external Ollama according to the data policy;
+  3. place this file in 4CAT's processors directory or package it as an extension;
+  4. run "Analyze with LaclauGPT" on a text-bearing dataset.
 """
 from __future__ import annotations
 
