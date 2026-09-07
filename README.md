@@ -179,7 +179,7 @@ pipeline:
 
 ```bash
 python -m pip install -e ".[collector]"   # websocket capture + timezone data
-python -m pip install -e ".[test]"        # public offline tests
+python -m pip install -e ".[test]"        # pytest and test-runner support
 python -m pip install -e ".[nlp]"         # spaCy / sklearn / gensim / ST / statsmodels
 python -m pip install -e ".[services]"    # MongoDB / ArangoDB / Redis / DuckDB / Chroma
 python -m pip install -e ".[parquet]"     # pyarrow bulk export
@@ -205,11 +205,11 @@ paper-pipeline development, but new users should prefer `python -m laclaugpt.cli
 ## Tests and CI
 
 The public test suite is offline: it makes no real LLM, GPU, browser-platform,
-or external-database calls. Install the test extra and run the same Python suite
-used by CI:
+or external-database calls. Because `tests/` includes collector regressions,
+install both collector and test extras to run the exact full suite used by CI:
 
 ```bash
-python -m pip install -e ".[test]"
+python -m pip install -e ".[collector,test]"
 python -m pytest -q tests
 ```
 
@@ -219,10 +219,10 @@ publication path while replacing only model calls, then round-trips the emitted
 current-schema annotation JSONL.
 
 `.github/workflows/ci.yml` runs on every pull request and every push to `main`.
-Its core job installs `.[test]`, compiles the shipped Python surface, runs CLI
-smoke tests and executes the full Python test suite. Its collector job installs
-`.[collector,test]`, runs collector tests and validates both Firefox/browser
-JavaScript surfaces and extension manifests.
+Its core job installs `.[collector,test]`, compiles the shipped Python surface,
+runs CLI smoke tests and executes the full Python test suite. Its collector job
+installs the same runtime extras, runs collector tests and validates both
+Firefox/browser JavaScript surfaces and extension manifests.
 
 ## Compatibility policy
 
