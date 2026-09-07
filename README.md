@@ -33,6 +33,46 @@ This repository continues the work of two earlier LaclauGPT repositories:
 
 Both remain historical/archival; all active development happens here.
 
+### History
+
+LaclauGPT is a political science multimodal data collection and analysis
+pipeline. It is called LaclauGPT as a tribute to
+[Ernesto Laclau](https://en.wikipedia.org/wiki/Ernesto_Laclau).
+
+LaclauGPT is developed by Tomi Toivio for three
+[Helsinki Hub on Emotions, Populism and Polarisation](https://www.helsinki.fi/en/researchgroups/emotions-populism-and-polarisation)
+research projects funded by the European Union and the Research Council of
+Finland:
+
+- [CO3](https://www.co3socialcontract.eu/) researches the social contract.
+- [ENDURE](https://www.endure-project.org/) researches the world after the
+  pandemic.
+- [PLEDGE](https://www.pledgeproject.eu/) researches grievance politics.
+
+The pipeline was used to collect and analyze multimodal social media data
+related to the 2024 European parliament elections. Data was collected from
+TikTok and Instagram. Data collection started on 1 May 2024 and continued
+until the election day on 9 June 2024. Collection was based on usernames of
+official election candidates as well as hashtags and search queries related
+to the elections. Election data was collected for Bulgaria, Croatia, Finland,
+France, Germany, Hungary, Portugal, Spain and Sweden. Collected and analyzed
+data cannot be released yet due to GDPR; this open source version uses dummy
+data.
+
+The predecessor work splits into two halves:
+
+- **Collection** ([LaclauGPT-TikTok-Scraper](https://github.com/TomiToivio/LaclauGPT-TikTok-Scraper)):
+  a Firefox extension + Node.js REST backend, functional in 2024, released
+  for research purposes only. Its architecture — network-layer response
+  capture in a Firefox extension, a local backend that parses and stores —
+  is carried forward in `collector/`.
+- **Analysis** ([LaclauGPT-Multimodal-Analysis](https://github.com/TomiToivio/LaclauGPT-Multimodal-Analysis)):
+  [Ollama](https://ollama.com/)-driven batch jobs on the
+  [CSC Puhti](https://docs.csc.fi/computing/systems-puhti/) supercomputer:
+  OpenCV frame extraction + EasyOCR + Whisper transcripts → Llama multimodal
+  frame analysis → summary → structured post-processing → populism analysis
+  with the theories of Laclau and Palonen.
+
 ## Architecture and canonical APIs
 
 There is one canonical domain-model import path and one public Context Memory
