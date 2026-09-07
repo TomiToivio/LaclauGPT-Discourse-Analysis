@@ -13,6 +13,8 @@ import json
 import logging
 import os
 import sqlite3
+import tempfile
+from contextlib import ExitStack
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -53,6 +55,88 @@ def setup_logging(log_dir: Path) -> None:
         level=logging.INFO, handlers=[handler],
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
+
+
+def _staging_path(destination: Path) -> Path:
+    """Create a uniquely named sibling file that is visibly incomplete.
+
+    A hard process crash may leave this file behind, but the ``.partial``
+    suffix makes it impossible to mistake for a completed research artifact.
+    """
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    fd, raw = tempfile.mkstemp(
+        prefix=f".{destination.name}.", suffix=".partial",
+        dir=str(destination.parent),
+    )
+    os.close(fd)
+    return Path(raw)
+
+
+def _cleanup_staged(paths: list[Path]) -> None:
+    for path in paths:
+        try:
+            path.unlink(missing_ok=True)
+        except OSError:
+            logger.warning("could not remove staged artifact %s", path, exc_info=True)
+
+
+def _prepare_success_artifacts(
+    annotations: list[DocumentAnnotation], destination: Path,
+    run: RunConfig, memory: Memory,
+) -> tuple[dict[str, Any], list[tuple[Path, Path]]]:
+    """Render all success artifacts without touching their final paths.
+
+    Failure contract:
+    - stage caches, Context Memory decisions and logs may persist because they
+      are useful provenance/debug state;
+    - annotations, corpus synthesis and review CSV are not published until the
+      complete document loop and every render step have succeeded;
+    - interrupted temporary files are explicitly named ``*.partial``.
+    """
+    corpus_destination = destination.with_suffix(".corpus.json")
+    review_destination = run.log_dir / "glossary_review.csv"
+    run.log_dir.mkdir(parents=True, exist_ok=True)
+
+    staged_output = _staging_path(destination)
+    staged_corpus = _staging_path(corpus_destination)
+    staged_review = _staging_path(review_destination)
+    staged = [staged_output, staged_corpus, staged_review]
+    try:
+        to_jsonl(annotations, str(staged_output))
+        synthesis = corpus_synthesis(annotations, staged_corpus)
+        memory.export_review_csv(str(staged_review))
+        memory.record_analysis(
+            "run", "pipeline-run-prepared",
+            {
+                "run_id": run.run_id,
+                "rows": len(annotations),
+                "output": str(destination),
+                "corpus_synthesis": synthesis,
+                "artifact_state": "ready_to_publish",
+            },
+        )
+        # Publish ancillary files first and the annotation JSONL last. The
+        # annotation path is therefore the authoritative completion boundary.
+        return synthesis, [
+            (staged_corpus, corpus_destination),
+            (staged_review, review_destination),
+            (staged_output, destination),
+        ]
+    except Exception:
+        _cleanup_staged(staged)
+        raise
+
+
+def _publish_success_artifacts(staged: list[tuple[Path, Path]]) -> None:
+    """Atomically replace final artifacts; annotation JSONL is published last."""
+    pending = [source for source, _ in staged]
+    try:
+        for source, destination in staged:
+            os.replace(source, destination)
+            if source in pending:
+                pending.remove(source)
+    finally:
+        _cleanup_staged(pending)
 
 
 def _row_dict(row: Any) -> dict[str, Any]:
@@ -192,23 +276,28 @@ class Stage:
         self.prompt_version = prompt_version
         self.last_provenance: dict[str, Any] = {}
         run.database_dir.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(run.database_dir / f"{stage_name}.db")
-        # v3 records the model/mode that actually produced the cached result.
-        self.table = f"{stage_name}_v3"
-        self.conn.execute(f"""CREATE TABLE IF NOT EXISTS {self.table} (
-            cache_key TEXT PRIMARY KEY,
-            document_key TEXT NOT NULL,
-            result TEXT NOT NULL,
-            run_id TEXT NOT NULL,
-            model TEXT NOT NULL,
-            model_digest TEXT NOT NULL,
-            mode TEXT NOT NULL,
-            endpoint TEXT NOT NULL,
-            prompt_version TEXT NOT NULL,
-            fallback_reason TEXT NOT NULL,
-            created_at TEXT NOT NULL
-        )""")
-        self.conn.commit()
+        conn = sqlite3.connect(run.database_dir / f"{stage_name}.db")
+        try:
+            # v3 records the model/mode that actually produced the cached result.
+            self.table = f"{stage_name}_v3"
+            conn.execute(f"""CREATE TABLE IF NOT EXISTS {self.table} (
+                cache_key TEXT PRIMARY KEY,
+                document_key TEXT NOT NULL,
+                result TEXT NOT NULL,
+                run_id TEXT NOT NULL,
+                model TEXT NOT NULL,
+                model_digest TEXT NOT NULL,
+                mode TEXT NOT NULL,
+                endpoint TEXT NOT NULL,
+                prompt_version TEXT NOT NULL,
+                fallback_reason TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )""")
+            conn.commit()
+        except Exception:
+            conn.close()
+            raise
+        self.conn: sqlite3.Connection | None = conn
 
     def fingerprint(self, key: str, system: str, user: str, *,
                     model: str | None = None, digest: str | None = None,
@@ -235,6 +324,8 @@ class Stage:
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
     def cached(self, cache_key: str) -> str | None:
+        if self.conn is None:
+            raise RuntimeError(f"stage {self.stage_name} is closed")
         row = self.conn.execute(
             f"SELECT result, model, model_digest, mode, endpoint, fallback_reason "
             f"FROM {self.table} WHERE cache_key = ?", (cache_key,)
@@ -264,6 +355,8 @@ class Stage:
         return dict(self.last_provenance)
 
     def call(self, key: str, system: str, user: str, model_cls: type):
+        if self.conn is None:
+            raise RuntimeError(f"stage {self.stage_name} is closed")
         requested_mode, requested_model = resolve_endpoint(self.run.model_text)
         requested_digest = model_digest(requested_model)
         requested_key = self.fingerprint(
@@ -307,7 +400,9 @@ class Stage:
         return result
 
     def close(self) -> None:
-        self.conn.close()
+        conn, self.conn = self.conn, None
+        if conn is not None:
+            conn.close()
 
 
 class SummaryStage(Stage):
@@ -743,20 +838,35 @@ def run_pipeline(run_id: str, csv_path: str, dry_run: bool = False,
     stages = set(run.stages)
     if "summary" not in stages or "discourse" not in stages:
         raise ValueError("paper-aligned runs require summary and discourse stages")
+    destination = Path(output_path) if output_path else run.output_path
+    if destination is None:
+        destination = run.log_dir / "annotations.jsonl"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
     memory_dir = os.environ.get("LACLAUGPT_MEMORY_DIR")
-    memory = Memory(
-        memory_dir=memory_dir or (str(run.memory_dir) if run.memory_dir else str(run.database_dir / "memory")),
-        fuzzy_topic=run.dedup_fuzzy_topic,
-        fuzzy_entity=run.dedup_fuzzy_entity,
-        promote_threshold=run.glossary_lock_threshold,
-        max_context_items=run.glossary_max_lines,
-    )
-    summary_stage = SummaryStage(run, memory)
-    discourse_stage = DiscourseStage(run, memory)
-    post_stage = PostprocessStage(run, memory) if "postprocess" in stages else None
-    pop_stage = PopulismStage(run, memory) if "populism" in stages else None
-    annotations = []
-    try:
+    annotations: list[DocumentAnnotation] = []
+    staged_artifacts: list[tuple[Path, Path]] = []
+    with ExitStack() as resources:
+        memory = Memory(
+            memory_dir=memory_dir or (str(run.memory_dir) if run.memory_dir else str(run.database_dir / "memory")),
+            fuzzy_topic=run.dedup_fuzzy_topic,
+            fuzzy_entity=run.dedup_fuzzy_entity,
+            promote_threshold=run.glossary_lock_threshold,
+            max_context_items=run.glossary_max_lines,
+        )
+        resources.callback(memory.close)
+
+        summary_stage = SummaryStage(run, memory)
+        resources.callback(summary_stage.close)
+        discourse_stage = DiscourseStage(run, memory)
+        resources.callback(discourse_stage.close)
+        post_stage = PostprocessStage(run, memory) if "postprocess" in stages else None
+        if post_stage:
+            resources.callback(post_stage.close)
+        pop_stage = PopulismStage(run, memory) if "populism" in stages else None
+        if pop_stage:
+            resources.callback(pop_stage.close)
+
         for _, row in df.iterrows():
             text = source_text(row)
             metadata = source_description(run, row)
@@ -785,28 +895,14 @@ def run_pipeline(run_id: str, csv_path: str, dry_run: bool = False,
                 ann.document_id, "pipeline", ann.model_dump(mode="json"),
                 evidence=" | ".join(ann.evidence_quotes[:3]),
             )
-    finally:
-        summary_stage.close()
-        discourse_stage.close()
-        if post_stage:
-            post_stage.close()
-        if pop_stage:
-            pop_stage.close()
 
-    destination = Path(output_path) if output_path else run.output_path
-    if destination is None:
-        destination = run.log_dir / "annotations.jsonl"
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    to_jsonl(annotations, str(destination))
-    synthesis = corpus_synthesis(annotations, Path(destination).with_suffix(".corpus.json"))
-    run.log_dir.mkdir(parents=True, exist_ok=True)
-    memory.export_review_csv(str(run.log_dir / "glossary_review.csv"))
-    memory.record_analysis(
-        "run", "pipeline-run",
-        {"run_id": run.run_id, "rows": len(annotations), "output": str(destination),
-         "corpus_synthesis": synthesis},
-    )
-    memory.close()
+        _, staged_artifacts = _prepare_success_artifacts(
+            annotations, destination, run, memory,
+        )
+
+    # Resource cleanup is part of the success boundary: only publish the final
+    # output after every stage database and Context Memory have closed cleanly.
+    _publish_success_artifacts(staged_artifacts)
     print(f"wrote {len(annotations)} provisional annotations to {destination}")
     return annotations
 
