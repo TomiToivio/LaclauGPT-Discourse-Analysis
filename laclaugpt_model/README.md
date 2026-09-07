@@ -1,105 +1,89 @@
-# `laclaugpt_model`: transitional observation/graph model
+# `laclaugpt_model`: frozen pre-2.0 compatibility model
 
-This package is an **older model generation retained for compatibility and
-migration work**. It is no longer the canonical import path for new LaclauGPT
-package code.
+`laclaugpt_model` is an older observation/graph model retained so historical
+SQLite/Parquet/projection workflows and old scripts can still be read and
+migrated. It is **not** the canonical model for new code.
 
-For new code, use the storage-neutral domain model under:
+Use this for new domain objects:
 
 ```python
-from laclaugpt.model import ...
+from laclaugpt.model import SourceItem, Statement, Concept, Articulation
 ```
 
-The current batch interchange remains `laclaugpt_interchange/`, schema **1.3**.
-The current paper pipeline still uses `laclaugpt_memory/` for persistent Context
-Memory and emits schema-1.3 interchange annotations.
+Use this for current schema-1.3 interchange conversion:
 
-`laclaugpt_model/` remains useful because it contains the earlier
-observation-first design, SQLite/Parquet storage helpers and NetworkX projection
-functions. These are not automatically wrong or removed; they are simply not
-the authoritative model API for new integrations. Consolidation of the older
-and newer model/memory layers is tracked separately.
+```python
+from laclaugpt.adapters.interchange import interchange_to_v2
+```
 
-## Design preserved here
+Importing `laclaugpt_model` emits a `FutureWarning` and exposes metadata naming
+`laclaugpt.model` as its replacement. The package is frozen: bug fixes needed to
+keep historical data readable are allowed, but no new domain concepts or new
+integrations should be added here.
 
-The package follows the rule: **store observations and assertions; generate
-networks as views**. Its design draws on DNA (statement as atomic unit), Wikidata
-(qualifiers and references on statements), W3C Web Annotation (evidence spans),
-PROV-O (analytical provenance), ActivityStreams 2.0 (social actor types), UIMA
-CAS (typed spans), and property-graph projections.
+## Why it remains
 
-## Module layout
+The package still contains useful earlier helpers:
 
 ```text
 laclaugpt_model/
-├── __init__.py     older Pydantic observation/assertion types
-├── projections.py  graphs as pure views (NetworkX)
-├── store.py        SQLite + Parquet persistence
-├── lenses.py       optional analytical projection helpers
-└── bridge.py       legacy interchange bridge
+├── __init__.py     frozen Pydantic observation/assertion types
+├── projections.py  older NetworkX graph projections
+├── store.py        older SQLite + Parquet helpers
+├── lenses.py       optional older analytical projections
+└── bridge.py       legacy interchange compatibility bridge
 ```
 
-The bridge is a compatibility path. New interchange conversion work should use
-`laclaugpt/adapters/interchange.py`; do not assume `bridge.py` defines the
-canonical conversion semantics.
+The store/projection functions do not yet have exact one-for-one replacements in
+the canonical package. Removing them before those replacements exist would make
+old work harder to reproduce, so they remain compatibility utilities rather than
+an alternative canonical architecture.
 
-## Types in this model generation
+## Migration map
 
-| Type | Borrowed from | Purpose |
-|---|---|---|
-| `Document` | ActivityStreams 2.0 | anything observed (post/article/video...) |
-| `Actor` | AS2 Person/Org/Account | who |
-| `Concept` | theory-light | what; no Laclau subtypes |
-| `Annotation` | UIMA CAS + W3C Web Annotation | typed span in a document |
-| `Statement` | DNA | actor + concept + stance + time + evidence |
-| `Relation` | Wikidata-style qualifiers | generic typed edge with evidence IDs |
-| `AnalysisRun` | PROV-O Activity | model/prompt/operator provenance |
+| Frozen API | Canonical/new-code replacement |
+|---|---|
+| `laclaugpt_model.Document` | `laclaugpt.model.SourceItem` + `Representation` |
+| `laclaugpt_model.Actor` | `laclaugpt.model.Actor` |
+| `laclaugpt_model.Concept` | `laclaugpt.model.Concept` |
+| `laclaugpt_model.Statement` | `laclaugpt.model.Statement` plus evidence/provenance objects |
+| `laclaugpt_model.Relation` | `Articulation`, `DiscursiveRelation` or `AnalyticRelation` depending on meaning |
+| `laclaugpt_model.AnalysisRun` | `laclaugpt.model.Run` + `Provenance` |
+| `bridge.interchange_to_canonical()` | `laclaugpt.adapters.interchange.interchange_to_v2()` |
+| `store.py` / `projections.py` | retained compatibility helpers until verified canonical equivalents exist |
 
-`AnalysisResult` stores theoretical or analytic classifications as versioned
-results rather than turning nodal points, empty-signifier candidates or graph
-metrics into ontology types. That anti-theory-forcing principle is retained in
-the current architecture.
+The old bridge now understands schema-1.3 `Discourse` objects correctly, but its
+five-list return shape remains legacy. New code should not build against that
+shape.
 
-## Graphs are views
+## Theory rule retained across generations
+
+Laclaudian roles must remain **evidence-bearing analytical results**, not
+ontology/node types. The frozen `AnalysisResult` already followed this rule. The
+canonical `laclaugpt.model` continues it with explicit evidence-linked role and
+relation objects.
+
+For example, a nodal-point assignment in the canonical model requires evidence:
 
 ```python
-from laclaugpt_model.projections import ...
-actor_concept_graph(statements, ...)       # DNA affiliation network
-actor_congruence_graph(statements, ...)    # DNA congruence network
-signifier_graph(concepts, relations)       # signifier graph
-social_interaction_graph(documents, ...)   # reply/mention network
-temporal_slices(statements)                # GEXF-ready time buckets
+from laclaugpt.model import DiscursiveRoleAssignment
+
+role = DiscursiveRoleAssignment(
+    concept_id="con-1",
+    discourse_id="disc-1",
+    role="NODAL_POINT",
+    evidence_ids=["ev-1"],
+    provenance_id="prov-1",
+)
 ```
 
-The intended rule is still useful: the same observation/assertion rows may be
-projected into several graphs; graph structure is not itself the source record.
+## Compatibility lifetime
 
-## Storage
+This package remains supported while repository history or external scripts still
+need its store/projection API and until those functions have tested canonical
+replacements. During that window:
 
-- `init_sqlite(db)` / `upsert(conn, table, rows)` provide local operational
-  persistence for this model generation.
-- `export_parquet(tables, dir)` supports bulk analytics, with JSONL fallback
-  where configured.
-- Current pipeline exchange uses `laclaugpt_interchange` **schema 1.3**.
-
-## Compatibility example
-
-```python
-from laclaugpt_model import Actor, Concept, Statement, AnalysisResult, Stance
-from laclaugpt_model.projections import actor_concept_graph
-from laclaugpt_model.store import init_sqlite, upsert, model_to_row
-
-altman = Actor(name="Sam Altman")
-abundance = Concept(label="abundance")
-st = Statement(document_id="doc_1", actor_id=altman.id,
-               concept_id=abundance.id, stance=Stance.SUPPORT,
-               stance_score=0.9, evidence_span=(84, 164))
-
-conn = init_sqlite("memory/model.db")
-upsert(conn, "statements", [model_to_row(st)])
-
-g = actor_concept_graph([st], {altman.id: altman}, {abundance.id: abundance})
-```
-
-This example documents the retained API; it should not be read as a recommendation
-that new adapters import their canonical domain objects from this package.
+- historical data remains readable;
+- compatibility bugs may be fixed;
+- the API is not extended;
+- new adapters and integrations use `laclaugpt.model` instead.

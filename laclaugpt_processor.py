@@ -31,7 +31,7 @@ class LaclauGPTProcessor(BasicProcessor):
     description = ("Theory-guided computational discourse analysis "
                    "(Laclau/Mouffe + Palonen): entities, topics, signifiers, "
                    "affects, Formula of Populism. Uses the configured Ollama "
-                   "model and the persistent laclaugpt_memory codebook.")
+                   "model and the canonical laclaugpt.memory facade.")
     extension = "ndjson"
     accepts = [None]  # accept any dataset with text bodies
 
@@ -47,7 +47,7 @@ class LaclauGPTProcessor(BasicProcessor):
                 "type": "string",
                 "default": os.environ.get("LACLAUGPT_MEMORY_DIR",
                                           "/scratch/project_2009497/laclaugpt2/memory"),
-                "help": "Persistent laclaugpt_memory directory",
+                "help": "Persistent Context Memory directory",
             },
             "topic_key": {
                 "type": "string",
@@ -62,7 +62,7 @@ class LaclauGPTProcessor(BasicProcessor):
         }
 
     def process(self):
-        from laclaugpt_memory import Memory
+        from laclaugpt.memory import Memory, MemoryRef
         from laclaugpt_interchange import DocumentAnnotation, from_memory_results, to_jsonl
         from prompts import topic_background as tb
 
@@ -85,7 +85,6 @@ class LaclauGPTProcessor(BasicProcessor):
             ctx = memory.context_prompt_block(body[:2000])
             # summary stage (structured)
             from prompts import summary as summary_prompt
-            from laclaugpt_memory import MemoryRef
             system = summary_prompt.build_system_prompt(topic, "", "")
             SummaryModel = summary_prompt.pydantic_models()
             from llm import chat_structured
@@ -146,7 +145,7 @@ class LaclauGPTProcessor(BasicProcessor):
 
 def _resolve_topic(memory, label: str, doc_id: str):
     r = memory.resolve(label, "topic", stage="4cat", video_key=doc_id)
-    from laclaugpt_memory import MemoryRef
+    from laclaugpt.memory import MemoryRef
     return MemoryRef(obj_id=r.obj_id, label=r.label, kind="topic", raw=label)
 
 
