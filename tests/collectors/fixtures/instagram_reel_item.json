@@ -1,0 +1,15 @@
+{
+  "code": "SynReel001",
+  "id": "3234567890123456789_9876543210",
+  "media_type": 2,
+  "product_type": "clips",
+  "taken_at": 1725724900,
+  "caption": {"text": "Synthetic reel caption #reel"},
+  "user": {"username": "synthetic_reeler", "full_name": "Syn Reeler",
+           "pk": "9876543210", "is_verified": true},
+  "image_versions2": {"candidates": [{"url": "https://example.com/reel_thumb.jpg"}]},
+  "video_versions": [{"url": "https://example.com/reel.mp4", "type": 101}],
+  "like_count": 900,
+  "comment_count": 45,
+  "play_count": 12000
+}
