@@ -5,20 +5,15 @@ The browser-capture layer of the LaclauGPT Social Media Collector
 Instagram and X/Twitter content **from the network layer** while the
 researcher browses normally — the Zeeschuimer approach.
 
-## Origin & attribution
+## Origin
 
-- **[Zeeschuimer](https://github.com/digitalmethodsinitiative/zeeschuimer)**
-  (Digital Methods Initiative, **MIT**): the interception technique
-  (`webRequest.filterResponseData`), per-platform endpoint knowledge
-  (TikTok item_list / SIGI_STATE / __UNIVERSAL_DATA_FOR_REHYDRATION__;
-  Instagram xdt GraphQL connections and the visited-account ownership
-  filter; X GraphQL tweet_results walking), and the rule that X IDs stay
-  strings. Parser modules are re-implementations of that knowledge for
-  LaclauGPT's record shape — no verbatim upstream code.
-- **[LaclauGPT-TikTok-Scraper](https://github.com/TomiToivio/LaclauGPT-TikTok-Scraper)**
-  (CC0, 2024): the original background/content split and the
-  filterResponseData plumbing, extended from TikTok-only to three platforms.
-  The historical repo is untouched.
+This extension follows the architecture of the original 2024
+[LaclauGPT-TikTok-Scraper](https://github.com/TomiToivio/LaclauGPT-TikTok-Scraper)
+(CC0, Tomi Toivio): explicit request routing, small platform-specific parsers,
+and a LaclauGPT-owned record shape. The interception technique
+(`webRequest.filterResponseData`) is Firefox-standard webRequest plumbing.
+The historical repository is untouched; this is its generalisation to
+TikTok + Instagram + X under the current collector architecture (issue #20).
 
 ## Install (temporary, Firefox)
 
