@@ -1,0 +1,56 @@
+name: Pipeline failure tests
+
+on:
+  pull_request:
+    paths:
+      - "pipeline.py"
+      - "run_config.py"
+      - "llm.py"
+      - "laclaugpt/canonical_pipeline.py"
+      - "laclaugpt/execution/**"
+      - "laclaugpt_interchange/**"
+      - "laclaugpt_memory/**"
+      - "tests/test_pipeline_failure_cleanup.py"
+      - "tests/test_run_store_claims.py"
+      - ".github/workflows/pipeline-failure-tests.yml"
+  push:
+    branches: [main]
+    paths:
+      - "pipeline.py"
+      - "run_config.py"
+      - "llm.py"
+      - "laclaugpt/canonical_pipeline.py"
+      - "laclaugpt/execution/**"
+      - "laclaugpt_interchange/**"
+      - "laclaugpt_memory/**"
+      - "tests/test_pipeline_failure_cleanup.py"
+      - "tests/test_run_store_claims.py"
+      - ".github/workflows/pipeline-failure-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  pipeline-failure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest pydantic pyyaml pandas ollama networkx
+
+      - name: Compile affected modules
+        run: |
+          python -m compileall -q pipeline.py run_config.py llm.py
+          python -m compileall -q laclaugpt/canonical_pipeline.py laclaugpt/execution laclaugpt_interchange laclaugpt_memory
+
+      - name: Pipeline failure regression tests
+        run: |
+          python -m pytest -q tests/test_pipeline_failure_cleanup.py tests/test_run_store_claims.py
