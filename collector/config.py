@@ -25,15 +25,23 @@ class StudyConfig:
                               if isinstance(cfg, dict)}
         self.candidates: list[dict] = list(data.get("candidates") or [])
         self.parties: list[dict] = list(data.get("parties") or [])
-        self.expected_candidates = int(data.get("expected_candidates", 0))
+        self.expected_candidates = int(data.get("expected_candidates",
+                                                _infer_expected(data)))
         self.study = data.get("study", "unnamed")
 
     def accounts(self) -> list[dict]:
-        """All collection targets as flat (name, kind, platform, handle) rows."""
+        """All collection targets as flat (name, kind, platform, handle) rows.
+
+        Accepts both config shapes used in this repo: entity["handles"]
+        (collector original) and entity["accounts"] (skeleton commit
+        b419ac1). Keys other than the entity metadata are treated as
+        platform -> handle-list mappings.
+        """
         rows: list[dict] = []
+        meta_keys = {"id", "name", "party", "notes", "comment"}
         for kind, group in (("candidate", self.candidates), ("party", self.parties)):
             for entity in group:
-                handles = entity.get("handles") or {}
+                handles = entity.get("handles") or entity.get("accounts") or {}
                 for platform in self.platforms:
                     for handle in handles.get(platform) or []:
                         rows.append({"name": entity["name"], "kind": kind,
@@ -56,6 +64,15 @@ def _date(value: Any) -> date:
     if isinstance(value, date):
         return value
     return date.fromisoformat(str(value))
+
+
+def _infer_expected(data: dict) -> int:
+    """Study expectation: seven main presidential candidates (issue #20).
+
+    The researcher said SEVEN; six are supplied. expected_candidates may
+    be set explicitly in the YAML; default 7 keeps the gap flagged.
+    """
+    return 7 if (data.get("candidates") or data.get("parties")) else 0
 
 
 def load_config(path: str | Path) -> StudyConfig:
