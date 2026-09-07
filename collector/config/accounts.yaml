@@ -1,0 +1,81 @@
+# Brazilian election study — systematic account capture
+# 7 September – 10 October 2026
+# Accounts from the research team. Focus: seven main presidential
+# candidates and two parties (PT, PL) on Instagram, TikTok and X.
+# Lula has two handles per platform (personal + campaign account).
+
+study: brazil-2026
+timezone: America/Sao_Paulo
+window:
+  start: "2026-09-07"
+  end: "2026-10-10"
+
+platforms:
+  tiktok:
+    enabled: true
+    base_urls: ["https://www.tiktok.com/@{handle}"]
+    # TikTok search is unreliable for systematic capture; per-account pages
+    # trigger Zeeschuimer's API interception on every scroll.
+  x:
+    enabled: true
+    base_urls:
+      - "https://x.com/{handle}"
+      - "https://x.com/{handle}/with_replies"
+  instagram:
+    enabled: true
+    base_urls:
+      - "https://www.instagram.com/{handle}/"
+      - "https://www.instagram.com/{handle}/reels/"
+
+# Each handle gets its own output directory per platform so datasets can be
+# merged later per candidate/party/platform.
+candidates:
+  - name: Lula
+    party: PT
+    handles:
+      tiktok: [lulaoficial, brasilcomlula_]
+      x: [LulaOficial, OBrasilComLula]
+      instagram: [lulaoficial, brasilcomlula]
+  - name: Flávio Bolsonaro
+    party: PL
+    handles:
+      tiktok: [flaviobolsonaro]
+      x: [flaviobolsonaro]
+      instagram: [flaviobolsonaro]
+  - name: Romeu Zema
+    party: NOVO
+    handles:
+      tiktok: [romeuzemaoficial]
+      x: [RomeuZema]
+      instagram: [romeuzemaoficial]
+  - name: Ronaldo Caiado
+    party: PSD
+    handles:
+      tiktok: [ronaldocaiado]
+      x: [ronaldocaiado]
+      instagram: [ronaldocaiado]
+  - name: Renan Santos
+    party: MISSÃO
+    handles:
+      tiktok: [renansantosmbl]
+      x: [RenanSantosMBL]
+      instagram: [renansantosmbl]
+  - name: Augusto Cury
+    party: AVANTE
+    handles:
+      tiktok: [augustocury]
+      x: [augustocury]
+      instagram: [augustocuryoficial]
+
+# Party accounts (captured with the same pipeline; name is the party).
+parties:
+  - name: PT
+    handles:
+      tiktok: [ptbrasil]
+      x: [ptbrasil]
+      instagram: [ptbrasil]
+  - name: PL
+    handles:
+      tiktok: [plnacional_]
+      x: [plnacional_]
+      instagram: [plnacional22]
