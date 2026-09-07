@@ -225,7 +225,10 @@ class FourcatCanonicalAdapterTests(unittest.TestCase):
                     stage.run_row(
                         {"id": "ctx-1", "text": EVIDENCE, "platform": "web", "language": "en"},
                         EVIDENCE,
-                        SourceMetadata(platform="web", language="en"),
+                        SourceMetadata(
+                            platform="web", country="US", language="en",
+                            collection="synthetic fixture", has_metadata=True,
+                        ),
                     )
             finally:
                 stage.close()
