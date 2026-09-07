@@ -1,0 +1,46 @@
+{
+  "__typename": "Tweet",
+  "rest_id": "1800000000000000001",
+  "core": {
+    "user_results": {
+      "result": {
+        "__typename": "User",
+        "rest_id": "1111111111",
+        "core": {"screen_name": "synthetic_user", "name": "Synthetic User"},
+        "legacy": {"screen_name": "synthetic_user", "name": "Synthetic User",
+                   "followers_count": 4321, "friends_count": 12},
+        "is_blue_verified": true,
+        "relationship_counts": {"followers": 4321, "following": 12}
+      }
+    }
+  },
+  "legacy": {
+    "id_str": "1800000000000000001",
+    "full_text": "Synthetic tweet with #tag1 and @mention https://example.com/x",
+    "created_at": "Sun Sep 07 12:00:00 +0000 2026",
+    "user_id_str": "1111111111",
+    "conversation_id_str": "1800000000000000001",
+    "lang": "pt",
+    "favorite_count": 42,
+    "retweet_count": 7,
+    "reply_count": 3,
+    "quote_count": 1,
+    "possibly_sensitive": false,
+    "entities": {
+      "hashtags": [{"text": "tag1"}],
+      "urls": [{"expanded_url": "https://example.com/x", "display_url": "example.com/x"}],
+      "user_mentions": [{"screen_name": "mention"}]
+    },
+    "extended_entities": {
+      "media": [
+        {"type": "photo", "media_url_https": "https://example.com/twimg.jpg"},
+        {"type": "video", "media_url_https": "https://example.com/twimg2.jpg",
+         "video_info": {"variants": [
+           {"content_type": "video/mp4", "bitrate": 832000, "url": "https://example.com/twvid.mp4"},
+           {"content_type": "application/x-mpegURL", "bitrate": 0, "url": "https://example.com/twvid.m3u8"}]}}
+      ]
+    }
+  },
+  "views": {"count": "100000"},
+  "source": "<a href=\"https://example.com\" rel=\"nofollow\">Synthetic App</a>"
+}

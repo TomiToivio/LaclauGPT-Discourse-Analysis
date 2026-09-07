@@ -1,0 +1,11 @@
+{
+  "__typename": "XIGPolarisImageMedia",
+  "code": "SynPolaris01",
+  "id": "2234567890123456789",
+  "caption": {"text": "Synthetic polaris caption"},
+  "user": {"username": "synthetic_user", "full_name": "Synthetic User",
+           "pk": "9876543210", "is_verified": false},
+  "display_uri": "https://example.com/polaris.jpg",
+  "display_url": "https://example.com/polaris.jpg",
+  "play_count": 1500
+}

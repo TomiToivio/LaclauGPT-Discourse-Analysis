@@ -1,0 +1,27 @@
+{
+  "id": "1800000000000000002",
+  "type": "adaptive",
+  "legacy": {
+    "id_str": "1800000000000000002",
+    "full_text": "Legacy synthetic tweet",
+    "created_at": "Mon Sep 08 10:30:00 +0000 2026",
+    "user_id_str": "1111111111",
+    "conversation_id_str": "1800000000000000002",
+    "lang": "en",
+    "favorite_count": 5,
+    "retweet_count": 1,
+    "reply_count": 0,
+    "quote_count": 0,
+    "entities": {"hashtags": [], "urls": [], "user_mentions": []},
+    "extended_entities": {"media": []}
+  },
+  "user": {
+    "screen_name": "synthetic_user",
+    "name": "Synthetic User",
+    "id_str": "1111111111",
+    "followers_count": 4321,
+    "friends_count": 12,
+    "description": "synthetic bio",
+    "location": "Helsinki"
+  }
+}
