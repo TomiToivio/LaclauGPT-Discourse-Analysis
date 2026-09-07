@@ -1,0 +1,46 @@
+# Canonical arena/dataset layer for AI26.
+# Research/theory switches live in config/projects/ai26.yaml; this file carries
+# arena-specific source, hint, model and data-boundary settings.
+arena: elites
+project: ai26
+dataset:
+  title: AI elites
+  paper_section: "3.4"
+  topic_key: ai-elites
+  platforms: [web]
+  languages: [en]
+  countries: [US, EU]
+  collection_notes: >-
+    Entrepreneurs, researchers and intellectuals around major AI companies;
+    TESCREAL-adjacent ideological movements. Sources include blogs, forums,
+    podcasts and social-media accounts of AI elites.
+  analytic_hints:
+    signifiers:
+      - artificial intelligence
+      - existential risk
+      - abundance
+      - stagnation
+      - deceleration
+      - innovation
+    actors:
+      - Machine Intelligence Research Institute
+      - Distributed AI Research Institute
+      - Effective Accelerationism
+    formations:
+      - accelerationism
+      - x-risk doomerism
+      - critical ai studies
+      - TESCREAL
+      - left techno-optimism
+  model:
+    text: gemma4:e4b
+    vision: gemma4:e4b
+    ollama_mode: auto
+    ollama_host: ""
+    temperature: 0.0
+    num_ctx: 32768
+    num_predict: 4096
+  data_policy:
+    allow_cloud_fallback: false
+  storage:
+    work_dir: data/arena-elites
