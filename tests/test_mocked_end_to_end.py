@@ -84,7 +84,7 @@ class MockedEndToEndTests(unittest.TestCase):
             parsed = from_jsonl(str(output))
             self.assertEqual(len(parsed), 1)
             self.assertEqual(parsed[0].schema_version, SCHEMA_VERSION)
-            self.assertEqual(parsed[0].document_id, "synthetic-1")
+            self.assertEqual(parsed[0].document_id, "synthetic::synthetic-1")
             self.assertEqual(parsed[0].source_platform, "synthetic")
             self.assertTrue(parsed[0].requires_human_review)
             self.assertEqual(parsed[0].review_status, "PROVISIONAL")
