@@ -1,0 +1,17 @@
+{
+  "code": "SynPost001",
+  "id": "1234567890123456789_9876543210",
+  "media_type": 1,
+  "taken_at": 1725724800,
+  "caption": {"text": "Synthetic post caption #test"},
+  "user": {"username": "synthetic_user", "full_name": "Synthetic User",
+           "pk": "9876543210", "id": "9876543210", "is_verified": true,
+           "profile_pic_url": "https://example.com/pic.jpg"},
+  "image_versions2": {"candidates": [{"url": "https://example.com/img.jpg", "width": 1080}]},
+  "video_versions": [{"url": "", "type": 101}],
+  "like_count": 500,
+  "comment_count": 20,
+  "view_count": 7000,
+  "product_type": "igtv",
+  "location": {"name": "Praça da Sé", "pk": 123, "lat": -23.55, "lng": -46.63, "city": "São Paulo"}
+}
