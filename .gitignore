@@ -180,3 +180,8 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 /sources
+
+# LaclauGPT collector: research data roots are never committed
+laclaugpt-brasil-data/
+collection-data/
+*.har
