@@ -59,6 +59,7 @@ def collect_account(store: Store, cfg: StudyConfig, row: dict,
         "status": "ok",
         "error": None,
     }
+    parsed_items = 0
     try:
         urls = browser.capture_platform_url(
             platform, row["handle"], cfg.platform_urls.get(platform, []))
@@ -93,6 +94,7 @@ def collect_account(store: Store, cfg: StudyConfig, row: dict,
                 })
                 for item in module.capture(
                         cap["data"], cap.get("platform_url", url), cap["url"]):
+                    parsed_items += 1
                     mapped = module.map_item(item, meta)
                     record = normalize.normalise(platform, mapped, item, meta)
                     record["raw_ref"] = raw_ref
@@ -101,6 +103,26 @@ def collect_account(store: Store, cfg: StudyConfig, row: dict,
 
         store.checkpoint(account, platform, status="ok")
         result["new_posts"] = store.seen_count(platform) - seen_now
+        stats = dict(getattr(driver, "last_stats", {}) or {})
+        result["capture_stats"] = stats
+        if parsed_items == 0:
+            # Silent zero runs are the classic collector failure mode: name
+            # the likely cause instead of reporting a clean "ok". (0 new
+            # posts on a re-run is normal dedup — parsed_items counts what
+            # the parser produced this run, so it separates those cases.)
+            if stats.get("api_requests", 0) == 0:
+                result["warning"] = ("0 parsed items and 0 matching API "
+                                     "requests — page served no platform "
+                                     "API calls (login wall or wrong URL?)")
+            elif stats.get("bodies", 0) == 0:
+                result["warning"] = (
+                    f"0 parsed items: {stats.get('api_requests')} API "
+                    f"requests but {stats.get('empty_bodies', 0)} empty "
+                    "response bodies — this platform serves empty bodies "
+                    "over CDP; use the Firefox path (collector/firefox)")
+            else:
+                result["warning"] = ("0 parsed items: API bodies captured "
+                                     "but nothing matched the parser")
     except Exception as exc:  # noqa: BLE001
         store.checkpoint(account, platform, status=f"error: {exc}")
         result["status"] = "failed"

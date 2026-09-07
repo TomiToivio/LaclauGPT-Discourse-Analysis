@@ -10,6 +10,7 @@ import base64
 import json
 import re
 import subprocess
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -60,6 +61,10 @@ class CDPCaptureDriver:
         self.ab_bin = ab_bin
         self.scroll_pause = scroll_pause
         self.settle = settle
+        # stats from the most recent capture_account call (api_requests /
+        # bodies / empty_bodies) — surfaces silent capture failures
+        self.last_stats: dict[str, int] = {"api_requests": 0, "bodies": 0,
+                                           "empty_bodies": 0}
 
     def _ab(self, args: list[str], timeout: int = 120) -> str:
         result = subprocess.run(
@@ -93,16 +98,6 @@ class CDPCaptureDriver:
             ws.send(json.dumps({"id": msg_id, "method": method,
                                 "params": params}))
             return msg_id
-
-        def drain(seconds: float, handler) -> None:
-            end = time.time() + seconds
-            ws.settimeout(0.5)
-            while time.time() < end:
-                try:
-                    message = json.loads(ws.recv())
-                except (websocket.WebSocketTimeoutException, OSError):
-                    continue
-                handler(message)
 
         try:
             target_call = send("Target.getTargets", {})
@@ -146,15 +141,6 @@ class CDPCaptureDriver:
                 }))
                 return msg_id
 
-            send_s("Network.enable", {})
-            time.sleep(0.3)
-
-            self._ab(["open", url])
-            time.sleep(self.settle)
-            for _ in range(scrolls):
-                self._ab(["scroll", "down"])
-                time.sleep(self.scroll_pause)
-
             def collect(message: dict) -> None:
                 method = message.get("method", "")
                 params = message.get("params") or {}
@@ -178,10 +164,37 @@ class CDPCaptureDriver:
                     if request_id in captures:
                         captures[request_id]["failed"] = True
 
-            # Events queued while opening/scrolling are consumed here. A few
-            # extra seconds lets slow API responses reach loadingFinished before
-            # getResponseBody is requested.
-            drain(5.0, collect)
+            send_s("Network.enable", {})
+            time.sleep(0.3)
+
+            # A background thread reads the shared socket for the whole
+            # navigation (open + settle + every scroll). Draining only
+            # after the fact loses the item_list requests: they are
+            # emitted during navigation, not after the last scroll.
+            reading = threading.Event()
+            reading.set()
+
+            def read_events() -> None:
+                ws.settimeout(0.5)
+                while reading.is_set():
+                    try:
+                        message = json.loads(ws.recv())
+                    except (websocket.WebSocketTimeoutException, OSError):
+                        continue
+                    collect(message)
+
+            reader = threading.Thread(target=read_events, daemon=True)
+            reader.start()
+
+            self._ab(["open", url])
+            time.sleep(self.settle)
+            for _ in range(scrolls):
+                self._ab(["scroll", "down"])
+                time.sleep(self.scroll_pause)
+            time.sleep(2.0)  # let trailing API responses reach loadingFinished
+
+            reading.clear()
+            reader.join(timeout=5)
 
             for request_id, meta in captures.items():
                 if meta.get("failed") or not meta.get("finished"):
@@ -197,6 +210,7 @@ class CDPCaptureDriver:
                     if message.get("id") == call:
                         got = message
                 if not got or "result" not in got:
+                    self.last_stats["empty_bodies"] += 1
                     continue
                 body = got["result"].get("body", "")
                 if got["result"].get("base64Encoded"):
@@ -204,7 +218,9 @@ class CDPCaptureDriver:
                 try:
                     parsed = json.loads(body)
                 except (json.JSONDecodeError, TypeError):
+                    self.last_stats["empty_bodies"] += 1
                     continue
+                self.last_stats["bodies"] += 1
                 bodies.append({
                     "url": meta["url"],
                     "data": parsed,
@@ -212,10 +228,12 @@ class CDPCaptureDriver:
                     "platform_url": url,
                 })
         finally:
+            reading.clear()
             try:
                 ws.close()
             except OSError:
                 pass
+        self.last_stats["api_requests"] = len(captures)
         return bodies
 
 
