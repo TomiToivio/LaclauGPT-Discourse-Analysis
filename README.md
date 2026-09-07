@@ -20,6 +20,19 @@ This public checkout deliberately contains:
   shipped, but endpoints, hosts and credentials come from environment variables
   rather than committed files.
 
+## Predecessor repositories
+
+This repository continues the work of two earlier LaclauGPT repositories:
+
+- [LaclauGPT-Multimodal-Analysis](https://github.com/TomiToivio/LaclauGPT-Multimodal-Analysis)
+  — multimodal analysis of EP2024 social-media videos, run as batch jobs on
+  the CSC Puhti supercomputer (research documentation).
+- [LaclauGPT-TikTok-Scraper](https://github.com/TomiToivio/LaclauGPT-TikTok-Scraper)
+  — the 2024 EP-election TikTok scraper (research documentation, not
+  maintained); its collector ideas are carried forward under `collector/`.
+
+Both remain historical/archival; all active development happens here.
+
 ## Architecture and canonical APIs
 
 There is one canonical domain-model import path and one public Context Memory
