@@ -1,15 +1,10 @@
 /**
  * LaclauGPT Brazil Collector — tour navigation layer.
  *
- * Adapted from the historical LaclauGPT TikTok Scraper content-script
- * navigation (CC0 1.0) — but modernised: instead of a random-walk
- * content script, the backend hands the extension a deterministic tour
- * (account list from the study config) and the extension visits each
- * account page, scrolling to trigger pagination, then moves on.
- *
- * Kept inside an IIFE because Firefox Manifest V2 background scripts listed
- * in the same background page share a global lexical scope. This prevents
- * constants such as BACKEND from colliding with capture.js or future scripts.
+ * The backend owns the study configuration and returns one navigation row per
+ * configured account/page URL. This script refreshes that tour before every
+ * visit so study-window changes and config edits take effect without reloading
+ * the extension.
  *
  * Academic research use only.
  */
@@ -17,72 +12,76 @@
 (() => {
   "use strict";
 
-  const BACKEND = "http://127.0.0.1:8765";
+  const BACKEND_URL = "http://127.0.0.1:8765";
+  const VISIT_INTERVAL_MS = 300000;
+  const SCROLL_INTERVAL_MS = 3000;
+  const SCROLLS_PER_VISIT = 10;
 
-  const BASE_URLS = {
-    tiktok: ["https://www.tiktok.com/@{handle}"],
-    instagram: ["https://www.instagram.com/{handle}/", "https://www.instagram.com/{handle}/reels/"],
-    x: ["https://x.com/{handle}", "https://x.com/{handle}/with_replies"],
-  };
-
-  let tour = null;        // {accounts: [{name, kind, platform, handle}], index}
+  let nextIndex = 0;
   let currentTabId = null;
   let busy = false;
 
   async function fetchTour() {
     try {
-      const r = await fetch(`${BACKEND}/tour`);
-      if (!r.ok) return null;
-      return await r.json();
-    } catch (e) {
+      const response = await fetch(`${BACKEND_URL}/tour`, { cache: "no-store" });
+      if (!response.ok) return null;
+      return await response.json();
+    } catch {
       return null;
     }
   }
 
-  function pageUrl(item) {
-    const templates = BASE_URLS[item.platform] || [];
-    const tpl = templates[0] || "";
-    return tpl.replace("{handle}", item.handle);
+  async function closeCurrentTab(tabId) {
+    try { await browser.tabs.remove(tabId); } catch {}
+    if (currentTabId === tabId) currentTabId = null;
   }
 
   async function visitNext() {
     if (busy) return;
-    if (!tour) tour = await fetchTour();
-    if (!tour || !tour.accounts || !tour.accounts.length) return;
 
-    const item = tour.accounts[tour.index % tour.accounts.length];
-    tour.index += 1;
+    // Refresh on every cycle. Once the backend says the study is inactive,
+    // automatic navigation stops immediately even if the extension has been
+    // running for days.
+    const tour = await fetchTour();
+    const accounts = Array.isArray(tour?.accounts) ? tour.accounts : [];
+    if (!tour?.active || accounts.length === 0) return;
+
+    const item = accounts[nextIndex % accounts.length];
+    nextIndex = (nextIndex + 1) % accounts.length;
+    const url = item?.url;
+    if (!url) return;
+
     busy = true;
-
-    const url = pageUrl(item);
     try {
       const tab = await browser.tabs.create({ url, active: true });
       currentTabId = tab.id;
 
-      // Scroll several times over ~30s to trigger lazy loading, then close.
       let scrolls = 0;
       const timer = setInterval(async () => {
         scrolls += 1;
         try {
           await browser.tabs.sendMessage(tab.id, { action: "scroll" });
-        } catch (e) {
-          // Content script not injected (e.g. login page); carry on.
+        } catch {
+          // Login/consent pages may not have our content script yet. Keeping
+          // the visit alive still lets the user resolve the page manually.
         }
-        if (scrolls >= 10) {
+
+        if (scrolls >= SCROLLS_PER_VISIT) {
           clearInterval(timer);
-          try { await browser.tabs.remove(tab.id); } catch (e) {}
-          if (currentTabId === tab.id) currentTabId = null;
+          await closeCurrentTab(tab.id);
           busy = false;
         }
-      }, 3000);
-    } catch (e) {
+      }, SCROLL_INTERVAL_MS);
+    } catch (error) {
+      console.warn("[laclaugpt-collector] navigation failed", item, error);
       currentTabId = null;
       busy = false;
     }
   }
 
-  // Main loop: ask the backend for a tour every 5 minutes; the backend
-  // decides whether this is the right time of day to collect.
-  setInterval(visitNext, 300000);
+  // If the extension is reloaded while one of its own tour tabs survives,
+  // currentTabId is naturally lost; visits remain bounded to one new tab per
+  // interval and the old tab is harmless.
+  setInterval(visitNext, VISIT_INTERVAL_MS);
   visitNext();
 })();

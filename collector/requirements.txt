@@ -1,0 +1,3 @@
+PyYAML>=6
+websocket-client>=1.8
+tzdata
