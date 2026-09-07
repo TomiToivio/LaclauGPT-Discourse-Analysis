@@ -200,7 +200,7 @@ def test_normalise_record_provenance(tiktok_item):
     assert prov["visited_url"] == "https://www.tiktok.com/@u"
     assert prov["api_url"] == "https://api.example/item_list"
     assert prov["capture_id"] == "cap-1"
-    assert "zeeschuimer-capture" in prov["transformations"]
+    assert "laclaugpt-network-capture" in prov["transformations"]
 
 
 def test_normalise_media_refs(tiktok_item, x_modern_tweet):
