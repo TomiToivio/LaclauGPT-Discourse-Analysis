@@ -101,6 +101,7 @@ therefore do not need to choose between memory generations.
 | Batch interchange | `laclaugpt_interchange/` | **Current JSONL/Pydantic interchange, schema 1.3** |
 | Visualization | `laclaugpt/visualization/` | **Optional project/profile-aware Streamlit dashboard**, local/Pouta only; not Roihu |
 | Collection | `collector/` | **Current collector subsystem**; preferred path is Firefox extension + Python backend |
+| Hermes Agent integration | [`HERMES.md`](HERMES.md), [`docs/HERMES_INTEGRATION.md`](docs/HERMES_INTEGRATION.md) | **Optional agent-caller conventions**, zero runtime dependency |
 | Format adapters | `dna_adapter/`, `dats_adapter/`, `inception_adapter/`, `minet_adapter/` | **Shipped implementations** |
 | Package adapters/integrations | `laclaugpt/adapters/`, `laclaugpt/integrations/` | **Shipped implementations**, using `laclaugpt.model` for canonical package objects |
 | Older model package | `laclaugpt_model/` | **Frozen compatibility model**; emits a deprecation warning and is not extended |
@@ -354,6 +355,9 @@ The consolidation is intentionally non-destructive:
   plan. Historical version references inside that plan describe the state when
   the plan was written; current canonical paths and schema versions are listed
   in this README and the implementation audit.
+- [`docs/HERMES_INTEGRATION.md`](docs/HERMES_INTEGRATION.md) documents the
+  optional Hermes Agent caller conventions and the memory boundary (agent
+  cognition stays separate from research data).
 
 ## Author
 
