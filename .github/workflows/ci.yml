@@ -1,0 +1,92 @@
+name: Repository CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    name: Core package and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install repository with test extra
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test]"
+          python -m pip check
+
+      - name: Compile shipped Python
+        run: |
+          python -m compileall -q \
+            laclaugpt laclaugpt_interchange laclaugpt_memory laclaugpt_model \
+            laclaugpt_primitives collector dats_adapter dna_adapter \
+            inception_adapter minet_adapter prompts \
+            pipeline.py llm.py run_config.py projects.py memory.py \
+            seed_codebook.py laclaugpt_processor.py
+
+      - name: CLI smoke tests
+        run: |
+          python -m laclaugpt.cli --help >/dev/null
+          python -m laclaugpt.cli profiles
+          laclaugpt --help >/dev/null
+
+      - name: Full offline Python test suite
+        env:
+          LACLAUGPT_EMBED_BACKEND: none
+        run: python -m pytest -q tests
+
+  collector:
+    name: Collector and browser syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install repository with collector and test extras
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[collector,test]"
+          python -m pip check
+
+      - name: Collector Python tests
+        run: python -m pytest -q tests/collectors
+
+      - name: Preferred Firefox extension syntax
+        run: |
+          node --check collector/firefox/extension/capture.js
+          node --check collector/firefox/extension/navigation.js
+          node --check collector/firefox/extension/content.js
+
+      - name: Standalone browser extension syntax
+        run: |
+          node --check collector/browser/background.js
+          node --check collector/browser/content.js
+          node --check collector/browser/modules/tiktok.js
+          node --check collector/browser/modules/instagram.js
+          node --check collector/browser/modules/twitter.js
+
+      - name: Validate extension manifests
+        run: |
+          python -m json.tool collector/firefox/extension/manifest.json >/dev/null
+          python -m json.tool collector/browser/manifest.json >/dev/null
