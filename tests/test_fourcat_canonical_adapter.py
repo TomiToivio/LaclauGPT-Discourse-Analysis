@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import tempfile
 import unittest
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
 
@@ -107,7 +108,8 @@ class FourcatCanonicalAdapterTests(unittest.TestCase):
                 "uncertainties": [],
             }
 
-        return (
+        stack = ExitStack()
+        for patcher in (
             patch("pipeline.Memory", new=memory_factory),
             patch("pipeline.resolve_endpoint", side_effect=lambda model: ("local", model)),
             patch("pipeline.model_digest", return_value="synthetic-digest"),
@@ -116,7 +118,9 @@ class FourcatCanonicalAdapterTests(unittest.TestCase):
             patch.object(DiscourseStage, "run_row", new=fake_discourse),
             patch.object(PostprocessStage, "run_row", new=fake_postprocess),
             patch.object(PopulismStage, "run_row", new=fake_populism),
-        )
+        ):
+            stack.enter_context(patcher)
+        return stack
 
     def test_fourcat_matches_direct_canonical_analysis(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
