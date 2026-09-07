@@ -1,10 +1,11 @@
 # Paper–implementation audit
 
-Audit date: 2026-09-04
+Original audit date: 2026-09-04
 
-Paper: `LaclauGPT_Ideological_contestation_over_AI.md`
+Documentation reconciliation: 2026-09-07, audited against commit
+`c0c471dc7fc95fa0d92302f2073356bc00db8e2d`.
 
-Revised manuscript: `LaclauGPT_Ideological_contestation_over_AI_revised_commented.md`
+Current manuscript: [`paper/PAPER.md`](../paper/PAPER.md)
 
 ## Overall finding
 
@@ -60,18 +61,33 @@ automated findings.
 
 ## Verification
 
-Run from this directory:
+The canonical public entry point is the package CLI. From the repository root,
+the following commands are reproducible with the dependencies listed in the
+README:
 
 ```bash
-python pipeline.py --run-config run_configs/arena_elites.yaml \
-  --csv tests/fixtures/ai_sample.csv --dry-run
-python -m pytest -q
+python -m laclaugpt.cli --help
+python -m laclaugpt.cli profiles
+python -m pytest tests -q
 ```
 
-The dry run validates the arena, input columns, model settings, enabled stages,
-and output location without invoking an LLM. The test suite includes a mocked
-end-to-end run that writes and reloads an evidence-linked provisional
-annotation.
+The root `pipeline.py` module is the lower-level evidence-linked analysis
+implementation called by the canonical dispatcher. It remains a supported
+compatibility/development entry point, but it is not the recommended orchestration
+interface.
+
+At this audited commit, `tests/` contains public RunStore concurrency/ownership
+tests and mocked LLM-routing/provenance tests. It does **not** contain
+`tests/fixtures/ai_sample.csv` or a mocked end-to-end annotation-export test, so
+this audit makes no claim that those earlier verification steps are reproducible
+from the public checkout. Real inference also requires a configured Ollama
+service and user-supplied source data.
+
+Adapter implementation status is intentionally mixed: DNA, DATS, INCEpTION,
+minet, legacy/interchange, 4CAT/Zeeschuimer, and Argdown modules are shipped in
+this tree. Other bindings described in `docs/INTEROPERABILITY_SPEC.md`, including
+ATLAS.ti, are specifications rather than shipped implementations unless a module
+is present in the tree.
 
 ## Honest scope statement
 
