@@ -3,7 +3,7 @@
 The browser-capture layer of the LaclauGPT Social Media Collector
 (issue #20): a Manifest V2 Firefox add-on that captures public TikTok,
 Instagram and X/Twitter content **from the network layer** while the
-researcher browses normally — the Zeeschuimer approach.
+researcher browses normally.
 
 ## Origin
 
@@ -42,13 +42,12 @@ are drained by the scheduler via the `get_buffer` message → NDJSON on disk
 
 - Only **public** content, only what the platform serves during normal
   authenticated browsing — no private accounts, no CAPTCHA circumvention.
-- Instagram: the Zeeschuimer ownership filter drops background/preloaded
+- Instagram: the ownership filter drops background/preloaded
   posts so the researcher's own feed never leaks into the corpus.
 - X capture is operation-shape based, never hard-coded query IDs.
 
 ## Known fragility
 
 Platform APIs change constantly. These parsers require maintenance after
-platform updates — the same maintenance expectation as Zeeschuimer itself.
-When a platform breaks, check the upstream Zeeschuimer module first: their
-fix usually ports directly.
+platform updates. When one breaks, first re-verify the platform's current
+API response shapes, then update the affected parser module.
