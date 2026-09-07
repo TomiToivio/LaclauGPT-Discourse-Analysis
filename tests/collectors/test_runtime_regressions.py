@@ -100,6 +100,19 @@ def test_firefox_capture_forwards_original_response_bytes():
     assert 'types: ["xmlhttprequest"]' in source
 
 
+def test_firefox_capture_accepts_embedded_page_state():
+    capture = (REPO_ROOT / "collector/firefox/extension/capture.js").read_text(
+        encoding="utf-8")
+    content = (REPO_ROOT / "collector/firefox/extension/content.js").read_text(
+        encoding="utf-8")
+    assert 'message?.type !== "embedded"' in capture
+    assert "postCapture" in capture
+    assert 'type: "embedded"' in content
+    assert "SIGI_STATE" in content
+    assert "__UNIVERSAL_DATA_FOR_REHYDRATION__" in content
+    assert "script[type='application/json']" in content
+
+
 def test_firefox_navigation_refreshes_tour_and_uses_backend_url():
     source = (REPO_ROOT / "collector/firefox/extension/navigation.js").read_text(
         encoding="utf-8")
