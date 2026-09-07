@@ -23,6 +23,16 @@ have equal status:
    development/manual capture, but there is currently no repository-side
    automatic drainer from its `get_buffer` message into the Python Store.
 
+### Zero-run observability
+
+A capture pass that parses 0 items is never silently "ok": each account
+result carries `capture_stats` (`api_requests` / `bodies` /
+`empty_bodies` from `CDPCaptureDriver.last_stats`) and, when nothing
+parsed, a `warning` naming the likely cause — no API requests (login
+wall), empty response bodies (use the Firefox path, e.g. TikTok over
+CDP), or a parser mismatch. Zero *new* posts on a re-run is normal
+deduplication and does not warn.
+
 Collection produces source material. LaclauGPT discourse analysis consumes it
 later. No ideological analysis happens inside the collector.
 
