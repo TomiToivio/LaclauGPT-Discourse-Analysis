@@ -32,11 +32,27 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r collector/requirements.txt pytest
 
+      - name: Python syntax
+        run: python -m compileall -q collector
+
       - name: Python collector tests
         run: python -m pytest -q tests/collectors
 
-      - name: Firefox extension syntax
+      - name: Preferred Firefox extension syntax
         run: |
           node --check collector/firefox/extension/capture.js
           node --check collector/firefox/extension/navigation.js
           node --check collector/firefox/extension/content.js
+
+      - name: Standalone browser extension syntax
+        run: |
+          node --check collector/browser/background.js
+          node --check collector/browser/content.js
+          node --check collector/browser/modules/tiktok.js
+          node --check collector/browser/modules/instagram.js
+          node --check collector/browser/modules/twitter.js
+
+      - name: Validate extension manifests
+        run: |
+          python -m json.tool collector/firefox/extension/manifest.json >/dev/null
+          python -m json.tool collector/browser/manifest.json >/dev/null
