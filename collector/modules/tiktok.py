@@ -26,8 +26,6 @@ from urllib.parse import urlparse
 MODULE_NAME = "TikTok (posts)"
 DOMAIN = "tiktok.com"
 
-# Embedded-JSON sigils from upstream (SIGI_STATE and the newer
-# __UNIVERSAL_DATA_FOR_REHYDRATION__ payload).
 _SIGIL_START = re.compile(
     r"(window\['SIGI_STATE'\]\s*=\s*|<script id=\"SIGI_STATE\" type=\"application/json\">)")
 _SIGIL_END = re.compile(r"(;\s*window\['SIGI_RETRY'\]\s*=\s*|</script>)")
@@ -37,18 +35,12 @@ _UDR_SCRIPT = re.compile(
 
 
 def capture(response: Any, source_platform_url: str, source_url: str) -> list[dict]:
-    """Extract TikTok item dicts from one captured response.
-
-    `response` may be a JSON string, an HTML page with embedded JSON, or an
-    already-parsed dict (the driver shortcut). Returns native item dicts
-    (ItemModule/itemList shapes); normalization happens in map_item().
-    """
+    """Extract TikTok item dicts from one captured response."""
     domain = (source_platform_url.split("/")[2] if "//" in source_platform_url
               else source_platform_url).lower().replace("www.", "")
     if domain != "tiktok.com":
         return []
 
-    # already-parsed payload shortcut (CDP/HAR driver)
     if isinstance(response, dict):
         data = response
     else:
@@ -74,7 +66,7 @@ def capture(response: Any, source_platform_url: str, source_url: str) -> list[di
                     if single:
                         return [single]
                 except (json.JSONDecodeError, AttributeError, TypeError):
-                    pass  # fall through to other strategies
+                    pass
 
         if not response:
             return []
@@ -83,22 +75,29 @@ def capture(response: Any, source_platform_url: str, source_url: str) -> list[di
         except (json.JSONDecodeError, TypeError):
             return []
 
-    # preload responses carry items that may never be displayed; upstream
-    # ignores them and so do we (avoid collecting content the visitor
-    # never saw)
     if "api/preload/" in (source_url or ""):
         return []
 
     if "ItemModule" in data:
         return [x for x in data["ItemModule"].values()
-                if not x.get("liveRoomInfo")]
+                if isinstance(x, dict) and not x.get("liveRoomInfo")]
     if "itemList" in data:
-        return [x for x in data["itemList"] if not x.get("liveRoomInfo")]
+        return [x for x in (data["itemList"] or [])
+                if isinstance(x, dict) and not x.get("liveRoomInfo")]
     if "item_list" in data:
-        return [x for x in data["item_list"] if not x.get("liveRoomInfo")]
+        return [x for x in (data["item_list"] or [])
+                if isinstance(x, dict) and not x.get("liveRoomInfo")]
     if "data" in data:
-        # search "top results" (non-video tab) shape
-        rows = list((data["data"] or {}).values())
+        # Search responses have appeared both as a list and as an object keyed
+        # by result index. The original LaclauGPT scraper handled the list form;
+        # support both so one payload-shape change cannot crash /capture.
+        raw_rows = data.get("data") or []
+        if isinstance(raw_rows, dict):
+            rows = list(raw_rows.values())
+        elif isinstance(raw_rows, list):
+            rows = raw_rows
+        else:
+            return []
         items = [x.get("item") for x in rows
                  if isinstance(x, dict) and "item" in x and "type" in x]
         known = ("id", "desc", "createTime", "music")
@@ -110,11 +109,7 @@ def capture(response: Any, source_platform_url: str, source_url: str) -> list[di
 
 
 def map_item(post: dict, metadata: dict | None = None) -> dict:
-    """Normalise one native TikTok item into a flat LaclauGPT record.
-
-    Field-for-field port of the upstream map_item block (4CAT sync),
-    adapted to plain Python dicts.
-    """
+    """Normalise one native TikTok item into a flat LaclauGPT record."""
     metadata = metadata or {}
     challenges = [ch["title"] for ch in (post.get("challenges") or [])
                   if isinstance(ch, dict) and ch.get("title")]
@@ -131,7 +126,6 @@ def map_item(post: dict, metadata: dict | None = None) -> dict:
         user_fullname = author.get("nickname") or ""
         user_thumbnail = author.get("avatarThumb") or ""
     elif author is not None:
-        # embedded JSON objects carry a flat author string
         user_nickname = author or ""
         user_fullname = post.get("nickname") or ""
 
