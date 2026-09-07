@@ -1,0 +1,40 @@
+# Canonical arena/dataset layer for AI26.
+arena: parliamentary
+project: ai26
+dataset:
+  title: Parliamentary and electoral politics
+  paper_section: "3.4"
+  topic_key: ai-parliamentary
+  platforms: [tiktok]
+  languages: [fi]
+  countries: [FI, EU]
+  collection_notes: >-
+    AI-related subsets of election corpora, party manifestos, parliamentary
+    debates and news, with the EU AI Act as a governance anchor.
+  analytic_hints:
+    signifiers:
+      - artificial intelligence
+      - ai regulation
+      - innovation
+      - employment
+      - security
+      - democracy
+    actors: []
+    formations:
+      - anti-ai backlash
+      - left techno-optimism
+      - accelerationism
+    governance_anchors:
+      - Regulation (EU) 2024/1689 (AI Act)
+  model:
+    text: gemma4:e4b
+    vision: gemma4:e4b
+    ollama_mode: auto
+    ollama_host: ""
+    temperature: 0.0
+    num_ctx: 8192
+    num_predict: 2048
+  data_policy:
+    allow_cloud_fallback: false
+  storage:
+    work_dir: data/arena-parliamentary
