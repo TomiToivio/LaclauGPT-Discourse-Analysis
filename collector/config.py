@@ -1,9 +1,10 @@
 """Study configuration loading (accounts, window, platform toggles)."""
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
 
@@ -30,15 +31,8 @@ class StudyConfig:
         self.study = data.get("study", "unnamed")
 
     def accounts(self) -> list[dict]:
-        """All collection targets as flat (name, kind, platform, handle) rows.
-
-        Accepts both config shapes used in this repo: entity["handles"]
-        (collector original) and entity["accounts"] (skeleton commit
-        b419ac1). Keys other than the entity metadata are treated as
-        platform -> handle-list mappings.
-        """
+        """All collection targets as flat (name, kind, platform, handle) rows."""
         rows: list[dict] = []
-        meta_keys = {"id", "name", "party", "notes", "comment"}
         for kind, group in (("candidate", self.candidates), ("party", self.parties)):
             for entity in group:
                 handles = entity.get("handles") or entity.get("accounts") or {}
@@ -48,8 +42,16 @@ class StudyConfig:
                                      "platform": platform, "handle": handle})
         return rows
 
+    def local_today(self) -> date:
+        """Current date in the study timezone, falling back to UTC if unavailable."""
+        try:
+            tz = ZoneInfo(self.timezone)
+        except ZoneInfoNotFoundError:
+            tz = timezone.utc
+        return datetime.now(tz).date()
+
     def in_window(self, today: date | None = None) -> bool:
-        return self.start <= (today or date.today()) <= self.end
+        return self.start <= (today or self.local_today()) <= self.end
 
     def missing_candidates(self) -> list[str]:
         """Flag expected-but-unlisted candidates (never invented)."""
@@ -67,14 +69,12 @@ def _date(value: Any) -> date:
 
 
 def _infer_expected(data: dict) -> int:
-    """Study expectation: seven main presidential candidates (issue #20).
-
-    The researcher said SEVEN; six are supplied. expected_candidates may
-    be set explicitly in the YAML; default 7 keeps the gap flagged.
-    """
+    """Study expectation: seven main presidential candidates (issue #20)."""
     return 7 if (data.get("candidates") or data.get("parties")) else 0
 
 
 def load_config(path: str | Path) -> StudyConfig:
     data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        raise ValueError(f"collector config {path!s} must contain a YAML mapping")
     return StudyConfig(data, str(path))
