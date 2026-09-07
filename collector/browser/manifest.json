@@ -1,0 +1,41 @@
+{
+  "id": "laclaugpt-collector@laclaugpt.org",
+  "name": "LaclauGPT Social Media Collector",
+  "version": "0.1.0",
+  "description": "LaclauGPT collector — captures public TikTok, Instagram and X network traffic for discourse research. Adapted from Zeeschuimer (DMI, MIT) and the historical LaclauGPT-TikTok-Scraper (CC0).",
+  "author": "Tomi Toivio",
+  "homepage_url": "https://github.com/TomiToivio/LaclauGPT-Discourse-Analysis",
+  "manifest_version": 2,
+  "permissions": [
+    "storage",
+    "unlimitedStorage",
+    "downloads",
+    "webRequest",
+    "webRequestBlocking",
+    "*://*.tiktok.com/*",
+    "*://*.instagram.com/*",
+    "*://*.x.com/*",
+    "*://*.twitter.com/*"
+  ],
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.tiktok.com/*",
+        "*://*.instagram.com/*",
+        "*://*.x.com/*",
+        "*://*.twitter.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "laclaugpt-collector@laclaugpt.org",
+      "strict_min_version": "115.0"
+    }
+  }
+}
