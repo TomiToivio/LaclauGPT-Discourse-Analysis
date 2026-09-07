@@ -1,0 +1,46 @@
+# LaclauGPT Social Media Collector — study configuration TEMPLATE
+#
+# Copy this file to config/<your-study>.yaml and fill it in. A study is
+# pure data: accounts + window + platforms + media policy. The collector
+# code never hardcodes a study.
+#
+# First real deployment: brazil-election-2026.yaml (issue #20).
+
+study: my-study-id
+timezone: UTC                      # IANA tz of the study (e.g. America/Sao_Paulo)
+window:
+  start: "2026-01-01"              # inclusive
+  end:   "2026-12-31"
+
+platforms:
+  tiktok:
+    enabled: true
+    base_urls: ["https://www.tiktok.com/@{handle}"]
+  x:
+    enabled: true
+    base_urls:
+      - "https://x.com/{handle}"
+      - "https://x.com/{handle}/with_replies"   # only if with_replies: true
+    with_replies: false
+  instagram:
+    enabled: true
+    base_urls: ["https://www.instagram.com/{handle}/"]
+
+media:
+  download: true          # queued, never blocks capture; failures recorded
+  storage: filesystem     # interface supports later Allas/S3 backends
+  verify_checksums: true
+
+# groups are free-form: candidates, parties, organisations, hashtags-sets…
+groups:
+  - id: group-1
+    name: Example Group
+    accounts:
+      instagram: [handle1, handle2]
+      tiktok: [handle1]
+      x: [handle1]
+
+# NOTES:
+# - handles are stored EXACTLY as supplied (no silent corrections)
+# - unknown-resolution handles are reported, not fixed
+# - do not list private accounts; public content only
