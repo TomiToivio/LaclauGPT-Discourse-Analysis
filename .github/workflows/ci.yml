@@ -21,6 +21,9 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - name: Publication safety guard
+        run: python scripts/check_publication_safety.py
+
       - name: Install repository for full offline suite
         run: |
           python -m pip install --upgrade pip
