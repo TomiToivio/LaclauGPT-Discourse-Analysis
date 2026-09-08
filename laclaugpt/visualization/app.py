@@ -100,13 +100,28 @@ def _display_document(st, annotation, review_store: ReviewStore) -> None:
     tabs = st.tabs(["Discourse", "Populism", "Evidence", "Provenance", "Researcher review"])
     with tabs[0]:
         st.write("**Signifiers:**", ", ".join(item.label for item in annotation.signifiers) or "None")
-        st.write("**Nodal points:**", ", ".join(item.label for item in annotation.nodal_points) or "None")
+        st.write("**Nodal-point candidates:**", ", ".join(item.label for item in annotation.nodal_points) or "None")
+        if annotation.signifier_roles:
+            st.write("**Signifier-role candidates**")
+            st.dataframe(pd.DataFrame([
+                {
+                    "signifier": item.signifier.label,
+                    "role": item.role,
+                    "confidence": item.confidence,
+                    "needs_corpus_validation": item.needs_corpus_validation,
+                    "verified": item.evidence_verified,
+                    "evidence": item.evidence,
+                }
+                for item in annotation.signifier_roles
+            ]), use_container_width=True, hide_index=True)
         if annotation.articulations:
+            st.write("**Articulations**")
             st.dataframe(pd.DataFrame([
                 {
                     "signifier": item.signifier.label,
                     "related_to": ", ".join(ref.label for ref in item.related_to),
                     "relation": item.relation,
+                    "claim_status": item.claim_status,
                     "confidence": item.confidence,
                     "verified": item.evidence_verified,
                     "evidence": item.evidence,
@@ -114,9 +129,15 @@ def _display_document(st, annotation, review_store: ReviewStore) -> None:
                 for item in annotation.articulations
             ]), use_container_width=True, hide_index=True)
         if annotation.imaginaries:
-            st.write("**Sociotechnical imaginaries:**", ", ".join(item.label for item in annotation.imaginaries))
+            st.write("**Sociotechnical-imaginary candidates:**", ", ".join(item.label for item in annotation.imaginaries))
+        st.caption(
+            "Document and corpus frequencies are descriptive evidence only. They do not by themselves establish "
+            "nodal status, imaginary importance, empty/floating status, or hegemony."
+        )
     with tabs[1]:
         st.write("**Populist:**", annotation.populist)
+        if annotation.populist is False and annotation.non_populist_reason:
+            st.write("**Reason for non-populist / abstention coding:**", annotation.non_populist_reason)
         if annotation.populism_analysis:
             st.write(annotation.populism_analysis)
         st.write("**Us:**", ", ".join(item.label for item in annotation.us) or "None")
@@ -137,6 +158,10 @@ def _display_document(st, annotation, review_store: ReviewStore) -> None:
             st.quote(quote)
         for quote in annotation.hegemonic_evidence:
             st.quote(quote)
+        if annotation.counter_evidence:
+            st.write("**Counter-evidence**")
+            for item in annotation.counter_evidence:
+                st.write(f"• {item}")
         if annotation.uncertainties:
             st.write("**Uncertainties**")
             for item in annotation.uncertainties:
@@ -279,11 +304,6 @@ def main(argv: list[str] | None = None) -> None:
     if analysis.get("laclau"): tab_names.append("Discourse")
     if analysis.get("palonen"): tab_names.append("Populism")
     if analysis.get("sociotechnical_imaginaries"): tab_names.append("Imaginaries")
-    # INV_AFFECT (THEORY.md §15): the tab displays stored Laclaudian
-    # Affect records, so it follows the palonen stage that produces them.
-    # The descriptive sentiment switch must not gate this view — gating it
-    # on sentiment would read as if sentiment polarity substituted for
-    # affective investment (see docs/THEORY_IMPLEMENTATION_AUDIT.md).
     if analysis.get("palonen"): tab_names.append("Affects")
     tab_names.extend(["Documents", "Review"])
     tabs = dict(zip(tab_names, st.tabs(tab_names)))
@@ -321,6 +341,10 @@ def main(argv: list[str] | None = None) -> None:
 
     if "Discourse" in tabs:
         with tabs["Discourse"]:
+            st.caption(
+                "Counts below show document frequency only. Frequency is not theoretical importance, "
+                "nodal status, empty/floating status, or hegemony; corpus and human adjudication remain required."
+            )
             left, right = st.columns(2)
             with left:
                 data = top_values(filtered, "signifiers", 30)
@@ -351,11 +375,26 @@ def main(argv: list[str] | None = None) -> None:
                 if figure: st.plotly_chart(figure, use_container_width=True)
             pop_counts = filtered["populist"].fillna("abstained").astype(str).value_counts().rename_axis("label").reset_index(name="count")
             st.plotly_chart(px.bar(pop_counts, x="label", y="count", title="Formula of Populism classifications"), use_container_width=True)
+            non_populist_rows = [
+                {
+                    "document_id": ann.document_id,
+                    "non_populist_reason": ann.non_populist_reason,
+                }
+                for ann in filtered["annotation"].tolist()
+                if ann.populist is False and ann.non_populist_reason
+            ]
+            if non_populist_rows:
+                st.write("**Non-populist / abstention reasons**")
+                st.dataframe(pd.DataFrame(non_populist_rows), use_container_width=True, hide_index=True)
 
     if "Imaginaries" in tabs:
         with tabs["Imaginaries"]:
+            st.caption(
+                "These are provisional sociotechnical-imaginary candidates. Document frequency is descriptive "
+                "and does not establish theoretical importance or corpus-level validity."
+            )
             data = top_values(filtered, "imaginaries", 30)
-            figure = _bar(px, data, "Sociotechnical imaginaries", "Imaginary")
+            figure = _bar(px, data, "Sociotechnical-imaginary candidates", "Imaginary candidate")
             if figure: st.plotly_chart(figure, use_container_width=True)
 
     if "Affects" in tabs:
