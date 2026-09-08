@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import get_args
 
 import pytest
 from pydantic import ValidationError
@@ -27,6 +28,13 @@ REQUIRED_INVARIANTS = {
     "INV_HUMAN_REVIEW",
     "INV_CONTEXT",
 }
+
+
+def _list_item_model(model, field_name: str):
+    annotation = model.model_fields[field_name].annotation
+    args = get_args(annotation)
+    assert args, f"{field_name} should remain a typed list"
+    return args[0]
 
 
 def test_theory_contract_declares_required_invariants() -> None:
@@ -98,8 +106,7 @@ def test_non_populist_result_requires_abstention_shape() -> None:
 
 def test_floating_and_empty_candidates_are_forced_to_corpus_validation() -> None:
     DiscourseAnalysis = discourse_models()
-    fields = DiscourseAnalysis.__annotations__
-    signifier_model = fields["signifiers"].__args__[0]
+    signifier_model = _list_item_model(DiscourseAnalysis, "signifiers")
 
     for role in ("floating_candidate", "empty_candidate"):
         candidate = signifier_model(
@@ -115,8 +122,7 @@ def test_floating_and_empty_candidates_are_forced_to_corpus_validation() -> None
 
 def test_theory_facing_prompt_requires_evidence_and_context_status() -> None:
     DiscourseAnalysis = discourse_models()
-    fields = DiscourseAnalysis.__annotations__
-    articulation_model = fields["articulations"].__args__[0]
+    articulation_model = _list_item_model(DiscourseAnalysis, "articulations")
 
     with pytest.raises(ValidationError):
         articulation_model(
