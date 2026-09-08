@@ -5,6 +5,21 @@ when a Hermes session runs inside this repository (see
 [`docs/HERMES_INTEGRATION.md`](docs/HERMES_INTEGRATION.md)). It is project
 context, not runtime code: the pipeline has zero runtime dependency on Hermes.
 
+## Required theory context
+
+Before changing any theory-facing part of this repository — prompts, schemas,
+discourse-analysis logic, Context Memory behaviour, visualisations, or
+theory-facing documentation — you must read [`THEORY.md`](THEORY.md) in full
+and treat its concept registry (§14) and invariants (§15) as the semantic
+contract. Identify which concept IDs/invariants your change touches, verify
+the implementation against them before editing, preserve evidence-first
+coding, uncertainty, counter-evidence, abstention and human review, and report
+any theory–implementation mismatch explicitly. If a theoretical definition
+itself must change, verify it against the original sources (Laclau 2005;
+Laclau & Mouffe 2001; Palonen 2025) rather than silently rewriting THEORY.md
+from implementation behaviour. The three books remain the authority when
+THEORY.md and implementation conflict.
+
 ## Identity boundary
 
 Hermes is a participant **caller** of this pipeline, not a component of it.
