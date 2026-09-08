@@ -117,6 +117,18 @@ config/*.private.yaml
 config/secrets/
 secrets/
 
+# Private operational collection settings.
+# Public collector configs must be templates/synthetic examples or an explicitly
+# reviewed reproducibility exception. Real Telegram/RSS/web watch lists and
+# study-specific source selection belong outside Git by default.
+collector/config/*.private.yaml
+collector/config/*.local.yaml
+collector/config/telegram.yaml
+collector/config/rss.yaml
+collector/config/web.yaml
+collector/config/collection-sources.yaml
+collector/config/live-sources.yaml
+
 # Explicit restricted research roots
 /private_data/
 /restricted/
