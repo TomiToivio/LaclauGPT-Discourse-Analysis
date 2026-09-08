@@ -138,7 +138,7 @@ The repository has theory-contract instructions for Hermes and Claude, plus fram
 
 ## Machine-checkable safeguards
 
-`tests/test_theory_invariants.py` checks machine-verifiable parts of the theory contract. `tests/test_module_switches.py` separately checks configuration semantics relevant to issue #48, including descriptive sentiment round-trip, disabled-prompt behaviour, Context Memory ablation and temporal relation-history writes.
+`tests/test_theory_invariants.py` checks machine-verifiable parts of the theory contract. `tests/test_module_switches.py` separately checks configuration semantics relevant to issue #48, including descriptive sentiment round-trip, disabled-prompt behaviour, Context Memory ablation and temporal relation-history writes. `tests/test_evidence_gates.py` (issue #60) checks the hardened evidence surface: hegemonic-evidence verbatim gating and legacy-string upgrade, schema-level evidence requirements with legacy-JSONL compatibility, and full interchange_to_v2 lifting coverage.
 
 These tests are guardrails, not a validity test for discourse analysis.
 
@@ -148,4 +148,4 @@ Corpus-level claims such as floating/empty signifier status, hegemony, polarisat
 
 ## Conclusion
 
-The current public core is substantially aligned with `THEORY.md`. Issue #48 closes an important reproducibility gap: module switches now describe actual prompt/output/state behaviour rather than merely appearing in provenance. Future theory-facing changes should treat `THEORY.md` as a semantic contract while keeping the original books authoritative.
+The current public core is substantially aligned with `THEORY.md`. Issue #48 closes an important reproducibility gap: module switches now describe actual prompt/output/state behaviour rather than merely appearing in provenance. Issue #60 closes the remaining schema-level evidence gaps: hegemonic evidence passes the mechanical verbatim gate and joins the uncertainty tally, substantive codings require evidence at the interchange contract level (with legacy rows degrading to explicit uncertainty), and the documented interchange_to_v2 lift path preserves populism, affects, signifier roles, hegemonic evidence, review state and uncertainties. Future theory-facing changes should treat `THEORY.md` as a semantic contract while keeping the original books authoritative.
