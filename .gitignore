@@ -179,7 +179,13 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
-/sources
+# Research data roots are never committed, but the directory READMEs are
+# tracked so the convention ships with the repo. Ignore the *contents* (/*)
+# instead of the directory itself, or git cannot re-include anything under it.
+/sources/*
+/data/*
+!/sources/README.md
+!/data/README.md
 
 # LaclauGPT collector: research data roots are never committed
 laclaugpt-brasil-data/
