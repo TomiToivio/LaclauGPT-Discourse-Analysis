@@ -1,4 +1,4 @@
-machine: roihu
+machine: linux-gpu-realtime
 backends:
   source: mongodb_remote
   analysis: arangodb_remote
@@ -9,11 +9,14 @@ backends:
   blob: filesystem
 services:
   collector:
-    enabled: false
+    enabled: true
+    backend: firefox-local
   analysis:
     enabled: true
   dashboard:
-    enabled: false
+    enabled: true
+    host: ${LACLAUGPT_DASHBOARD_HOST:-127.0.0.1}
+    port: ${LACLAUGPT_DASHBOARD_PORT:-8501}
   llm:
     mode: local
     provider: ollama
@@ -22,6 +25,7 @@ services:
   context_memory:
     enabled: true
 runtime:
-  topology: slurm-analysis-only
+  topology: realtime-fullstack
   gpu_required: true
-  temporary_directory: ${TMPDIR}
+  incremental_ingest: true
+  process_supervision: external

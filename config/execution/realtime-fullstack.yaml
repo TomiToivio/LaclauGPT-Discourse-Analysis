@@ -1,0 +1,13 @@
+execution: realtime-fullstack
+scheduler: service
+mode: realtime
+recurrence: continuous
+runtime:
+  collector: true
+  analysis: true
+  dashboard: true
+  slurm: false
+  incremental: true
+  resume: true
+  checkpoint: true
+  restart_policy: external-supervisor

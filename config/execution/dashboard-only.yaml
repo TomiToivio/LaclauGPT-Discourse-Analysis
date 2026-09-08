@@ -1,0 +1,9 @@
+execution: dashboard-only
+scheduler: service
+mode: service
+recurrence: continuous
+runtime:
+  collector: false
+  analysis: false
+  dashboard: true
+  slurm: false

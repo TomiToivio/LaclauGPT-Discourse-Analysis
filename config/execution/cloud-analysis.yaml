@@ -1,0 +1,11 @@
+execution: cloud-analysis
+scheduler: manual
+mode: batch
+recurrence: one_shot
+runtime:
+  collector: false
+  analysis: true
+  dashboard: false
+  slurm: false
+  resume: true
+  checkpoint: true
