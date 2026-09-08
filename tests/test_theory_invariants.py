@@ -39,30 +39,36 @@ def _load_app_module():
 class PopulismFormulaInvariants(unittest.TestCase):
     """INV_POPULISM / INV_ABSTAIN (THEORY.md §15)."""
 
-    def _element(self, term: str = "the people"):
-        PopulismElement, _ = populism_prompt.pydantic_models()
-        return PopulismElement(
-            populism_element=term, evidence_quote="the people demand", confidence=0.8,
-        )
+    def _formula(self) -> tuple:
+        # The nested models are rebuilt per pydantic_models() call, so both
+        # must come from the same call for isinstance checks to pass.
+        return populism_prompt.pydantic_models()
 
     def test_populist_true_requires_both_us_and_frontier(self) -> None:
-        _, Formula = populism_prompt.pydantic_models()
+        _, Formula = self._formula()
+        PopulismElement, _ = self._formula()
+        element = PopulismElement(
+            populism_element="the people", evidence_quote="the people demand",
+            confidence=0.8,
+        )
         with self.assertRaises(ValidationError):
-            Formula(populist=True, populism_analysis="x", populism_us=[self._element()])
+            Formula(populist=True, populism_analysis="x", populism_us=[element])
         with self.assertRaises(ValidationError):
-            Formula(populist=True, populism_analysis="x", populism_frontier=[self._element()])
+            Formula(populist=True, populism_analysis="x", populism_frontier=[element])
 
     def test_populist_true_with_both_sides_is_valid(self) -> None:
-        _, Formula = populism_prompt.pydantic_models()
+        PopulismElement, Formula = self._formula()
         formula = Formula(
             populist=True, populism_analysis="both sides evidenced",
-            populism_us=[self._element("us")],
-            populism_frontier=[self._element("elite")],
+            populism_us=[PopulismElement(
+                populism_element="us", evidence_quote="us quote", confidence=0.8)],
+            populism_frontier=[PopulismElement(
+                populism_element="elite", evidence_quote="elite", confidence=0.8)],
         )
         self.assertTrue(formula.populist)
 
     def test_populist_false_requires_reason_and_empty_sides(self) -> None:
-        _, Formula = populism_prompt.pydantic_models()
+        _, Formula = self._formula()
         with self.assertRaises(ValidationError):
             Formula(populist=False, populism_analysis="x", non_populist_reason="")
         formula = Formula(populist=False, populism_analysis="x", non_populist_reason="no frontier")
