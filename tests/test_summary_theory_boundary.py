@@ -5,6 +5,7 @@ import unittest
 
 from pydantic import ValidationError
 
+from pipeline import SUMMARY_PROMPT_VERSION
 from prompts import summary as summary_prompt
 
 
@@ -63,8 +64,9 @@ class SummaryTheoryBoundaryTests(unittest.TestCase):
         self.assertIn("DO NOT label material", prompt)
         self.assertIn("handled later by the discourse/populism stages", prompt)
 
-    def test_prompt_has_explicit_version(self) -> None:
+    def test_prompt_has_explicit_provenance_version(self) -> None:
         self.assertEqual(summary_prompt.PROMPT_VERSION, "summary-v2.2")
+        self.assertEqual(SUMMARY_PROMPT_VERSION, summary_prompt.PROMPT_VERSION)
 
 
 if __name__ == "__main__":
