@@ -1,6 +1,6 @@
 # THEORY.md implementation audit
 
-Status: initial repository audit for issue #50.
+Status: initial repository audit for issue #50, updated for issue #48.
 
 Canonical semantic contract: [`THEORY.md`](../THEORY.md).
 
@@ -8,11 +8,14 @@ This audit separates machine-checkable constraints from interpretive validity. P
 
 ## Scope reviewed
 
-The audit covered the theory-facing surfaces requested in issue #50:
+The audit covers the theory-facing surfaces requested in issue #50 and the module-switch/provenance surfaces corrected in issue #48:
 
 - `prompts/discourse.py`
 - `prompts/populism.py`
+- `prompts/postprocess.py`
 - root `pipeline.py`
+- `run_config.py`
+- `laclaugpt/canonical_pipeline.py`
 - `laclaugpt_interchange/`
 - canonical `laclaugpt/model/`
 - Context Memory/codebook boundaries
@@ -33,11 +36,13 @@ The audit covered the theory-facing surfaces requested in issue #50:
 
 Theory-facing prompt schemas require evidence quotes for substantive document-level codings. The pipeline verifies whether proposed evidence occurs in the source and propagates evidence/evidence-source fields into interchange output. Canonical domain classes such as `Articulation`, `DiscursiveRelation`, `DiscursiveRoleAssignment`, `CollectiveSubject`, `AntagonisticFrontier`, `AffectiveInvestment`, `PopulistConfiguration`, and `HegemonyAssessment` carry evidence IDs.
 
-Important boundary: mechanical quote presence is not interpretive validation. Human researchers still decide whether a passage supports the proposed coding.
+Descriptive sentiment is not a Laclaudian coding family, but schema 1.4 now preserves its target, polarity, source/evidence marker, uncertainty, actual postprocess model, prompt version and provisional review state rather than silently discarding the reading.
+
+Mechanical quote/source presence is not interpretive validation. Humans still decide whether the passage supports the coding.
 
 ### INV_ABSTAIN: aligned
 
-`prompts/populism.py` supports `populist=false` and requires a reason when the Formula of Populism is not evidenced. Empty lists are valid outputs. The discourse prompt likewise permits empty output rather than forced interpretation.
+`prompts/populism.py` supports `populist=false` and requires a reason when the Formula of Populism is not evidenced. Empty lists are valid outputs. The discourse prompt likewise permits empty output rather than forced interpretation. Descriptive sentiment may also abstain by returning no reading when polarity is not source-supported.
 
 ### INV_RELATIONAL: aligned
 
@@ -53,7 +58,7 @@ The discourse and populism prompts explicitly reject polysemy/vagueness as suffi
 
 ### INV_HEGEMONY_CORPUS: aligned
 
-The discourse prompt states that hegemony cannot be inferred from frequency in a single document. Corpus synthesis is explicitly descriptive and leaves hegemony to human adjudication. `HegemonyAssessment` supports separate frequency, actor coverage, institutional uptake, stability and contestation metrics rather than collapsing hegemony into a count.
+The discourse prompt states that hegemony cannot be inferred from frequency in a single document. Corpus synthesis is explicitly descriptive, labels signifier frequency as non-hegemonic evidence, and leaves hegemony to human adjudication. `HegemonyAssessment` supports separate frequency, actor coverage, institutional uptake, stability and contestation metrics rather than collapsing hegemony into a count.
 
 ### INV_ANTAGONISM: aligned
 
@@ -61,9 +66,7 @@ Both theory-facing prompts distinguish constitutive antagonistic frontier constr
 
 ### INV_AFFECT: aligned (UI gate fixed)
 
-The Formula of Populism prompt does not map Us to positive affect or Frontier to negative affect. The interchange schema keeps affect and optional sentiment polarity separate, and the source contains an explicit warning that polarity is not inferred from side membership.
-
-The visualization previously gated the Affects tab on `sentiment or palonen`. The tab displays stored `Affect` records rather than deriving affective investment from sentiment, so this was not an inference violation — but the gate wording could be misread as equating sentiment and affect. Resolved in this PR (issue #50 follow-up): the tab is now gated on `palonen` alone, the stage that produces the Affect records, so the view's visibility can no longer suggest that the descriptive sentiment switch controls affective investment.
+The Formula of Populism prompt does not map Us to positive affect or Frontier to negative affect. The interchange schema keeps `Affect` and schema-1.4 `SentimentObservation` as separate record families. The postprocess prompt explicitly says descriptive polarity is not affective investment. The visualization Affects view is gated by Palonen analysis rather than the descriptive sentiment switch.
 
 ### INV_POPULISM: aligned
 
@@ -75,11 +78,21 @@ The current public core does not assign Palonen's fringe/mainstream/competing dy
 
 ### INV_HUMAN_REVIEW: aligned
 
-The interchange defaults to `requires_human_review=true` and `review_status="PROVISIONAL"`. The dashboard stores researcher review in a separate sidecar instead of overwriting model output. The README carries a prominent human-in-the-loop warning. Agent instruction files now require the theory contract before theory-facing work.
+The interchange defaults to `requires_human_review=true` and `review_status="PROVISIONAL"`; descriptive sentiment observations also default to `PROVISIONAL`. The dashboard stores researcher review in a separate sidecar instead of overwriting model output. The README carries a prominent human-in-the-loop warning. Agent instruction files require the theory contract before theory-facing work.
 
 ### INV_CONTEXT: aligned
 
 `prompts/discourse.py` supports `asserted`, `quoted`, `reported`, `rejected`, `parodied`, and `uncertain` claim statuses. `pipeline.py` propagates claim status into interchange output so downstream analysis can distinguish authorial assertion from quoted/reported/rejected material.
+
+## Module-switch alignment (issue #48)
+
+The project `analysis` map is now authoritative beyond provenance labels:
+
+- `sentiment:false` does not request sentiment extraction from the shared postprocess prompt and publishes no `sentiment_observations`; `sentiment:true` round-trips descriptive observations through schema 1.4;
+- `context_memory:false` prevents codebook context from entering Summary, Discourse, Postprocess and Populism prompts. Stable-ID resolution remains enabled because it is canonical interchange/provenance infrastructure, not prompt context;
+- `temporal:false` prevents Context Memory relation-history writes. Source timestamps remain source provenance and are not erased.
+
+These semantics are covered by `tests/test_module_switches.py` and documented in `docs/CANONICAL_CONFIGURATION.md`.
 
 ## Component audit
 
@@ -91,9 +104,13 @@ Strong alignment. It is evidence-first, distinguishes descriptive NLP from theor
 
 Strong alignment. It operationalises the Formula as a diagnostic heuristic, requires Us + Frontier, permits abstention, requires evidence, and keeps affect independent of side polarity. No clear theory correction was required.
 
+### `prompts/postprocess.py`
+
+Descriptive only. Topics/entities/sentiment are requested only when their project switches are enabled. Sentiment is source-supported, uncertainty-bearing and explicitly separated from Laclaudian affect.
+
 ### `pipeline.py`
 
-Strong alignment. It verifies quote occurrence, preserves claim status and provenance, resolves stable Context Memory references, and keeps corpus synthesis descriptive. Floating/empty/hegemony outputs remain candidates/evidence for human adjudication.
+Strong alignment. Quote/source verification, provenance, Context Memory resolution and descriptive corpus synthesis preserve the theory boundary. Floating/empty/hegemony outputs remain candidates/evidence for later human adjudication. Project switches control Context Memory injection and temporal side effects.
 
 ### Interchange and canonical model
 
@@ -101,11 +118,11 @@ Human review is explicit/provisional. Affect and sentiment remain distinct. Theo
 
 ### Context Memory/codebook
 
-Retrieved codebook candidates are hints, not evidence. Current prompts explicitly say source material must support them, satisfying the Context Memory boundary.
+Retrieved codebook candidates are hints, not evidence. When enabled, prompts explicitly say source material must support them. When `context_memory:false`, prompt injection is disabled while stable-ID resolution stays available for reproducible interchange.
 
 ### Visualization
 
-The dashboard exposes source evidence, uncertainty, provenance, model review status and a separate researcher-review sidecar. Nodal output is presented as candidate output in aggregate views. The Affects view is no longer gated by descriptive sentiment.
+The dashboard exposes source evidence, uncertainty, provenance, model review status and a separate researcher-review sidecar. Nodal output is presented as candidate output in aggregate views. The Affects view is not gated by descriptive sentiment.
 
 ### Collector boundary
 
@@ -113,23 +130,15 @@ The collector performs acquisition/normalisation, not discourse-theoretical clas
 
 ### Paper and README
 
-`paper/PAPER.md` already states the central distinctions reflected in `THEORY.md`: frequency is not hegemony; ambiguity/polysemy is not emptiness; criticism is not antagonism; sentiment is not affective investment; model outputs are provisional and human-reviewable. The README now makes the human-verification requirement highly visible.
+`paper/PAPER.md` distinguishes frequency from hegemony, ambiguity from emptiness, criticism from antagonism, and sentiment from affective investment. The README makes the human-verification requirement prominent and points readers to the theory contract.
 
 ### Agent instructions
 
-The main gap motivating issue #50 was agent context. The repository now has theory-contract instructions for Hermes and Claude, plus framework-neutral [`AGENTS.md`](AGENTS.md). Agents are required to read `THEORY.md` before theory-facing changes, identify relevant invariants, preserve evidence/uncertainty/abstention/human review, and verify theoretical changes against the original books.
+The repository has theory-contract instructions for Hermes and Claude, plus framework-neutral [`AGENTS.md`](../AGENTS.md). Agents are required to read `THEORY.md` before theory-facing changes, identify relevant invariants, preserve evidence/uncertainty/abstention/human review, and verify theoretical changes against the original books.
 
 ## Machine-checkable safeguards
 
-`tests/test_theory_invariants.py` checks machine-verifiable parts of the contract, including:
-
-- Formula of Populism requires both Us and Frontier;
-- abstention/non-populist output is valid;
-- theory-facing schemas preserve evidence;
-- floating/empty candidates require corpus validation;
-- affect is not inferred from sentiment polarity or side membership;
-- the visualization does not gate affect by the sentiment switch;
-- agent-facing documentation references `THEORY.md`.
+`tests/test_theory_invariants.py` checks machine-verifiable parts of the theory contract. `tests/test_module_switches.py` separately checks configuration semantics relevant to issue #48, including descriptive sentiment round-trip, disabled-prompt behaviour, Context Memory ablation and temporal relation-history writes.
 
 These tests are guardrails, not a validity test for discourse analysis.
 
@@ -139,4 +148,4 @@ Corpus-level claims such as floating/empty signifier status, hegemony, polarisat
 
 ## Conclusion
 
-The current public core is substantially aligned with `THEORY.md`. Issue #50 primarily closes an **agent-context and regression-safety gap**, rather than correcting a major theoretical error in the existing prompts. Future theory-facing changes should treat `THEORY.md` as a semantic contract while keeping the original books authoritative.
+The current public core is substantially aligned with `THEORY.md`. Issue #48 closes an important reproducibility gap: module switches now describe actual prompt/output/state behaviour rather than merely appearing in provenance. Future theory-facing changes should treat `THEORY.md` as a semantic contract while keeping the original books authoritative.
