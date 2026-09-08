@@ -191,3 +191,5 @@ cython_debug/
 laclaugpt-brasil-data/
 collection-data/
 *.har
+data/csv/ep24_poland.csv
+data/csv/ep24_finland.csv
