@@ -1,0 +1,25 @@
+machine: linux-dashboard
+backends:
+  source: filesystem
+  analysis: filesystem
+  graph: none
+  vector: none
+  cache: none
+  analytics: duckdb_local
+  blob: filesystem
+services:
+  collector:
+    enabled: false
+  analysis:
+    enabled: false
+  dashboard:
+    enabled: true
+    host: ${LACLAUGPT_DASHBOARD_HOST:-127.0.0.1}
+    port: ${LACLAUGPT_DASHBOARD_PORT:-8501}
+  llm:
+    mode: none
+  context_memory:
+    enabled: false
+runtime:
+  topology: dashboard-only
+  persistent_review_sidecar: true

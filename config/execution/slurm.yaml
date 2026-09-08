@@ -9,11 +9,12 @@ resources:
   memory: 64G
   gpus: 1
 runtime:
-  use_tmpdir: true          # $TMPDIR for transient video streams (never persisted)
+  collector: false
+  analysis: true
+  dashboard: false
+  slurm: true
+  use_tmpdir: true
   resume: true
   checkpoint: true
   retry_failed_items: true
   skip_already_processed: true
-data_root: LACLAUGPT_DATA_DIR   # EP24 phase-0 landing (csv/, videos/, annotations/, memory/)
-repo_root: LACLAUGPT_REPO_ROOT   # checked-out repo on Roihu (code, prompts, run_configs)
-
