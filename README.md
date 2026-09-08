@@ -98,10 +98,11 @@ therefore do not need to choose between memory generations.
 | Domain model | `laclaugpt/model/` | **Canonical storage-neutral domain model for new code** |
 | Context Memory public API | `laclaugpt/memory/` | **Canonical memory/entity-resolution facade** |
 | Persistent Context Memory implementation | `laclaugpt_memory/` | **Supported implementation/compatibility layer**, used by the paper pipeline |
-| Batch interchange | `laclaugpt_interchange/` | **Current JSONL/Pydantic interchange, schema 1.3** |
+| Batch interchange | `laclaugpt_interchange/` | **Current JSONL/Pydantic interchange**; version lives in `laclaugpt_interchange.SCHEMA_VERSION` — never hard-code it in docs |
 | Visualization | `laclaugpt/visualization/` | **Optional project/profile-aware Streamlit dashboard**, local/Pouta only; not Roihu |
 | Collection | `collector/` | **Current collector subsystem**; preferred path is Firefox extension + Python backend |
 | Hermes Agent integration | [`HERMES.md`](HERMES.md), [`docs/HERMES_INTEGRATION.md`](docs/HERMES_INTEGRATION.md) | **Optional agent-caller conventions**, zero runtime dependency |
+| Theory contract | [`THEORY.md`](THEORY.md) | **Canonical theory/methodology contract for humans and agents**; required reading before theory-facing changes |
 | Format adapters | `dna_adapter/`, `dats_adapter/`, `inception_adapter/`, `minet_adapter/` | **Shipped implementations** |
 | Package adapters/integrations | `laclaugpt/adapters/`, `laclaugpt/integrations/` | **Shipped implementations**, using `laclaugpt.model` for canonical package objects |
 | Older model package | `laclaugpt_model/` | **Frozen compatibility model**; emits a deprecation warning and is not extended |
@@ -121,8 +122,9 @@ retry and checkpoint policy. See
 The older `laclaugpt_model/` store/projection helpers remain because they do not
 yet have exact tested canonical replacements. Historical data and scripts stay
 readable, but new adapters must not add dependencies on that model generation.
-Current schema-1.3 interchange should be lifted into the canonical model through
-`laclaugpt.adapters.interchange.interchange_to_v2()`.
+Current interchange (schema version in
+`laclaugpt_interchange.SCHEMA_VERSION`) should be lifted into the canonical
+model through `laclaugpt.adapters.interchange.interchange_to_v2()`.
 
 The root `laclaugpt_processor.py` is the shipped 4CAT processor and now delegates
 analysis to the same canonical execution path as the CLI; 4CAT-specific code is
@@ -147,7 +149,8 @@ projects.py             compatibility project-preset helper; canonical project
 llm.py                  machine-tier LLM routing (local / cloud / external)
 memory.py               legacy shim; replacement is laclaugpt.memory
 seed_codebook.py        AI-ideology codebook seeds
-laclaugpt_interchange/  interchange schema (JSONL, Pydantic), schema 1.3
+laclaugpt_interchange/  interchange schema (JSONL, Pydantic); version lives in
+                        laclaugpt_interchange.SCHEMA_VERSION (do not hard-code)
 laclaugpt_memory/       persistent Context Memory implementation
 laclaugpt_model/        frozen older model/store/projection compatibility package
 prompts/                theory-guided prompt modules
@@ -330,7 +333,9 @@ Firefox/browser JavaScript surfaces and extension manifests.
 
 The consolidation is intentionally non-destructive:
 
-- schema-1.3 interchange files remain readable;
+- interchange JSONL files remain readable across schema versions
+  (`schema_version` is a plain field with defaults, so older files load and
+  keep their version);
 - existing `laclaugpt_memory` SQLite stores keep their on-disk schema;
 - existing RunStore databases are migrated in place with nullable
   `analysis_profile` and `arena_id` columns;
@@ -349,6 +354,9 @@ The consolidation is intentionally non-destructive:
   dashboard data contract and local/Pouta deployment boundary.
 - [`docs/PAPER_IMPLEMENTATION_AUDIT.md`](docs/PAPER_IMPLEMENTATION_AUDIT.md)
   records what the current code actually implements and the commit audited.
+- [`THEORY.md`](THEORY.md) is the canonical theory/methodology contract
+  (concept registry and invariants) that agents must read before theory-facing
+  changes.
 - [`docs/INTEROPERABILITY_SPEC.md`](docs/INTEROPERABILITY_SPEC.md) is a design
   specification containing both shipped and future targets.
 - [`docs/DATA_MODEL_2_0_PLAN.md`](docs/DATA_MODEL_2_0_PLAN.md) is a dated design
