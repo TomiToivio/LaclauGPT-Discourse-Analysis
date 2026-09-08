@@ -20,7 +20,9 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
-SCHEMA_VERSION = "1.6"   # 1.6: claim_status defaults to "uncertain" (INV_CONTEXT:
+SCHEMA_VERSION = "1.7"   # 1.7: DocumentAnnotation.relevance / relevance_reason
+                         #       (mark-don't-drop legacy parity, issue #73)
+                         # 1.6: claim_status defaults to "uncertain" (INV_CONTEXT:
                          #       omitting the field no longer silently asserts
                          #       authorship); Discourse.evidence for candidate
                          #       discourse labels
@@ -219,6 +221,14 @@ class DocumentAnnotation(BaseModel):
     # distinguishable from one with legitimately empty codings.
     discourse_applicable: bool | None = None
     discourse_applicability_reason: str = ""
+
+    # Relevance (issue #73 legacy-parity): the old dashboard dropped rows it
+    # judged non-political silently. The new pipeline instead MARKS them:
+    # relevance="irrelevant" keeps the annotation queryable but excludes it
+    # from human-review queues and corpus synthesis. "relevant" is the
+    # normal analytic case; None = not yet judged (legacy rows).
+    relevance: str | None = None              # relevant | irrelevant
+    relevance_reason: str = ""
 
     summary: str = ""
     evidence_quotes: list[str] = []

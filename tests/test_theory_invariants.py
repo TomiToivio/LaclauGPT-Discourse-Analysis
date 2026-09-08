@@ -414,7 +414,7 @@ class AttributionDefaultsAndCanonicalGatesInvariant(unittest.TestCase):
                          "uncertain")
         self.assertEqual(PopulismElementAssessment(
             element=iref, side="us").claim_status, "uncertain")
-        self.assertEqual(SCHEMA_VERSION, "1.6")
+        self.assertEqual(SCHEMA_VERSION, "1.7")
 
     def test_canonical_rejected_attribution_exists(self) -> None:
         from laclaugpt.model import AttributionType
