@@ -33,7 +33,7 @@ model under `laclaugpt/model/`.
 | Paper analysis | root `pipeline.py` | Current evidence-linked analysis implementation |
 | Domain model for new package code | `laclaugpt/model/` | Canonical storage-neutral model |
 | Persistent Context Memory used by paper pipeline | `laclaugpt_memory/` | Current codebook/resolution store |
-| Batch interchange | `laclaugpt_interchange/` | Current schema **1.3** |
+| Batch interchange | `laclaugpt_interchange/` | Current schema **1.4** (descriptive `SentimentObservation`; 1.3 added `MemoryRef.ner_type`) |
 | Collector | `collector/` | Preferred systematic path: Firefox extension + Python backend |
 | Older observation/graph model | `laclaugpt_model/` | Transitional compatibility layer |
 | 4CAT processor | root `laclaugpt_processor.py` | Shipped compatibility processor; canonical pipeline parity remains separate work |
