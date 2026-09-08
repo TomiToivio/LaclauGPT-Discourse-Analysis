@@ -111,6 +111,7 @@ therefore do not need to choose between memory generations.
 | Visualization | `laclaugpt/visualization/` | **Optional project/profile-aware Streamlit dashboard**, local/Pouta only; not Roihu |
 | Collection | `collector/` | **Current collector subsystem**; preferred path is Firefox extension + Python backend |
 | Hermes Agent integration | [`HERMES.md`](HERMES.md), [`docs/HERMES_INTEGRATION.md`](docs/HERMES_INTEGRATION.md) | **Optional agent-caller conventions**, zero runtime dependency |
+| Claude Code integration | [`CLAUDE.md`](CLAUDE.md), [`docs/CLAUDE_INTEGRATION.md`](docs/CLAUDE_INTEGRATION.md) | **Optional agent-caller conventions**, zero runtime dependency; both agents route analysis to local Ollama open-source models only |
 | Theory contract | [`THEORY.md`](THEORY.md) | **Canonical theory/methodology contract for humans and agents**; required reading before theory-facing changes |
 | Format adapters | `dna_adapter/`, `dats_adapter/`, `inception_adapter/`, `minet_adapter/` | **Shipped implementations** |
 | Package adapters/integrations | `laclaugpt/adapters/`, `laclaugpt/integrations/` | **Shipped implementations**, using `laclaugpt.model` for canonical package objects |
@@ -375,6 +376,11 @@ The consolidation is intentionally non-destructive:
 - [`docs/HERMES_INTEGRATION.md`](docs/HERMES_INTEGRATION.md) documents the
   optional Hermes Agent caller conventions and the memory boundary (agent
   cognition stays separate from research data).
+- [`docs/CLAUDE_INTEGRATION.md`](docs/CLAUDE_INTEGRATION.md) documents the
+  equivalent optional Claude Code caller conventions. Both agent integrations
+  are restricted to local Ollama open-source models
+  (`laclaugpt.integrations.agent_policy` enforces `LLM_MODE=local`, no cloud
+  or external routing, no cloud fallback).
 
 ## Author
 

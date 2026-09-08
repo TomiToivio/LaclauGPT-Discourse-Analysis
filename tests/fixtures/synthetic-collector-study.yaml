@@ -1,0 +1,78 @@
+# Synthetic collector study used by the public offline test suite.
+#
+# All people, groups, and handles in this file are fictional. The fixture mirrors
+# the structural features of a real election study without depending on research
+# subjects or live accounts.
+
+study: synthetic-election-study
+timezone: America/Sao_Paulo
+expected_candidates: 7
+
+window:
+  start: "2026-09-07"
+  end: "2026-10-10"
+
+platforms:
+  tiktok:
+    enabled: true
+    base_urls: ["https://www.tiktok.com/@{handle}"]
+  x:
+    enabled: true
+    base_urls:
+      - "https://x.com/{handle}"
+      - "https://x.com/{handle}/with_replies"
+  instagram:
+    enabled: true
+    base_urls:
+      - "https://www.instagram.com/{handle}/"
+      - "https://www.instagram.com/{handle}/reels/"
+
+candidates:
+  - name: Candidate Alpha
+    party: PA
+    handles:
+      instagram: [candidate_alpha, alpha_campaign]
+      tiktok: [candidate_alpha, alpha_campaign_]
+      x: [CandidateAlpha, AlphaCampaign]
+  - name: Candidate Beta
+    party: PB
+    handles:
+      instagram: [candidate_beta]
+      tiktok: [candidate_beta]
+      x: [CandidateBeta]
+  - name: Candidate Gamma
+    party: PG
+    handles:
+      instagram: [candidate_gamma]
+      tiktok: [candidate_gamma]
+      x: [CandidateGamma]
+  - name: Candidate Delta
+    party: PD
+    handles:
+      instagram: [candidate_delta]
+      tiktok: [candidate_delta]
+      x: [CandidateDelta]
+  - name: Candidate Epsilon
+    party: PE
+    handles:
+      instagram: [candidate_epsilon]
+      tiktok: [candidate_epsilon]
+      x: [CandidateEpsilon]
+  - name: Candidate Zeta
+    party: PZ
+    handles:
+      instagram: [candidate_zeta]
+      tiktok: [candidate_zeta_official]
+      x: [CandidateZeta]
+
+parties:
+  - name: Party Alpha
+    handles:
+      instagram: [party_alpha]
+      tiktok: [party_alpha]
+      x: [PartyAlpha]
+  - name: Party Beta
+    handles:
+      instagram: [party_beta]
+      tiktok: [party_beta_]
+      x: [PartyBeta]
