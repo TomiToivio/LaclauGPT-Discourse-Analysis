@@ -99,7 +99,10 @@ class ClaudeIntegrationTests(unittest.TestCase):
             tool = ClaudeTools(audit, cli=lambda argv: 0)
             for env in (
                 {"LLM_MODE": "cloud"},
-                {"LACLAUGPT_OLLAMA_MODE": "external", "OLLAMA_HOST": "example.invalid"},
+                # alias-based external routing: neutralise any inherited
+                # LLM_MODE so the alias is actually consulted (order-independent)
+                {"LLM_MODE": "", "LACLAUGPT_OLLAMA_MODE": "external",
+                 "OLLAMA_HOST": "example.invalid"},
                 {"LLM_MODE": "local", "LLM_ALLOW_CLOUD_FALLBACK": "1"},
                 # no explicit local mode: auto routing may pick cloud. Empty
                 # strings neutralise any inherited LLM_MODE in the running
