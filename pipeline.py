@@ -613,6 +613,7 @@ class PopulismStage(Stage):
                     "affect": item.populism_affect,
                     "evidence": item.evidence_quote,
                     "confidence": item.confidence,
+                    "claim_status": item.claim_status,
                     "nodal": item.nodal_candidate,
                     "empty_candidate": item.empty_candidate,
                     "evidence_verified": bool(evidence_source(item.evidence_quote, row)),
@@ -659,6 +660,11 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
     modalities, transformations = source_provenance(row)
     stage_provenance = stage_provenance or {}
     annotation_model, annotation_digest = _annotation_model(stage_provenance, run.model_text)
+    # Us/Frontier refs are computed before construction so the interchange
+    # INV_POPULISM validator (populist=true requires both sides) sees the
+    # final state, not an empty intermediate one.
+    us_items = populism.get("populism_us", [])
+    frontier_items = populism.get("populism_frontier", [])
     ann = DocumentAnnotation(
         document_id=document_key(row),
         source_platform=str(data.get("platform") or data.get("source_platform") or ""),
@@ -671,6 +677,10 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
         populist=populism.get("populist"),
         populism_analysis=populism.get("populism_analysis", ""),
         non_populist_reason=populism.get("non_populist_reason", ""),
+        us=[_ref(x) for x in us_items],
+        frontier=[_ref(x) for x in frontier_items],
+        discourse_applicable=discourse.get("applicable"),
+        discourse_applicability_reason=str(discourse.get("applicability_reason", "")),
         uncertainties=list(discourse.get("uncertainties", [])) + list(populism.get("uncertainties", [])),
         hegemonic_evidence=discourse.get("hegemonic_evidence", []),
         prompt_versions={
@@ -749,22 +759,29 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
         ann.counter_evidence
         + [item for formation in ann.formation_candidates for item in formation.counter_evidence]
     ))
+    postprocess_provenance = stage_provenance.get("postprocess") or {}
+    # Each sentiment reading records the model that actually produced the
+    # postprocess stage, not the run-level aggregate (which is "mixed" for
+    # mixed-model runs and useless for per-reading auditability).
+    postprocess_model = postprocess_provenance.get("actual_model") or annotation_model
     ann.sentiment_observations = [
         SentimentObservation(
             target=_ref(x["target"]), polarity=x["polarity"],
             evidence_source="postprocess",
-            model=annotation_model, prompt_version=POSTPROCESS_PROMPT_VERSION,
+            model=postprocess_model, prompt_version=POSTPROCESS_PROMPT_VERSION,
         )
         for x in extracted.get("sentiment", [])
     ]
+    # Discourse membership is a human/corpus adjudication (THEORY.md §13.2):
+    # a formation candidate is published as a label with confidence and its
+    # own evidence; signifier membership is not fabricated here by assigning
+    # every coded signifier to every candidate discourse.
     ann.discourses = [
-        Discourse(label=x["label"], confidence=x["confidence"], elements=ann.signifiers)
+        Discourse(label=x["label"], confidence=x["confidence"], elements=[])
         for x in discourse.get("formation_candidates", [])
     ]
     us_items = populism.get("populism_us", [])
     frontier_items = populism.get("populism_frontier", [])
-    ann.us = [_ref(x) for x in us_items]
-    ann.frontier = [_ref(x) for x in frontier_items]
     ann.nodal_points.extend(_ref(x) for x in us_items + frontier_items if x.get("nodal"))
     ann.populism_elements = [
         PopulismElementAssessment(
@@ -773,6 +790,7 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
             evidence_source=x.get("evidence_source", ""),
             evidence_verified=x.get("evidence_verified", False),
             confidence=x.get("confidence", 0.0),
+            claim_status=x.get("claim_status", "asserted"),
             nodal_candidate=x.get("nodal", False),
             empty_candidate=x.get("empty_candidate", False),
         )
