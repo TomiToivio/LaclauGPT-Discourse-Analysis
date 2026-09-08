@@ -28,6 +28,11 @@ from laclaugpt_interchange import (
 )
 from laclaugpt_memory import KINDS, Memory
 from llm import chat_structured, model_digest, resolve_endpoint
+
+try:  # stage-aware local model routing (Laskin AI26); absent in older checkouts
+    from laclaugpt.model_routing import pick_model as _stage_pick_model
+except ImportError:  # pragma: no cover
+    _stage_pick_model = None
 from prompts import discourse as discourse_prompt
 from prompts import populism as populism_prompt
 from prompts import postprocess as postprocess_prompt
@@ -401,6 +406,15 @@ def source_description(run: RunConfig, row: Any) -> sm.SourceMetadata:
     )
 
 
+def _is_local_gemma4(model: str | None) -> bool:
+    """True when the configured model is a local gemma4 tag (not *-cloud/:cloud)."""
+    if not model:
+        return False
+    lowered = model.casefold()
+    return lowered.startswith("gemma4:") and not (
+        lowered.endswith("-cloud") or lowered.endswith(":cloud"))
+
+
 class Stage:
     """Versioned SQLite cache with actual-model provenance per stage call."""
 
@@ -495,7 +509,20 @@ class Stage:
     def call(self, key: str, system: str, user: str, model_cls: type):
         if self.conn is None:
             raise RuntimeError(f"stage {self.stage_name} is closed")
-        requested_mode, requested_model = resolve_endpoint(self.run.model_text)
+        requested_model = self.run.model_text
+        # Stage-aware local routing (Tomi's 2026-09-08 rule): resolve the
+        # gemma4 tier per pipeline stage when the configured model is a local
+        # gemma4 tag. Non-gemma4 (synthetic mocks, cloud tags) stay untouched;
+        # resolve_endpoint handles mode/host resolution below either way.
+        if _stage_pick_model is not None and _is_local_gemma4(requested_model):
+            try:
+                requested_model = _stage_pick_model(
+                    self.stage_name, len(user) - len(system))
+            except Exception as exc:  # pragma: no cover - routing is best-effort
+                logger.warning(
+                    "stage model routing failed for %s; using %s: %s",
+                    self.stage_name, requested_model, exc)
+        requested_mode, requested_model = resolve_endpoint(requested_model)
         requested_digest = model_digest(requested_model)
         requested_key = self.fingerprint(
             key, system, user, model=requested_model,
@@ -506,7 +533,7 @@ class Stage:
             return model_cls.model_validate_json(cached)
 
         result, provenance = chat_structured(
-            self.run.model_text, system, user, model_cls,
+            requested_model, system, user, model_cls,
             {
                 "temperature": self.run.temperature,
                 "num_ctx": self.run.num_ctx,
