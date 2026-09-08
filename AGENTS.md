@@ -52,4 +52,6 @@ NER, topics, embeddings, similarity, sentiment, graph centrality, frequency, clu
 - Agent integrations such as Hermes are callers of the canonical pipeline, not parallel implementations of the methodology.
 - Run the relevant offline tests before declaring a change complete. The full public suite is `python -m pytest -q tests` after installing the documented test/collector extras.
 
-Machine-checkable constraints should be tested where practical, but do not claim that unit tests can establish interpretive validity. Corpus-level theoretical judgements remain substantive human research tasks.
+## Audit expectation
+
+When touching theory-facing code, check nearby tests and documentation for the same invariant. Machine-checkable constraints should be tested where practical, but do not claim that unit tests can establish interpretive validity. Corpus-level theoretical judgements remain substantive human research tasks.

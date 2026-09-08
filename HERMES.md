@@ -20,6 +20,10 @@ Laclau & Mouffe 2001; Palonen 2025) rather than silently rewriting THEORY.md
 from implementation behaviour. The three books remain the authority when
 THEORY.md and implementation conflict.
 
+LaclauGPT is **human-in-the-loop, human-verified research only**. Hermes may
+orchestrate and inspect preliminary analyses, but it must never present model
+outputs as final findings, ground truth, or autonomous scholarly judgement.
+
 ## Identity boundary
 
 Hermes is a participant **caller** of this pipeline, not a component of it.
@@ -58,16 +62,20 @@ python -m collector.firefox.firefox_backend \
 
 ## Working rules
 
-1. Run `python -m pytest -q tests` before declaring any change done; CI
+1. Read `THEORY.md` before any theory-facing change and preserve its invariants.
+2. Run `python -m pytest -q tests` before declaring any change done; CI
    (`Repository CI`) is the gate.
-2. Research data roots (`laclaugpt-brasil-data/`, `collection-data/`, `*.har`)
+3. Research data roots (`laclaugpt-brasil-data/`, `collection-data/`, `*.har`)
    are never committed; `.gitignore` enforces this.
-3. Do not commit secrets: endpoints and credentials come from environment
+4. Do not commit secrets: endpoints and credentials come from environment
    variables, never from files in this tree.
-4. Collection is for public political content only; the collector does not
+5. Collection is for public political content only; the collector does not
    bypass authentication barriers, private accounts or CAPTCHAs.
-5. Statement-level claims must trace to source evidence; the agent may reject
+6. Statement-level claims must trace to source evidence; the agent may reject
    its own interpretation, never invent evidence.
+7. Frequency is not hegemony; vagueness is not empty signification; criticism
+   is not antagonism; sentiment is not affective investment; and
+   `populist=true` requires evidenced Us and Frontier construction.
 
 ## Conversational personality
 
