@@ -38,7 +38,7 @@ from run_config import RunConfig, get_run
 
 logger = logging.getLogger("laclaugpt")
 SUMMARY_PROMPT_VERSION = "summary-v2.1"
-POSTPROCESS_PROMPT_VERSION = "postprocess-v2.1"   # v2.1: spaCy NER types
+POSTPROCESS_PROMPT_VERSION = postprocess_prompt.PROMPT_VERSION
 SOURCE_TEXT_FIELDS = (
     "text", "body", "content", "transcript", "caption", "description",
     "ocr", "ocr_text", "ethnography_notes", "researcher_notes",
@@ -526,21 +526,26 @@ class PostprocessStage(Stage):
 
     def run_row(self, row: Any, text: str, summary_json: str) -> dict:
         key = document_key(row)
+        include_topics = self.run.enabled("topics")
+        include_entities = self.run.enabled("entities")
+        include_sentiment = self.run.enabled("sentiment")
         system = postprocess_prompt.build_system_prompt(
-            self.memory_context(text, kinds=("topic", "entity", "target"))
+            self.memory_context(text, kinds=("topic", "entity", "target")),
+            include_topics=include_topics,
+            include_entities=include_entities,
+            include_sentiment=include_sentiment,
         )
         Extraction = postprocess_prompt.pydantic_models()
         result = self.call(
             key, system, f"Source material:\n{text}\n\nAnalysis:\n{summary_json}", Extraction,
         )
-        out = {}
-        groups = {
-            "topics": (list(result.topics) + list(result.new_topics), "topic"),
-            "entities": (list(result.entities) + list(result.new_entities), "entity"),
-            "positive": (list(result.positive), "target"),
-            "neutral": (list(result.neutral), "target"),
-            "negative": (list(result.negative), "target"),
-        }
+        out: dict[str, Any] = {}
+        groups: dict[str, tuple[list[str], str]] = {}
+        if include_topics:
+            groups["topics"] = (list(result.topics) + list(result.new_topics), "topic")
+        if include_entities:
+            groups["entities"] = (list(result.entities) + list(result.new_entities), "entity")
+
         ner_by_index = list(result.entity_types or [])
         n_matched = len(result.entities)
         for name, (values, kind) in groups.items():
@@ -565,11 +570,57 @@ class PostprocessStage(Stage):
                     "ner_type": type_,
                 })
             out[name] = refs
-        out["sentiment"] = [
-            {"target": ref, "polarity": polarity}
-            for polarity in ("positive", "neutral", "negative")
-            for ref in out.get(polarity, [])
-        ]
+
+        out.setdefault("topics", [])
+        out.setdefault("entities", [])
+        out["sentiment"] = []
+        if include_sentiment:
+            readings = list(result.sentiments or [])
+            if readings:
+                for reading in readings:
+                    resolved = self.memory.resolve(
+                        reading.target, "target", stage="postprocess", video_key=key,
+                        evidence=reading.evidence_quote, model=self.actual_model,
+                    )
+                    source = evidence_source(reading.evidence_quote, row)
+                    out["sentiment"].append({
+                        "target": {
+                            "obj_id": resolved.obj_id,
+                            "label": resolved.label,
+                            "kind": "target",
+                            "raw": reading.target,
+                            "decision": resolved.decision,
+                            "ner_type": "",
+                        },
+                        "polarity": reading.polarity,
+                        "evidence_source": source,
+                        "uncertainty": reading.uncertainty,
+                    })
+            else:
+                # Compatibility fallback for a model response using only the
+                # historical polarity target lists. These observations are kept
+                # maximally uncertain because no evidence quote was supplied.
+                for polarity in ("positive", "neutral", "negative"):
+                    for raw in dict.fromkeys(
+                        v for v in getattr(result, polarity, []) if v and v.strip()
+                    ):
+                        resolved = self.memory.resolve(
+                            raw, "target", stage="postprocess", video_key=key,
+                            evidence=text[:500], model=self.actual_model,
+                        )
+                        out["sentiment"].append({
+                            "target": {
+                                "obj_id": resolved.obj_id,
+                                "label": resolved.label,
+                                "kind": "target",
+                                "raw": raw,
+                                "decision": resolved.decision,
+                                "ner_type": "",
+                            },
+                            "polarity": polarity,
+                            "evidence_source": "postprocess-legacy-list",
+                            "uncertainty": 1.0,
+                        })
         return out
 
 
@@ -749,11 +800,18 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
         ann.counter_evidence
         + [item for formation in ann.formation_candidates for item in formation.counter_evidence]
     ))
+    postprocess_model = str(
+        stage_provenance.get("postprocess", {}).get("actual_model") or annotation_model
+    )
     ann.sentiment_observations = [
         SentimentObservation(
-            target=_ref(x["target"]), polarity=x["polarity"],
-            evidence_source="postprocess",
-            model=annotation_model, prompt_version=POSTPROCESS_PROMPT_VERSION,
+            target=_ref(x["target"]),
+            polarity=x["polarity"],
+            evidence_source=x.get("evidence_source", ""),
+            uncertainty=x.get("uncertainty", 0.0),
+            model=postprocess_model,
+            prompt_version=POSTPROCESS_PROMPT_VERSION,
+            review_status="PROVISIONAL",
         )
         for x in extracted.get("sentiment", [])
     ]
