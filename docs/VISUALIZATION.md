@@ -113,12 +113,23 @@ The flattened UI surface includes, when present:
 - summary and provenance;
 - entities and topics;
 - signifiers and nodal-point candidates;
-- articulations and an aggregated articulation graph;
+- signifier-role candidate confidence plus `needs_corpus_validation`;
+- articulations and an aggregated articulation graph, including `claim_status`
+  so quoted/reported/rejected/parodied material is visually distinguishable from
+  asserted authorial speech;
 - candidate discourses/formations;
-- sociotechnical imaginaries;
-- Palonen Us/Frontier elements and classification/abstention;
+- sociotechnical-imaginary **candidates**;
+- Palonen Us/Frontier elements and classification/abstention, including
+  `non_populist_reason` when a document is coded non-populist;
 - affects;
-- evidence, uncertainty, prompt/model provenance and review status.
+- counter-evidence, evidence, uncertainty, prompt/model provenance and review
+  status.
+
+All aggregate frequency displays are descriptive. Frequency does **not** by
+itself establish theoretical importance, nodal status, floating/empty status,
+hegemony, or the corpus-level validity of an imaginary. The dashboard therefore
+uses candidate language for theory-sensitive outputs and keeps corpus/human
+adjudication visible as a separate requirement.
 
 Filters are generic: free search, platform, language, country, author, model
 review status, entity, topic and signifier. No country, party family, classifier
