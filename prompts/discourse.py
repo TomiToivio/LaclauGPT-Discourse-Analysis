@@ -7,7 +7,7 @@ are marked as candidates for comparison and human validation.
 """
 from __future__ import annotations
 
-PROMPT_VERSION = "discourse-v1.3"
+PROMPT_VERSION = "discourse-v1.2"
 
 SYSTEM_PROMPT_TEMPLATE = """You assist a human political scientist with a
 provisional Laclaudian discourse analysis. Analyse only the supplied source
