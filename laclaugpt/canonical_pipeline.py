@@ -79,7 +79,7 @@ def run_canonical_pipeline(config: EffectiveRunConfig, run: Run, store: RunStore
         )
 
     import pandas as pd
-    from laclaugpt.graph import write_graph_bundle
+    from laclaugpt.graph_export import write_graph_bundle
     from laclaugpt_interchange import to_jsonl
     from pipeline import document_key, run_pipeline
     from run_config import load_run_config, run_config_from_effective
