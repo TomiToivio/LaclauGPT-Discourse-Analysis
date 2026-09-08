@@ -143,3 +143,12 @@ The tests do not launch real models, browsers, dashboards or Slurm jobs.
 **One LaclauGPT, many environments.**
 
 The runtime topology is replaceable infrastructure. The discourse-analysis semantics are not.
+
+## Laskin AI26 realtime deployment (operational)
+
+The concrete `linux-gpu-realtime` + `realtime-fullstack` installation runs on
+`laskin01` (3x V100-32GB). Its machine-local, uncommitted configuration and
+the implementation status of every service (collection timers, incremental
+analysis with stage-aware local gemma4 routing, dashboard, minet batch chain,
+MongoDB roles, backups) are documented in
+[DEPLOYMENT_LASKIN_AI26.md](DEPLOYMENT_LASKIN_AI26.md).
