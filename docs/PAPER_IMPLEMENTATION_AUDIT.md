@@ -2,19 +2,17 @@
 
 Original audit date: 2026-09-04
 
-Documentation reconciliation: 2026-09-07, re-audited against `main` commit
-`a96ca67b887135d08c6d02b5a6c58a684450c887` (merge of PR #38, immediately
-before the issue #36 documentation-reconciliation branch).
-
-Current manuscript: [`paper/PAPER.md`](../paper/PAPER.md)
+Documentation reconciliation: 2026-09-07, with theory/method and module-switch
+follow-up audits on 2026-09-08. Current manuscript:
+[`paper/PAPER.md`](../paper/PAPER.md).
 
 ## Overall finding
 
-The repository now contains a runnable, evidence-first document-level
-pre-analysis pipeline aligned with the methodological claims of the manuscript,
-plus a separate social-media collector subsystem. Corpus-level discourse
-interpretation and human validation remain research activities and are not
-represented as automated findings.
+The repository contains a runnable, evidence-first document-level pre-analysis
+pipeline aligned with the methodological claims of the manuscript, plus a
+separate social-media collector subsystem. Corpus-level discourse interpretation
+and human validation remain research activities and are not represented as
+automated findings.
 
 The codebase is in an architectural transition: `laclaugpt/` is the canonical
 package surface for new code and orchestration, while the lower-level paper
@@ -27,13 +25,13 @@ model under `laclaugpt/model/`.
 
 | Concern | Current implementation | Boundary/status |
 |---|---|---|
-| Theory/methodology contract | [`THEORY.md`](../THEORY.md) | Canonical semantic contract (concept registry §14, invariants §15) for prompts, schemas, code, tests, visualisations, agents; audited 2026-09-08 against `907fc0a` (issue #50) — one visualisation invariant violation fixed (Affects tab no longer gated by the sentiment switch) |
+| Theory/methodology contract | [`THEORY.md`](../THEORY.md) | Canonical semantic contract (concept registry §14, invariants §15) for prompts, schemas, code, tests, visualisations and agents |
 | Public entry point | `python -m laclaugpt.cli` | Canonical CLI |
 | Run orchestration | `laclaugpt/canonical_pipeline.py` + `laclaugpt/execution/` | Canonical dispatcher/checkpoint layer |
 | Paper analysis | root `pipeline.py` | Current evidence-linked analysis implementation |
 | Domain model for new package code | `laclaugpt/model/` | Canonical storage-neutral model |
 | Persistent Context Memory used by paper pipeline | `laclaugpt_memory/` | Current codebook/resolution store |
-| Batch interchange | `laclaugpt_interchange/` | Current schema **1.4** (descriptive `SentimentObservation`; 1.3 added `MemoryRef.ner_type`) |
+| Batch interchange | `laclaugpt_interchange/` | Current schema **1.4**, including descriptive `sentiment_observations` distinct from Laclaudian affect |
 | Collector | `collector/` | Preferred systematic path: Firefox extension + Python backend |
 | Older observation/graph model | `laclaugpt_model/` | Transitional compatibility layer |
 | 4CAT processor | root `laclaugpt_processor.py` | Shipped compatibility processor; canonical pipeline parity remains separate work |
@@ -42,7 +40,7 @@ model under `laclaugpt/model/`.
 
 | Paper or revised-method claim | Previous state | Current state | Remaining boundary |
 |---|---|---|---|
-| Three empirical arenas | YAML files existed but `pipeline.py` did not load them | Arena YAML configs are validated and executable through `--run-config`; package CLI accepts an explicit pipeline config | Final sampling frames and study-specific collection decisions remain researcher-controlled |
+| Three empirical arenas | YAML files existed but `pipeline.py` did not load them | Arena YAML configs are validated and executable through the canonical configuration chain | Final sampling frames and study-specific collection decisions remain researcher-controlled |
 | AI-specific contextualisation | Arena configs reused a prior-election prompt | Separate AI elites, grassroots, parliamentary and general contestation backgrounds exist | Context/version registration should remain part of the study record |
 | Source-grounded analysis | CSV source text was not read into analysis context | Common text/transcript/OCR/fieldnote columns are ingested; empty rows fail fast | Parent-thread reconstruction is stored but not automatically fetched |
 | Stable document identity | Generic rows could collide on an empty TikTok-style key | Common durable IDs/URLs are used; otherwise a stable content hash is generated | Upstream collectors should still supply durable native IDs where possible |
@@ -51,21 +49,23 @@ model under `laclaugpt/model/`.
 | Sociotechnical imaginaries | Seed labels only | Structured future, present diagnosis, technology role, human agency and evidence | Cross-document stabilisation remains a corpus/human task |
 | Ideological formations | Fixed seed list encouraged direct classification | Formation candidates require supporting features, counter-evidence, evidence quote and confidence | Formation boundaries remain interpretive |
 | Formula of Populism | Political items could be forced into Us/Frontier with predetermined affect polarity | Explicit non-populist outcome is possible; both sides require evidence; affect polarity is not inferred from side | Human validation decides borderline cases |
+| Descriptive sentiment | Positive/neutral/negative target lists were resolved and then discarded before export | Schema 1.4 exports stable target ID/raw form, polarity, evidence/source marker, uncertainty, actual postprocess model, prompt version and provisional review status; descriptive sentiment is separate from `Affect` | Descriptive polarity remains a preliminary model reading and requires human verification |
+| Authoritative module switches | Configuration could claim `sentiment`, `context_memory` or `temporal` was off while the pipeline still requested, injected or wrote the corresponding state | `sentiment:false` does not request sentiment coding and publishes none; `context_memory:false` prevents codebook prompt injection while retaining stable-ID resolution; `temporal:false` prevents relation-history writes while timestamps remain provenance | Shared stages may still run for other enabled families, but disabled families are not requested/published |
 | Authorial position | Prompt warning only | Articulations/imaginaries distinguish asserted, quoted, reported, rejected, parodied and uncertain claims | Automatic speech-role accuracy must be evaluated |
-| Evidence | Requested informally | Evidence quotation is structured and mechanically checked against source material | Paraphrased and multimodal evidence need specialised validation |
+| Evidence | Requested informally | Evidence quotation is structured and mechanically checked against source material for theory-facing coding; descriptive sentiment records carry an evidence/source marker | Paraphrased and multimodal evidence need specialised validation |
 | Human validation | Repeated model uses could promote codes | Model repetition never promotes by itself; outputs remain PROVISIONAL until explicit review | Independent double coding/adjudication workflow remains research work |
 | Entity/topic multiplication | Resolve-first memory existed | Persistent Context Memory keeps stable IDs, aliases, open-world states and reviewable merge history | Semantic merges still require review |
 | Prompt reproducibility | Stage cache ignored prompt/config versions | Cache fingerprint covers document, prompt text/version, model, options and run config; actual model provenance is recorded after fallback | Serving-runtime/container versioning can be strengthened further |
-| Standard output | Interchange fields existed but pipeline did not export complete annotations | One provisional current-schema JSONL annotation per document includes relations, imaginaries, populism, provenance and versions | Schema migration policy should remain explicit |
+| Standard output | Interchange fields existed but pipeline did not export complete annotations | One provisional current-schema JSONL annotation per document includes relations, imaginaries, populism, descriptive sentiment, provenance and versions | Schema migration policy should remain explicit |
 | Local inference | Ollama wrapper existed | Local/external/cloud routing records actual endpoint/model and honors fallback policy | Real runs require the configured service/model |
 | Multimodality | Pipeline had an empty placeholder | Prepared transcript/OCR/frame-analysis fields are accepted as source material | Automatic media-to-text orchestration remains separate |
-| Hegemony | Risk of equating labels/frequency with hegemony | Output is limited to document-level hegemonic evidence/candidates | Institutional, temporal and cross-arena inference remains human/corpus work |
+| Hegemony | Risk of equating labels/frequency with hegemony | Output is limited to document-level evidence/candidates; corpus synthesis explicitly says frequency is descriptive, not hegemony | Institutional, temporal and cross-arena inference remains human/corpus work |
 | Failure semantics | Memory could stay open and success artifacts could be confused with partial work after exceptions | Context Memory and stage SQLite stores close deterministically; result artifacts stage as `.partial` and final annotation JSONL is published only after successful cleanup | Hard process termination may leave visibly marked `.partial` files |
 
 ## Collector status at this audit
 
-The collector now lives entirely under `collector/`; there is no current root
-`scraper/` subsystem.
+The collector lives under `collector/`; there is no current root `scraper/`
+subsystem.
 
 Three capture paths are present:
 
@@ -97,7 +97,12 @@ Core/pipeline corrections include:
 - RunStore claims are atomic across SQLite connections and ownership-aware;
 - Context Memory and all stage SQLite connections close on success and failure;
 - final annotations/corpus/review artifacts are staged and published only after
-  successful run completion/cleanup.
+  successful run completion/cleanup;
+- descriptive sentiment now round-trips through interchange instead of being
+  silently discarded;
+- `sentiment`, `context_memory` and `temporal` project switches now control the
+  corresponding prompt requests, prompt context and relation-history side
+  effects rather than being provenance-only declarations.
 
 Collector corrections include:
 
@@ -120,23 +125,21 @@ python -m laclaugpt.cli --help
 python -m laclaugpt.cli profiles
 ```
 
-The public test tree at the audited commit contains:
+Relevant regression coverage includes:
 
 - `tests/collectors/` for collector parsing/storage/browser/backend behaviour;
 - `tests/test_llm_routing.py` for routing/provenance behaviour;
 - `tests/test_run_store_claims.py` for claim exclusivity, stale recovery and
   ownership-aware checkpointing;
 - `tests/test_pipeline_failure_cleanup.py` for deterministic cleanup and failed
-  run/checkpoint semantics.
+  run/checkpoint semantics;
+- `tests/test_theory_invariants.py` for machine-checkable THEORY.md guardrails;
+- `tests/test_module_switches.py` for schema-1.4 sentiment round-trip and the
+  true/false paths for sentiment, Context Memory and temporal relation history.
 
-The issue #37 pipeline-failure workflow passed before merge of commit
-`a96ca67b887135d08c6d02b5a6c58a684450c887`. Full repository-wide CI and
-reproducible packaging are tracked separately; the existence of targeted CI must
-not be described as complete core CI coverage.
-
-This checkout still does **not** contain a public synthetic end-to-end corpus
-fixture that exercises a full successful mocked annotation export. Real
-inference also requires a configured Ollama-compatible service and
+The tests are offline and synthetic/mocked where model behaviour is involved.
+They establish implementation contracts, not substantive validity of discourse
+analysis. Real inference requires a configured Ollama-compatible service and
 researcher-supplied source data.
 
 ## Adapter and integration implementation status
@@ -166,5 +169,5 @@ itself, or replace comparative human analysis.
 
 The next methodological frontier remains empirical validation: a governed coded
 sample, independent annotators, adjudication records and reported error metrics.
-Architectural cleanup, packaging and adapter parity can improve the software,
-but they are not substitutes for that validation.
+Architectural cleanup and adapter parity can improve the software, but they are
+not substitutes for that validation.
