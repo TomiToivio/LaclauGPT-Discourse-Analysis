@@ -1,10 +1,10 @@
 # Agent instructions for LaclauGPT
 
-This repository may be maintained by different coding/research agents. The agent framework is replaceable; the research semantics are not.
+This repository may be maintained by different coding and research agents. The agent framework is replaceable; the research semantics are not.
 
 ## Required reading before theory-facing work
 
-Before changing prompts, schemas, analysis logic, Context Memory/codebook behaviour, corpus synthesis, visualisations, or theory/methodology documentation, **read [`THEORY.md`](THEORY.md) in full**.
+Before changing prompts, schemas, discourse-analysis logic, Context Memory/codebook behaviour, corpus synthesis, visualisations, or theory/methodology documentation, **read [`THEORY.md`](THEORY.md) in full**.
 
 `THEORY.md` is the canonical human- and machine-readable semantic contract for the discourse-theoretical methodology used in this repository. The original works by Laclau, Laclau & Mouffe, and Palonen remain authoritative if a definition in `THEORY.md` is questioned or changed.
 
@@ -17,9 +17,9 @@ For each theory-facing change:
 5. Report a theory/implementation mismatch explicitly instead of silently changing either side to fit the other.
 6. If the theory definition itself must change, verify it against the original source literature first.
 
-## Non-negotiable theory invariants
+## Non-negotiable invariants
 
-At minimum, agents must preserve these rules:
+At minimum, preserve these rules:
 
 - `INV_EVIDENCE`: substantive theoretical coding preserves source evidence.
 - `INV_ABSTAIN`: empty/non-applicable results are valid.
