@@ -7,6 +7,19 @@ instance drive the canonical pipeline as its analysis workhorse. Nothing here
 is required for human use; the same CLI commands work with or without an
 agent.
 
+## Theory contract
+
+Hermes must read [`THEORY.md`](../THEORY.md) in full before any theory-facing
+work. That file is the framework-independent semantic contract for prompts,
+schemas, discourse-analysis logic, Context Memory/codebook behaviour, corpus
+synthesis, visualisations and methodology documentation. `HERMES.md` repeats
+the operational rule so that it reaches the agent system context.
+
+The integration may orchestrate preliminary analysis, but it may not weaken the
+repository's human-in-the-loop boundary. LaclauGPT outputs remain preliminary,
+human-reviewable research proposals until a human researcher verifies the
+source evidence and interpretation.
+
 ## Design principle
 
 Hermes participates as an ordinary **caller of the canonical CLI**, never as a
@@ -80,10 +93,11 @@ Such operations require a separate human-authorised interface.
 
 Hermes reads a project-context file from the repository and injects it into
 its system prompt. This repository ships
-[`HERMES.md`](../HERMES.md) for that purpose: it pins the memory boundary
-(Hermes memory = individual cognition; the interchange/Context Memory stores
-= shared social memory), names the canonical entry points above, and sets the
-agent's personality boundary for conversational use.
+[`HERMES.md`](../HERMES.md) for that purpose: it requires `THEORY.md` before
+theory-facing work, pins the memory boundary (Hermes memory = individual
+cognition; the interchange/Context Memory stores = shared social memory), names
+the canonical entry points above, and sets the agent's personality boundary for
+conversational use.
 
 Optional, not installed by any default: a user who wants this integration
 installs [Hermes](https://hermes-agent.nousresearch.com/docs/) and points a
@@ -111,7 +125,9 @@ Hermes must not:
 - bypass LaclauGPT configuration validation;
 - write to GitHub, publish outputs or delete research data through this tool
   surface;
-- present Hermes's private/session memory as LaclauGPT research memory.
+- present Hermes's private/session memory as LaclauGPT research memory;
+- bypass `THEORY.md` invariants or human review in order to make analysis more
+  autonomous.
 
 The agent may inspect, propose and orchestrate. Canonical LaclauGPT code owns
 analysis semantics, provenance, routing, storage and research-state changes.
