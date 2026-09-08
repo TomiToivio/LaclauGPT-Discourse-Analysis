@@ -101,7 +101,10 @@ class ClaudeIntegrationTests(unittest.TestCase):
                 {"LLM_MODE": "cloud"},
                 {"LACLAUGPT_OLLAMA_MODE": "external", "OLLAMA_HOST": "example.invalid"},
                 {"LLM_MODE": "local", "LLM_ALLOW_CLOUD_FALLBACK": "1"},
-                {},  # no explicit local mode: auto routing may pick cloud
+                # no explicit local mode: auto routing may pick cloud. Empty
+                # strings neutralise any inherited LLM_MODE in the running
+                # process so this case is order-independent.
+                {"LLM_MODE": "", "LACLAUGPT_OLLAMA_MODE": ""},
             ):
                 with mock.patch.dict("os.environ", env):
                     with self.assertRaises(PermissionError):
