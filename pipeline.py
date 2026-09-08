@@ -37,7 +37,7 @@ from prompts import topic_background as tb
 from run_config import RunConfig, get_run
 
 logger = logging.getLogger("laclaugpt")
-SUMMARY_PROMPT_VERSION = "summary-v2.1"
+SUMMARY_PROMPT_VERSION = summary_prompt.PROMPT_VERSION
 POSTPROCESS_PROMPT_VERSION = postprocess_prompt.PROMPT_VERSION
 SOURCE_TEXT_FIELDS = (
     "text", "body", "content", "transcript", "caption", "description",
@@ -847,8 +847,6 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
         Discourse(label=x["label"], confidence=x["confidence"], elements=[])
         for x in discourse.get("formation_candidates", [])
     ]
-    us_items = populism.get("populism_us", [])
-    frontier_items = populism.get("populism_frontier", [])
     ann.nodal_points.extend(_ref(x) for x in us_items + frontier_items if x.get("nodal"))
     ann.populism_elements = [
         PopulismElementAssessment(

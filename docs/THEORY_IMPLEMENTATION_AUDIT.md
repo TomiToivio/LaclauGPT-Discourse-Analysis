@@ -1,6 +1,6 @@
 # THEORY.md implementation audit
 
-Status: initial repository audit for issue #50, updated for issue #48.
+Status: initial repository audit for issue #50, updated for issues #48 and #51.
 
 Canonical semantic contract: [`THEORY.md`](../THEORY.md).
 
@@ -8,8 +8,9 @@ This audit separates machine-checkable constraints from interpretive validity. P
 
 ## Scope reviewed
 
-The audit covers the theory-facing surfaces requested in issue #50 and the module-switch/provenance surfaces corrected in issue #48:
+The audit covers the theory-facing surfaces requested in issue #50 and later prompt/configuration corrections:
 
+- `prompts/summary.py`
 - `prompts/discourse.py`
 - `prompts/populism.py`
 - `prompts/postprocess.py`
@@ -25,10 +26,7 @@ The audit covers the theory-facing surfaces requested in issue #50 and the modul
 - collector/analysis boundary
 - `README.md`
 - `paper/PAPER.md`
-- `HERMES.md`
-- `CLAUDE.md`
-- `docs/HERMES_INTEGRATION.md`
-- relevant implementation/interoperability/visualization documentation
+- agent instruction and integration documentation
 
 ## Findings by invariant
 
@@ -36,17 +34,21 @@ The audit covers the theory-facing surfaces requested in issue #50 and the modul
 
 Theory-facing prompt schemas require evidence quotes for substantive document-level codings. The pipeline verifies whether proposed evidence occurs in the source and propagates evidence/evidence-source fields into interchange output. Canonical domain classes such as `Articulation`, `DiscursiveRelation`, `DiscursiveRoleAssignment`, `CollectiveSubject`, `AntagonisticFrontier`, `AffectiveInvestment`, `PopulistConfiguration`, and `HegemonyAssessment` carry evidence IDs.
 
-Descriptive sentiment is not a Laclaudian coding family, but schema 1.4 now preserves its target, polarity, source/evidence marker, uncertainty, actual postprocess model, prompt version and provisional review state rather than silently discarding the reading.
+The required summary stage is now explicitly descriptive. Its historical free-text `populist_elements` output has been removed. The replacement `people_power_narrative` screen requires a verbatim evidence quote plus observed collective and opposed expressions before it may report `present`; `absent` and `uncertain` are valid outcomes.
+
+Descriptive sentiment is not a Laclaudian coding family, but schema 1.4 preserves its target, polarity, source/evidence marker, uncertainty, actual postprocess model, prompt version and provisional review state rather than silently discarding the reading.
 
 Mechanical quote/source presence is not interpretive validation. Humans still decide whether the passage supports the coding.
 
 ### INV_ABSTAIN: aligned
 
-`prompts/populism.py` supports `populist=false` and requires a reason when the Formula of Populism is not evidenced. Empty lists are valid outputs. The discourse prompt likewise permits empty output rather than forced interpretation. Descriptive sentiment may also abstain by returning no reading when polarity is not source-supported.
+`prompts/populism.py` supports `populist=false` and requires a reason when the Formula of Populism is not evidenced. Empty lists are valid outputs. The discourse prompt likewise permits empty output rather than forced interpretation. The summary `people_power_narrative` screen supports `absent` and `uncertain`, so the descriptive stage cannot force a people-versus-power construction merely because political language is present.
 
 ### INV_RELATIONAL: aligned
 
-`prompts/discourse.py` defines articulation/equivalence/difference/antagonism relationally rather than as keyword classes. The descriptive analysis package explicitly states that NER/topics/similarity and related computational layers generate descriptive features or candidates, not Laclaudian judgements. Canonical model code also separates `DiscursiveRelationType` from `ComputationalRelationType`.
+`prompts/discourse.py` defines articulation/equivalence/difference/antagonism relationally rather than as keyword classes. The descriptive analysis layers generate descriptive features or candidates, not Laclaudian judgements. Canonical model code also separates `DiscursiveRelationType` from `ComputationalRelationType`.
+
+The summary stage no longer asks the model to label `empty signifier`, `chain of equivalence`, `frontier`, or `populism`. Those concepts are reserved for the evidence-disciplined discourse and Formula-of-Populism stages.
 
 ### INV_FLOAT_CORPUS: aligned
 
@@ -54,7 +56,7 @@ Document-level output uses `floating_candidate`, not a final floating-signifier 
 
 ### INV_EMPTY_CHAIN: aligned
 
-The discourse and populism prompts explicitly reject polysemy/vagueness as sufficient evidence for an empty signifier. Document-level output is an `empty_candidate`; final emptiness remains a corpus/human judgement.
+The discourse and populism prompts explicitly reject polysemy/vagueness as sufficient evidence for an empty signifier. Document-level output is an `empty_candidate`; final emptiness remains a corpus/human judgement. The descriptive summary does not emit empty-signifier candidates at all.
 
 ### INV_HEGEMONY_CORPUS: aligned
 
@@ -62,15 +64,15 @@ The discourse prompt states that hegemony cannot be inferred from frequency in a
 
 ### INV_ANTAGONISM: aligned
 
-Both theory-facing prompts distinguish constitutive antagonistic frontier construction from ordinary criticism, policy disagreement, negativity, opponent mention or sentiment.
+Theory-facing prompts distinguish constitutive antagonistic frontier construction from ordinary criticism, policy disagreement, negativity, opponent mention or sentiment. The summary stage uses the non-theoretical phrase `people-versus-power narrative` and explicitly warns that criticism, negativity, two named groups or anti-elite vocabulary are not enough for a `present` result.
 
-### INV_AFFECT: aligned (UI gate fixed)
+### INV_AFFECT: aligned
 
 The Formula of Populism prompt does not map Us to positive affect or Frontier to negative affect. The interchange schema keeps `Affect` and schema-1.4 `SentimentObservation` as separate record families. The postprocess prompt explicitly says descriptive polarity is not affective investment. The visualization Affects view is gated by Palonen analysis rather than the descriptive sentiment switch.
 
 ### INV_POPULISM: aligned
 
-`prompts/populism.py` validates that `populist=true` requires both evidenced Us and Frontier elements. `populist=false` requires empty sides and a non-populist reason. The theory-contract regression tests protect this behaviour.
+`prompts/populism.py` validates that `populist=true` requires both evidenced Us and Frontier elements. `populist=false` requires empty sides and a non-populist reason. The summary stage no longer outputs a populism classification or theoretical populist elements, preventing an undisciplined upstream label from priming the later Formula stage.
 
 ### INV_DYNAMIC_LABELS: no violating runtime classifier found
 
@@ -84,9 +86,22 @@ The interchange defaults to `requires_human_review=true` and `review_status="PRO
 
 `prompts/discourse.py` supports `asserted`, `quoted`, `reported`, `rejected`, `parodied`, and `uncertain` claim statuses. `pipeline.py` propagates claim status into interchange output so downstream analysis can distinguish authorial assertion from quoted/reported/rejected material.
 
+## Summary-stage boundary (issue #51)
+
+The earlier required summary schema mixed descriptive output with a free-text `populist_elements` list whose `element_type` invited labels such as `empty signifier`, `chain of equivalence`, and `frontier` without the evidence discipline used by the later theory-facing stages. Because the summary JSON is fed downstream, those labels could prime later coding even though they were not published as final interchange theory codes.
+
+The chosen research decision is to make summary category 7 **purely descriptive**, rather than duplicating the full Formula-of-Populism analysis twice. `summary-v2.2` replaces `populist_elements` with `people_power_narrative`:
+
+- `status` is `present | absent | uncertain`;
+- `present` requires `collective_expression`, `opposed_expression`, and a short verbatim `evidence_quote`;
+- the prompt prohibits summary-level labels for populism, empty signifiers, equivalence chains, antagonistic frontiers and nodal points;
+- theoretical adjudication remains in `prompts/discourse.py` and `prompts/populism.py` under the normal THEORY.md evidence, abstention and human-review rules.
+
+This is an intentional prompt-behaviour change. It is versioned as `summary-v2.2`, and `pipeline.py` reads the version from `prompts.summary.PROMPT_VERSION`; the stage-cache fingerprint already includes prompt text/version and run configuration, so prior summary responses are not silently treated as comparable new-prompt output.
+
 ## Module-switch alignment (issue #48)
 
-The project `analysis` map is now authoritative beyond provenance labels:
+The project `analysis` map is authoritative beyond provenance labels:
 
 - `sentiment:false` does not request sentiment extraction from the shared postprocess prompt and publishes no `sentiment_observations`; `sentiment:true` round-trips descriptive observations through schema 1.4;
 - `context_memory:false` prevents codebook context from entering Summary, Discourse, Postprocess and Populism prompts. Stable-ID resolution remains enabled because it is canonical interchange/provenance infrastructure, not prompt context;
@@ -96,13 +111,17 @@ These semantics are covered by `tests/test_module_switches.py` and documented in
 
 ## Component audit
 
+### `prompts/summary.py`
+
+Descriptive boundary strengthened in issue #51. The summary retains broad political description but no longer asks for Laclaudian/Palonen theory codes. The people-versus-power screen is source-grounded, evidence-bearing when present, and explicitly allows absence/uncertainty. It is a sensitising description only and must not be treated as a populism finding.
+
 ### `prompts/discourse.py`
 
-Strong alignment. It is evidence-first, distinguishes descriptive NLP from theoretical inference, uses candidate language for corpus-level concepts, preserves uncertainty, and records claim context. No clear theory correction was required.
+Strong alignment. It is evidence-first, distinguishes descriptive NLP from theoretical inference, uses candidate language for corpus-level concepts, preserves uncertainty, and records claim context.
 
 ### `prompts/populism.py`
 
-Strong alignment. It operationalises the Formula as a diagnostic heuristic, requires Us + Frontier, permits abstention, requires evidence, and keeps affect independent of side polarity. No clear theory correction was required.
+Strong alignment. It operationalises the Formula as a diagnostic heuristic, requires Us + Frontier, permits abstention, requires evidence, and keeps affect independent of side polarity.
 
 ### `prompts/postprocess.py`
 
@@ -110,7 +129,7 @@ Descriptive only. Topics/entities/sentiment are requested only when their projec
 
 ### `pipeline.py`
 
-Strong alignment. Quote/source verification, provenance, Context Memory resolution and descriptive corpus synthesis preserve the theory boundary. Floating/empty/hegemony outputs remain candidates/evidence for later human adjudication. Project switches control Context Memory injection and temporal side effects.
+Strong alignment. Quote/source verification, provenance, Context Memory resolution and descriptive corpus synthesis preserve the theory boundary. Floating/empty/hegemony outputs remain candidates/evidence for later human adjudication. Project switches control Context Memory injection and temporal side effects. Summary prompt provenance is taken from the summary module's explicit version.
 
 ### Interchange and canonical model
 
@@ -138,7 +157,9 @@ The repository has theory-contract instructions for Hermes and Claude, plus fram
 
 ## Machine-checkable safeguards
 
-`tests/test_theory_invariants.py` checks machine-verifiable parts of the theory contract. `tests/test_module_switches.py` separately checks configuration semantics relevant to issue #48, including descriptive sentiment round-trip, disabled-prompt behaviour, Context Memory ablation and temporal relation-history writes. `tests/test_evidence_gates.py` (issue #60) checks the hardened evidence surface: hegemonic-evidence verbatim gating and legacy-string upgrade, schema-level evidence requirements with legacy-JSONL compatibility, and full interchange_to_v2 lifting coverage.
+## Machine-checkable safeguards
+
+`tests/test_theory_invariants.py` checks machine-verifiable parts of the theory contract. `tests/test_module_switches.py` checks configuration semantics from issue #48. `tests/test_evidence_gates.py` (issue #60) checks the hardened evidence surface: hegemonic-evidence verbatim gating and legacy-string upgrade, schema-level evidence requirements with legacy-JSONL compatibility, and full interchange_to_v2 lifting coverage. `tests/test_summary_theory_boundary.py` protects the issue-51 descriptive boundary by checking that the summary schema no longer exposes `populist_elements`, that `present` requires both observed sides plus evidence, that `absent`/`uncertain` are valid, and that prompt/provenance versioning is explicit.
 
 These tests are guardrails, not a validity test for discourse analysis.
 
@@ -148,4 +169,4 @@ Corpus-level claims such as floating/empty signifier status, hegemony, polarisat
 
 ## Conclusion
 
-The current public core is substantially aligned with `THEORY.md`. Issue #48 closes an important reproducibility gap: module switches now describe actual prompt/output/state behaviour rather than merely appearing in provenance. Issue #60 closes the remaining schema-level evidence gaps: hegemonic evidence passes the mechanical verbatim gate and joins the uncertainty tally, substantive codings require evidence at the interchange contract level (with legacy rows degrading to explicit uncertainty), and the documented interchange_to_v2 lift path preserves populism, affects, signifier roles, hegemonic evidence, review state and uncertainties. Future theory-facing changes should treat `THEORY.md` as a semantic contract while keeping the original books authoritative.
+The current public core is substantially aligned with `THEORY.md`. Issue #48 closes an important reproducibility gap in module switches, and issue #51 removes an upstream prompt path that could prematurely inject theory labels into descriptive summary JSON. Issue #60 closes the remaining schema-level evidence gaps: hegemonic evidence passes the mechanical verbatim gate and joins the uncertainty tally, substantive codings require evidence at the interchange contract level (with legacy rows degrading to explicit uncertainty), and the documented interchange_to_v2 lift path preserves populism, affects, signifier roles, hegemonic evidence, review state and uncertainties. Future theory-facing changes should treat `THEORY.md` as a semantic contract while keeping the original books authoritative.

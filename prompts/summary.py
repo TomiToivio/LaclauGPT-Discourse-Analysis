@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Summary-analysis prompt (required stage).
+"""Summary-analysis prompt (required descriptive stage).
 
-Keeps ALL of v1's nine categories (comparability) and adds:
-- generalised topic background (no hardcoded project-specific text)
-- context memory injections (glossary, previous stage outputs)
-- structured output option (JSON) alongside the textual analysis
-- an optional NLP-tools mode (classic NLP instead of Ollama)
+The summary stage is deliberately descriptive.  Laclaudian and Palonen
+concepts are reserved for the evidence-disciplined discourse/populism stages.
+Version 2.2 replaces the historical free-text ``populist_elements`` category
+with a source-grounded people-versus-power narrative screen.
 """
 from __future__ import annotations
+
+PROMPT_VERSION = "summary-v2.2"
 
 SYSTEM_PROMPT_TEMPLATE = """### **System Prompt**
 
@@ -23,19 +24,23 @@ related to the topic below.
 You are provided a **speech transcript**, **metadata** and, when the item
 is a video, **multimodal frame analysis results for 1-6 frames** and
 **OCR results for each frame**. Your role is to provide a structured and
-comprehensive political analysis using the provided materials.
+comprehensive political description using the provided materials.
 
 **Instructions**:
-- Address each analysis category thoroughly by incorporating insights
-  from all provided materials.
-- Ensure the analysis is concise, objective, and systematically
-  organized, with each category clearly labeled.
-- Use the established glossary terms when they match.
-- Treat this as source-grounded description, not final interpretation. Quote
-  short source passages for claims where possible and state when evidence is
-  absent or ambiguous.
+- Address each analysis category by incorporating only information supported by
+  the supplied materials.
+- Keep this stage descriptive. It is not the place to make final Laclaudian,
+  Palonen-style populism, ideological-formation, or hegemonic judgements.
+- Ensure the analysis is concise, objective, and systematically organized.
+- Use established glossary terms only when they are ordinary descriptive
+  references. Retrieved codebook candidates are not evidence.
+- Quote short source passages for interpretive descriptive claims where the
+  schema requests evidence and state when evidence is absent or ambiguous.
 - Do not infer an author's position from identity, hashtags, or a cited view;
   distinguish endorsement from quotation, reporting, parody, and rejection.
+- In category 7, DO NOT label material an empty signifier, chain of equivalence,
+  antagonistic frontier, nodal point, or populism. Those are theoretical
+  judgements handled later by the discourse/populism stages under THEORY.md.
 
 ### **Analysis Categories**:
 
@@ -48,68 +53,54 @@ comprehensive political analysis using the provided materials.
       or **non-political**?
     - If political, add a sub-category based on the nature of the
       political content.
-    - Examples of political sub-categories: **candidate's personal
-      video**, **campaign speech**, **protest**, **political meme**,
-      **election advertisement**, **media coverage**.
+    - Examples: **candidate's personal video**, **campaign speech**,
+      **protest**, **political meme**, **election advertisement**,
+      **media coverage**.
 
 3. **Difficult Language**:
     - Find words and phrases in the transcript or metadata that are
-      **difficult to translate**, **ambiguous**, or **politically
-      charged**.
-    - Provide interpretations or explanations for these language
-      elements.
-    - Create a clearly-formatted and structured list of these language
-      elements.
+      **difficult to translate**, **ambiguous**, or **politically charged**.
+    - Provide interpretations or explanations for these language elements.
 
 4. **Key Political Topics**:
     - Identify the major political topics in the video.
     - Describe how these topics are presented in the video.
-    - Create a clearly-formatted and structured list of these topics.
 
 5. **Political Entities**:
-    - List political entities featured in the video.
-    - Examples of political entities: **politicians**, **political
-      parties**, **movements**, **organizations**.
-    - Describe the role of these entities in the video.
-    - Create a clearly-formatted and structured list of these entities.
+    - List political entities featured in the video, such as politicians,
+      parties, movements, and organizations.
+    - Describe their observed role in the material without inferring ideology
+      from identity alone.
 
 6. **Sentiment Analysis**:
-    - Determine the sentiment or sentiments included in the video.
-    - Classify the sentiment as **positive**, **negative**, or
-      **neutral**.
-    - Identify the target of the sentiment (e.g., **the European
-      Union**, **a political group**) and justify your evaluation.
-    - Create a clearly-formatted and structured list of these
-      sentiments.
+    - Describe positive, negative, or neutral sentiment where it is evident.
+    - Identify the target and justify the descriptive evaluation.
+    - Sentiment is auxiliary descriptive metadata, not affective investment.
 
-7. **Political Populism**:
-    - First determine whether the material constructs both a collective Us and
-      an antagonistic Frontier. If not, report that populism is not evidenced.
-    - Identify only source-supported **empty-signifier candidates**, **chains
-      of equivalence**, and the "people versus frontier" narrative.
-    - Do not treat polysemy as proof of an empty signifier, or ordinary policy
-      disagreement as antagonism.
-    - Discuss how these elements contribute to the video's political
-      narrative.
-    - Create a clearly-formatted and structured list of these populist
-      elements.
+7. **People-versus-power Narrative Screen (descriptive only)**:
+    - Report whether the supplied material explicitly constructs a collective
+      self-reference (for example "we", "the people", "citizens", "workers")
+      in opposition to a named or described power, elite, institution, group,
+      or other opponent.
+    - Return `present`, `absent`, or `uncertain`.
+    - `present` requires a short verbatim evidence quote plus both the observed
+      collective expression and the observed opposed expression.
+    - Mentions of "the people", criticism, negativity, two named groups, or
+      anti-elite vocabulary are not by themselves enough for `present`.
+    - If the evidence is incomplete or ambiguous, return `uncertain`; if the
+      construction is not in the material, return `absent`.
+    - Do not translate this descriptive screen into theoretical categories.
 
 8. **Social Contract**:
-    - Analyze the video through the lens of social contract theory.
-    - Discuss any implied or explicit social agreements, obligations, or
+    - Describe explicit or implied social agreements, obligations, or
       expectations between citizens and political authorities.
-    - Explain how these social contracts shape political behavior.
-    - Create a clearly-formatted and structured list of these social
-      contract elements.
+    - Keep this source-grounded and distinguish explicit statements from your
+      descriptive inference.
 
 9. **Grievance Politics**:
-    - Explore the video's connection to grievance politics.
-    - Identify any grievances or perceived injustices expressed in the
-      video.
-    - Discuss the potential impact of these grievances on political
-      mobilization or conflict.
-    - Create a clearly-formatted and structured list of these
-      grievances.
+    - Identify grievances or perceived injustices expressed in the material.
+    - Describe any explicitly stated or directly supported connection to
+      political mobilization or conflict.
 """
 
 USER_PROMPT_TEMPLATE = """### **User Prompt**
@@ -137,9 +128,8 @@ USER_PROMPT_TEMPLATE = """### **User Prompt**
 ```
 
 ### **Task**:
-Utilize the provided data (frame analysis, metadata, transcript and OCR)
-to conduct a comprehensive political analysis of the video. Return valid
-JSON according to the given schema.
+Utilize only the provided data to conduct a comprehensive descriptive political
+summary. Return valid JSON according to the given schema.
 """
 
 
@@ -163,17 +153,34 @@ def build_user_prompt(frame_analysis: str, metadata: str, transcript: str,
 
 
 def pydantic_models():
-    from pydantic import BaseModel
-    from typing import List
+    from typing import List, Literal
+    from pydantic import BaseModel, model_validator
 
     class SentimentItem(BaseModel):
         sentiment: str            # positive | negative | neutral
         target: str
         justification: str
 
-    class PopulistElement(BaseModel):
-        element_type: str         # empty signifier | chain of equivalence | frontier | people-vs-elite
-        content: str
+    class PeoplePowerNarrative(BaseModel):
+        """Descriptive screen only, never a populism/frontier finding."""
+        status: Literal["present", "absent", "uncertain"]
+        collective_expression: str = ""
+        opposed_expression: str = ""
+        evidence_quote: str = ""
+        explanation: str = ""
+
+        @model_validator(mode="after")
+        def present_requires_observed_sides_and_quote(self):
+            if self.status == "present" and not (
+                self.collective_expression.strip()
+                and self.opposed_expression.strip()
+                and self.evidence_quote.strip()
+            ):
+                raise ValueError(
+                    "present people-versus-power narrative requires collective_expression, "
+                    "opposed_expression and evidence_quote"
+                )
+            return self
 
     class SocialContractElement(BaseModel):
         element: str
@@ -204,7 +211,7 @@ def pydantic_models():
         key_political_topics: List[TopicItem]
         political_entities: List[EntityItem]
         sentiments: List[SentimentItem]
-        populist_elements: List[PopulistElement]
+        people_power_narrative: PeoplePowerNarrative
         social_contract: List[SocialContractElement]
         grievances: List[Grievance]
 
