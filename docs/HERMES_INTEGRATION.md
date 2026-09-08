@@ -105,6 +105,23 @@ Optional, not installed by any default: a user who wants this integration
 installs [Hermes](https://hermes-agent.nousresearch.com/docs/) and points a
 profile at this checkout; the repo itself still needs no Hermes dependency.
 
+## Model routing boundary: local Ollama open-source models only
+
+Both agent integrations — **Hermes and Claude Code** — are restricted to
+**local Ollama open-source models**. This is enforced in the shared tool
+surface ([`laclaugpt/integrations/agent_policy.py`](../laclaugpt/integrations/agent_policy.py)):
+
+- agent-triggered runs require `LLM_MODE=local` in the environment;
+- `auto`, `cloud` and `external` routing are refused, because they can send
+  research data to Ollama cloud or an off-machine endpoint;
+- `LLM_ALLOW_CLOUD_FALLBACK=1` is refused, so a local run can never silently
+  fall back to a cloud model mid-run;
+- agent tool calls accept no model-routing flags or credentials.
+
+Human CLI invocations keep the full machine-tier routing described in
+`llm.py`; this restriction applies to the agent tool surface and to the
+instructions in `HERMES.md` / `CLAUDE.md`.
+
 ## Scheduling pattern
 
 Hermes cron jobs can wrap the collector and the pipeline the same way plain
@@ -123,6 +140,9 @@ can call; the scheduler choice is left to the operator.
 Hermes must not:
 
 - change `LLM_MODE`, `OLLAMA_HOST`, cloud-fallback permission or credentials;
+- run analysis on anything but local Ollama open-source models (`LLM_MODE=local`
+  is required for agent-triggered runs, with no cloud fallback) — the same rule
+  binds the Claude Code integration;
 - send research data to a model endpoint outside the configured dataset policy;
 - bypass LaclauGPT configuration validation;
 - write to GitHub, publish outputs or delete research data through this tool
