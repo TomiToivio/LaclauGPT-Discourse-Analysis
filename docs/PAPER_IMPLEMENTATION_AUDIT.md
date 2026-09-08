@@ -31,7 +31,7 @@ model under `laclaugpt/model/`.
 | Paper analysis | root `pipeline.py` | Current evidence-linked analysis implementation |
 | Domain model for new package code | `laclaugpt/model/` | Canonical storage-neutral model |
 | Persistent Context Memory used by paper pipeline | `laclaugpt_memory/` | Current codebook/resolution store |
-| Batch interchange | `laclaugpt_interchange/` | Current schema **1.4**, including descriptive `sentiment_observations` distinct from Laclaudian affect |
+| Batch interchange | `laclaugpt_interchange/` | Current schema **1.5** (version lives in `laclaugpt_interchange.SCHEMA_VERSION` — do not hard-code it here), including descriptive `sentiment_observations` distinct from Laclaudian affect |
 | Collector | `collector/` | Preferred systematic path: Firefox extension + Python backend |
 | Older observation/graph model | `laclaugpt_model/` | Transitional compatibility layer |
 | 4CAT processor | root `laclaugpt_processor.py` | Shipped compatibility processor; canonical pipeline parity remains separate work |
@@ -48,7 +48,7 @@ model under `laclaugpt/model/`.
 | Nodal/floating/empty distinctions | AI could be pre-imposed as a fixed empty signifier | Situated role candidates carry rationale, evidence, confidence and corpus-validation flags | Floating/empty status requires comparative corpus evidence |
 | Sociotechnical imaginaries | Seed labels only | Structured future, present diagnosis, technology role, human agency and evidence | Cross-document stabilisation remains a corpus/human task |
 | Ideological formations | Fixed seed list encouraged direct classification | Formation candidates require supporting features, counter-evidence, evidence quote and confidence | Formation boundaries remain interpretive |
-| Formula of Populism | Political items could be forced into Us/Frontier with predetermined affect polarity | Explicit non-populist outcome is possible; both sides require evidence; affect polarity is not inferred from side | Human validation decides borderline cases |
+| Formula of Populism | Political items could be forced into Us/Frontier with predetermined affect polarity | Explicit non-populist outcome is possible; both sides require evidence; affect polarity is not inferred from side; an abstention may retain one evidenced side as structured document-level candidates (issue #59) | Human validation decides borderline cases |
 | Descriptive sentiment | Positive/neutral/negative target lists were resolved and then discarded before export | Schema 1.4 exports stable target ID/raw form, polarity, evidence/source marker, uncertainty, actual postprocess model, prompt version and provisional review status; descriptive sentiment is separate from `Affect` | Descriptive polarity remains a preliminary model reading and requires human verification |
 | Authoritative module switches | Configuration could claim `sentiment`, `context_memory` or `temporal` was off while the pipeline still requested, injected or wrote the corresponding state | `sentiment:false` does not request sentiment coding and publishes none; `context_memory:false` prevents codebook prompt injection while retaining stable-ID resolution; `temporal:false` prevents relation-history writes while timestamps remain provenance | Shared stages may still run for other enabled families, but disabled families are not requested/published |
 | Authorial position | Prompt warning only | Articulations/imaginaries distinguish asserted, quoted, reported, rejected, parodied and uncertain claims | Automatic speech-role accuracy must be evaluated |

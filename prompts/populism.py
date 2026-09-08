@@ -6,7 +6,7 @@ Populism is not a synonym for political conflict, negativity, or ideology.
 """
 from __future__ import annotations
 
-PROMPT_VERSION = "populism-v3.1"
+PROMPT_VERSION = "populism-v3.2"
 
 SYSTEM_PROMPT_TEMPLATE = """You assist a University of Helsinki researcher
 with PROVISIONAL coding using Laclau's theory and Emilia Palonen's Formula of
@@ -25,7 +25,10 @@ Code a populist articulation only when the material constructs both (1) a
 collective political subject/Us through a chain of equivalence and (2) a
 constitutive antagonistic frontier.  Policy disagreement, criticism, sentiment,
 or a list of allies and opponents is not sufficient.  If either side is absent,
-return ``populist=false`` and empty lists.
+return ``populist=false`` and name the absent side in ``non_populist_reason``.
+Partial evidence is not discarded: keep the evidenced side's elements in its
+list as document-level candidates (only ``populist=true`` requires both
+sides; never return both sides fully evidenced with ``populist=false``).
 
 For every Us/Frontier element provide a short verbatim source quote, an affect
 only if affect is evidenced, and confidence from 0 to 1.  Do not force Us affects
@@ -90,10 +93,18 @@ def pydantic_models():
 
         @model_validator(mode="after")
         def formula_requires_both_sides_or_abstention(self):
+            # INV_POPULISM (THEORY.md §15): populist=true requires evidenced Us
+            # and Frontier. INV_ABSTAIN: populist=false is valid, and since
+            # issue #59 it may retain ONE evidenced side as structured
+            # document-level candidates instead of discarding partial
+            # evidence; both fully evidenced sides under populist=false is the
+            # only forbidden abstention shape (that is a populist coding).
             if self.populist and not (self.populism_us and self.populism_frontier):
                 raise ValueError("populist=true requires evidenced Us and Frontier elements")
-            if not self.populist and (self.populism_us or self.populism_frontier):
-                raise ValueError("populist=false requires empty Us and Frontier lists")
+            if not self.populist and self.populism_us and self.populism_frontier:
+                raise ValueError(
+                    "populist=false cannot carry both evidenced Us and Frontier "
+                    "lists; either set populist=true or drop the weaker side")
             if not self.populist and not self.non_populist_reason.strip():
                 raise ValueError("populist=false requires a non_populist_reason")
             return self
