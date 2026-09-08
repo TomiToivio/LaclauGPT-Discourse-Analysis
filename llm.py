@@ -251,6 +251,12 @@ def chat_with_provenance(
     if options:
         opts.update(options)
     kwargs = {"format": schema} if schema is not None else {}
+    # OLLAMA_KEEP_ALIVE lets long-running workers keep model tiers resident
+    # across stage rotation (e.g. "-1" keeps every loaded model in VRAM);
+    # unset -> the server default (5 min unload).
+    keep_alive = os.environ.get("OLLAMA_KEEP_ALIVE", "").strip()
+    if keep_alive:
+        kwargs["keep_alive"] = keep_alive
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt},
