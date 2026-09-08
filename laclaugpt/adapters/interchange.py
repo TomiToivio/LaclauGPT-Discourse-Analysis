@@ -6,9 +6,24 @@ import hashlib
 import json
 
 from laclaugpt_interchange import from_jsonl
-from laclaugpt.model import (Articulation, Concept, Discourse, Entity,
-                             EvidenceSpan, Provenance, Representation,
+from laclaugpt.model import (Articulation, AttributionType, Concept, Discourse,
+                             Entity, EvidenceSpan, Provenance, Representation,
                              SourceItem, Statement)
+
+# INV_CONTEXT (THEORY.md §15): the interchange claim_status vocabulary maps
+# onto the canonical model's attribution types so quoted/reported/parodied
+# codings are never lifted into author-asserted statements. "rejected" has no
+# direct canonical equivalent yet, so it conservatively stays UNCLEAR rather
+# than being attributed to the author (canonical model gap tracked in the
+# issue-#50 follow-ups).
+_CLAIM_STATUS_TO_ATTRIBUTION = {
+    "asserted": AttributionType.AUTHOR,
+    "quoted": AttributionType.QUOTED,
+    "reported": AttributionType.REPORTED,
+    "parodied": AttributionType.IRONIC,
+    "rejected": AttributionType.UNCLEAR,
+    "uncertain": AttributionType.UNCLEAR,
+}
 
 
 @dataclass
@@ -65,7 +80,8 @@ def interchange_to_v2(path: str) -> CanonicalCorpus:
             statement = Statement(source_id=source.source_id,
                 representation_id=representation.representation_id,
                 text=relation.evidence or annotation.summary,
-                attribution_type="unclear")
+                attribution_type=_CLAIM_STATUS_TO_ATTRIBUTION.get(
+                    relation.claim_status, AttributionType.UNCLEAR))
             quote = relation.evidence or None
             start = annotation.summary.find(quote) if quote else None
             evidence = EvidenceSpan(source_id=source.source_id,

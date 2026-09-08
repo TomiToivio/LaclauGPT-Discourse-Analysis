@@ -6,7 +6,7 @@ Populism is not a synonym for political conflict, negativity, or ideology.
 """
 from __future__ import annotations
 
-PROMPT_VERSION = "populism-v3.0"
+PROMPT_VERSION = "populism-v3.1"
 
 SYSTEM_PROMPT_TEMPLATE = """You assist a University of Helsinki researcher
 with PROVISIONAL coding using Laclau's theory and Emilia Palonen's Formula of
@@ -31,7 +31,10 @@ For every Us/Frontier element provide a short verbatim source quote, an affect
 only if affect is evidenced, and confidence from 0 to 1.  Do not force Us affects
 to be positive or Frontier affects to be negative: anger can invest an Us and
 admiration can qualify an opponent.  Distinguish the author's articulation from
-speech that is quoted, reported, parodied, or rejected.
+speech that is quoted, reported, parodied, or rejected by recording it in
+``claim_status`` (asserted|quoted|reported|rejected|parodied|uncertain); a
+quoted or rejected politician's articulation must not become the author's
+position.
 
 Use ``nodal_candidate`` only for a privileged signifier that visibly organises
 the chain.  Use ``empty_candidate`` only when a partial demand appears to stand
@@ -53,6 +56,8 @@ def build_system_prompt(topic_background: str, source_metadata: str,
 
 
 def pydantic_models():
+    from typing import Literal
+
     from pydantic import BaseModel, Field, model_validator, field_validator
 
     def _null_to_empty(v):
@@ -63,6 +68,8 @@ def pydantic_models():
         populism_affect: str = ""
         evidence_quote: str = Field(min_length=1)
         confidence: float = Field(ge=0.0, le=1.0)
+        claim_status: Literal["asserted", "quoted", "reported", "rejected",
+                              "parodied", "uncertain"] = "asserted"
         nodal_candidate: bool = False
         empty_candidate: bool = False
 

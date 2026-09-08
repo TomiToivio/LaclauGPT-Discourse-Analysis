@@ -18,9 +18,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
-SCHEMA_VERSION = "1.4"   # 1.4: DocumentAnnotation.sentiment_observations (descriptive)
+SCHEMA_VERSION = "1.5"   # 1.5: PopulismElementAssessment.claim_status (INV_CONTEXT);
+                         #       DocumentAnnotation.discourse_applicable /
+                         #       discourse_applicability_reason (INV_ABSTAIN);
+                         #       populist=true requires non-empty us AND frontier
+                         # 1.4: DocumentAnnotation.sentiment_observations (descriptive)
                          # 1.3: MemoryRef.ner_type (spaCy NER classes)
 
 
@@ -118,6 +122,7 @@ class PopulismElementAssessment(BaseModel):
     evidence_source: str = ""
     evidence_verified: bool = False
     confidence: float = 0.0
+    claim_status: str = "asserted"    # asserted|quoted|reported|rejected|parodied|uncertain
     nodal_candidate: bool = False
     empty_candidate: bool = False
 
@@ -188,8 +193,26 @@ class DocumentAnnotation(BaseModel):
     counter_evidence: list[str] = []
     sentiment_observations: list[SentimentObservation] = []
 
+    # Discourse-stage applicability (INV_ABSTAIN): the model may judge the
+    # Laclaudian analysis non-applicable to a document. That signal is
+    # published instead of being discarded, so an "not applicable" document is
+    # distinguishable from one with legitimately empty codings.
+    discourse_applicable: bool | None = None
+    discourse_applicability_reason: str = ""
+
     summary: str = ""
     evidence_quotes: list[str] = []
+
+    @model_validator(mode="after")
+    def populist_requires_both_sides(self):
+        # INV_POPULISM (THEORY.md §15): populist=true requires an evidenced
+        # Us and Frontier construction. Enforcement lives at the prompt stage
+        # and here, at the schema every downstream consumer reads.
+        if self.populist and not (self.us and self.frontier):
+            raise ValueError(
+                "populist=true requires non-empty us and frontier lists "
+                "(INV_POPULISM: evidenced Us + Frontier construction)")
+        return self
 
 
 def _as_iref(ref) -> MemoryRef:
@@ -226,7 +249,8 @@ def from_memory_results(document_id: str, *, platform: str = "", country: str = 
     ann.topics = [_as_iref(r) for r in (topic_refs or [])]
     if populism:
         def refs(items):
-            return [MemoryRef(obj_id=r["obj_id"], label=r["label"], kind="signifier",
+            return [MemoryRef(obj_id=r["obj_id"], label=r["label"],
+                              kind=r.get("kind", "signifier"),
                               raw=r.get("raw", ""))
                     for r in items if isinstance(r, dict) and r.get("obj_id")]
         ann.us = refs(populism.get("populism_us", []))
@@ -243,6 +267,7 @@ def from_memory_results(document_id: str, *, platform: str = "", country: str = 
                 evidence_source=r.get("evidence_source", ""),
                 evidence_verified=r.get("evidence_verified", False),
                 confidence=r.get("confidence", 0.0),
+                claim_status=r.get("claim_status", "asserted"),
                 nodal_candidate=r.get("nodal", False),
                 empty_candidate=r.get("empty_candidate", False),
             )
