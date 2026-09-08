@@ -8,14 +8,14 @@ name: ep24-pilot
 paper_section: "3.3"
 topic_key: ep24-finland        # per-country override: ep24-poland
 source_platform: video         # Allas HEPP24 videos (Instagram/TikTok)
-language: fi                   # per country: pl for Poland
+languages: [fi, pl, en, pt, es]  # legacy whisper_language values vary (auto-detected)
 countries: [FI]                # [PL] for the Poland job
 
-memory_dir: LACLAUGPT_DATA_DIR/memory   # single shared codebook on Roihu scratch
-data_root: LACLAUGPT_DATA_DIR           # phase-0 landing root
-csv_dir: LACLAUGPT_DATA_DIR/ep24/csv    # fetched subset CSVs + manifests
+memory_dir: null               # localhost: LACLAUGPT_DATA_DIR -> ./data/memory (Roihu-ajo: LACLAUGPT_DATA_DIR/memory)
+data_root: LACLAUGPT_DATA_DIR           # phase-0 landing root (Roihu)
+csv_dir: LACLAUGPT_DATA_DIR/ep24/csv    # fetched subset CSVs + manifests (Roihu)
 videos_dir: LACLAUGPT_DATA_DIR/ep24/videos  # fetch-stage workdir override ($TMPDIR preferred for streaming)
-output_dir: LACLAUGPT_DATA_DIR/ep24/annotations  # annotations.jsonl + provenance land here
+output_dir: LACLAUGPT_DATA_DIR/ep24/annotations  # annotations.jsonl + provenance land here (Roihu)
 repo_root: LACLAUGPT_REPO_ROOT  # checked-out repo on Roihu (pipeline.py, prompts/, config/)
 model: gemma4:31b-cloud        # Ollama Cloud for ALL processing stages (2026-09-08 decision)
 ollama_mode: cloud
