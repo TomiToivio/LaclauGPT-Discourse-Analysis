@@ -12,16 +12,15 @@ from laclaugpt.model import (Articulation, AttributionType, Concept, Discourse,
 
 # INV_CONTEXT (THEORY.md §15): the interchange claim_status vocabulary maps
 # onto the canonical model's attribution types so quoted/reported/parodied
-# codings are never lifted into author-asserted statements. "rejected" has no
-# direct canonical equivalent yet, so it conservatively stays UNCLEAR rather
-# than being attributed to the author (canonical model gap tracked in the
-# issue-#50 follow-ups).
+# codings are never lifted into author-asserted statements. "rejected" maps to
+# AttributionType.REJECTED (issue #63): the document explicitly distances
+# itself from the claim, which is stronger information than mere UNCLEAR.
 _CLAIM_STATUS_TO_ATTRIBUTION = {
     "asserted": AttributionType.AUTHOR,
     "quoted": AttributionType.QUOTED,
     "reported": AttributionType.REPORTED,
     "parodied": AttributionType.IRONIC,
-    "rejected": AttributionType.UNCLEAR,
+    "rejected": AttributionType.REJECTED,
     "uncertain": AttributionType.UNCLEAR,
 }
 
