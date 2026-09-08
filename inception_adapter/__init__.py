@@ -322,6 +322,7 @@ def merge_inception_corrections(annotations_path: str, imported_rows: list[dict]
     """
     annotations = {a.document_id: a for a in from_jsonl(annotations_path)}
     updated = new = 0
+    touched: set[str] = set()
     for row in imported_rows:
         span = row.get("span")
         if not span:
@@ -355,6 +356,31 @@ def merge_inception_corrections(annotations_path: str, imported_rows: list[dict]
             updated += 1
         ann.review_status = "INCEpTION-REVIEWED"
         ann.requires_human_review = False
+        touched.add(row["document_id"])
+
+    # Re-derive Formula-of-Populism coherence after human edits (issue #50):
+    # human-added evidenced Us and Frontier spans can turn an earlier
+    # abstention into a both-sides coding. Leaving populist=False with both
+    # sides populated would export a contradictory annotation (INV_POPULISM).
+    for doc_id in touched:
+        ann = annotations[doc_id]
+        us = [el for el in ann.populism_elements if el.side == "us"]
+        frontier = [el for el in ann.populism_elements if el.side == "frontier"]
+        if us and frontier:
+            ann.populist = True
+            ann.non_populist_reason = ""
+            ann.us = [el.element for el in us]
+            ann.frontier = [el.element for el in frontier]
+        elif ann.populist:
+            # Both sides can no longer be evidenced after human edits: demote
+            # back to an explicit abstention instead of publishing an invalid
+            # populist=true.
+            ann.populist = False
+            ann.non_populist_reason = (
+                ann.non_populist_reason
+                or "INCEpTION review removed the evidenced Us or Frontier side")
+            ann.us = []
+            ann.frontier = []
 
     from laclaugpt_interchange import to_jsonl as _to
     _to(list(annotations.values()), out_path)

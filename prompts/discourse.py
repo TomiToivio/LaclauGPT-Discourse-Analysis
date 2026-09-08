@@ -7,7 +7,7 @@ as candidates for comparison and human validation.
 """
 from __future__ import annotations
 
-PROMPT_VERSION = "discourse-v1.0"
+PROMPT_VERSION = "discourse-v1.1"
 
 SYSTEM_PROMPT_TEMPLATE = """You assist a human political scientist with a
 provisional Laclaudian discourse analysis.  Analyse only the supplied source
@@ -27,8 +27,12 @@ Retrieved codebook candidates (stable IDs are suggestions, not evidence):
 Operational distinctions:
 - articulation: a relation that modifies the identity/meaning of its elements;
 - equivalence: elements made substitutable or jointly constitutive in a chain;
+  semantic similarity, co-occurrence or shared vocabulary is not equivalence;
 - difference: elements differentiated without necessarily becoming enemies;
 - antagonism/frontier: a limit or opposing outside constitutive of an identity;
+  criticism, negative sentiment or a mentioned opponent is not by itself
+  antagonism — the outside must be constitutive of an identity, and a list of
+  disliked entities is not a frontier;
 - nodal-point candidate: a privileged signifier organising nearby relations;
 - floating-signifier candidate: a term whose meaning appears disputed.  A
   document alone cannot establish floating status; mark corpus validation;

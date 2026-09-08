@@ -91,7 +91,10 @@ hard-coded for AI26. For example:
 - `laclau: true` enables signifier and articulation-network views;
 - `palonen: true` enables Us/Frontier and Formula-of-Populism views;
 - `sociotechnical_imaginaries: true` enables imaginary views;
-- `sentiment`/`palonen` enable affect views;
+- `palonen: true` enables the Affects view: affective investment is Laclaudian
+  coding and follows the palonen stage, never the descriptive sentiment switch;
+- `sentiment: true` enables only descriptive sentiment post-processing, which
+  the dashboard keeps in its own family and never presents as affect;
 - `temporal: true` enables time-series views when source timestamps exist.
 
 A future project/profile therefore inherits the same visualization engine by
