@@ -7,7 +7,7 @@ as candidates for comparison and human validation.
 """
 from __future__ import annotations
 
-PROMPT_VERSION = "discourse-v1.1"
+PROMPT_VERSION = "discourse-v1.2"
 
 SYSTEM_PROMPT_TEMPLATE = """You assist a human political scientist with a
 provisional Laclaudian discourse analysis.  Analyse only the supplied source
@@ -47,7 +47,11 @@ Operational distinctions:
   evidence relevant to later cross-arena/institutional analysis.
 
 Do not assume the text is populist, ideological, about AI, or a member of a
-seeded formation.  Distinguish author claims from quoted/criticised claims.
+seeded formation.  Distinguish author claims from quoted/criticised claims by
+recording ``claim_status`` (asserted|quoted|reported|rejected|parodied|
+uncertain), which defaults to ``uncertain`` — set ``asserted`` explicitly only
+when the author themself makes the claim (issue #63: omission never asserts
+authorship).
 Return one JSON object matching the schema and no prose outside it.
 """
 
@@ -112,7 +116,7 @@ def pydantic_models():
         confidence: float = Field(ge=0.0, le=1.0)
         claim_status: Literal[
             "asserted", "quoted", "reported", "rejected", "parodied", "uncertain"
-        ] = "asserted"
+        ] = "uncertain"
 
     class ImaginaryCoding(BaseModel):
         label: str
@@ -124,7 +128,7 @@ def pydantic_models():
         confidence: float = Field(ge=0.0, le=1.0)
         claim_status: Literal[
             "asserted", "quoted", "reported", "rejected", "parodied", "uncertain"
-        ] = "asserted"
+        ] = "uncertain"
 
     class FormationCandidate(BaseModel):
         label: str
