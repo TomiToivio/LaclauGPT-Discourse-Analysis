@@ -133,6 +133,9 @@ class AttributionType(str, Enum):
     REPORTED = "reported"
     HYPOTHETICAL = "hypothetical"
     IRONIC = "ironic"
+    # A claim the source author explicitly rejects: mentioned but never
+    # asserted (INV_CONTEXT; interchange "rejected" claim_status maps here).
+    REJECTED = "rejected"
     UNCLEAR = "unclear"
 
 
@@ -333,6 +336,20 @@ class Discourse(Reviewed):
     start_time: datetime | None = None
     end_time: datetime | None = None
     confidence: float | None = Field(default=None, ge=0, le=1)
+    # Issue #63: a discourse label is an interpretation, so it must stay
+    # traceable to evidence before review can advance past the proposed
+    # states (INV_EVIDENCE).
+    evidence_ids: list[str] = []
+
+    @model_validator(mode="after")
+    def advancing_review_requires_evidence(self):
+        if (self.review_status in (ReviewStatus.HUMAN_REVIEWED,
+                                   ReviewStatus.ACCEPTED, ReviewStatus.MODIFIED)
+                and not self.evidence_ids):
+            raise ValueError(
+                "advancing a Discourse review requires evidence_ids "
+                "(INV_EVIDENCE: discourse labels are interpretive codings)")
+        return self
 
 
 class DiscursiveRole(str, Enum):
@@ -354,6 +371,22 @@ class DiscursiveRoleAssignment(Reviewed):
     confidence: float | None = Field(default=None, ge=0, le=1)
     evidence_ids: list[str] = Field(min_length=1)
     provenance_id: str
+    # THEORY.md §14 registers floating/empty signifiers at level: corpus.
+    # A document-level assignment of the settled roles is invalid unless a
+    # human/corpus comparison has actually validated it (INV_FLOAT_CORPUS /
+    # INV_EMPTY_CHAIN, issue #63).
+    corpus_validated: bool = False
+
+    @model_validator(mode="after")
+    def corpus_level_roles_require_corpus_validation(self):
+        if (self.role in (DiscursiveRole.FLOATING_SIGNIFIER,
+                          DiscursiveRole.EMPTY_SIGNIFIER)
+                and not self.corpus_validated):
+            raise ValueError(
+                "settled floating/empty-signifier roles require "
+                "corpus_validated=True; document-level coding must use "
+                "NODAL_POINT/ELEMENT/MOMENT or a candidate role instead")
+        return self
 
 
 class EquivalenceChain(Model):
