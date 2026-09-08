@@ -151,6 +151,62 @@ Provenance records `imported_from="vasama-osint:vasama_collect_telegram"`,
 so the message remains traceable to the original collector. No second
 telethon implementation exists or is planned inside LaclauGPT.
 
+## Minet
+
+[Minet](https://github.com/medialab/minet) is the upstream web-mining
+layer (see also `docs/INTEROPERABILITY_SPEC.md` §12 and the existing
+`minet_adapter`). Its CSV output joins the same spine:
+
+```bash
+# minet extract output (trafilatura-backed full text)
+python -m laclaugpt collect minet extract.csv
+
+# minet platform-collector output (twitter/youtube/telegram/...)
+python -m laclaugpt collect minet collector.csv --kind collector --platform twitter
+
+# column overrides per the interoperability spec
+python -m laclaugpt collect minet extract.csv \
+    --text-column text --url-column url --author-column author \
+    --timestamp-column timestamp
+```
+
+Source type: `minet`, platform `minet-extract` / `minet-<platform>`;
+all unmapped minet fields are preserved under
+`metadata["minet"]` (spec §12 contract); provenance
+`imported_from=<csv path>`. The adapter works from minet-produced
+CSVs — minet itself is an optional external tool, not a LaclauGPT
+dependency.
+
+## Zeeschuimer
+
+[Zeeschuimer](https://github.com/digitalmethodsinitiative/zeeschuimer)
+captures social-platform traffic as a browser extension and exports
+NDJSON. The importer reads the documented export wrapper (`data`,
+`timestamp`, `platform`, `source`, `search`, `complete`, `item_index`)
+and is platform-agnostic:
+
+```bash
+# default text probe: desc, caption, text, content, title, body, full_text
+python -m laclaugpt collect zeeschuimer export.ndjson
+
+# per-platform text field override
+python -m laclaugpt collect zeeschuimer export.ndjson --text-fields desc,body
+```
+
+- `native_id`: Zeeschuimer item id or the platform payload's own id
+  (`id`/`aweme_id`/`pk`/`code`/`rest_id`);
+- author resolved from common payload shapes (`author.user.*`,
+  `user.username`, `creator.nickname`, …);
+- the full platform payload is preserved under
+  `metadata["platform_payload"]` (lossless — payload fields are not
+  flattened into the source text);
+- `complete=false` items are kept but flagged (`zeeschuimer.complete`
+  in metadata) — human review decides whether to use them;
+- provenance: `imported_from=<ndjson path>`,
+  `method=collect:zeeschuimer`.
+
+JSON-array exports are accepted as well as line-delimited NDJSON.
+
 ## Storage
 
 `CollectionStore` writes JSONL (`collection-data/normalized/<channel>.jsonl`)
@@ -171,16 +227,19 @@ for MongoDB/S3 later without touching the collectors.
 - RSS `fetch_article` is a flag, article fetching reuses the web
   adapter (to be wired through the CLI in a follow-up);
 - web fetch has no JS rendering (deliberate — the browser collector
-  covers JS-heavy sources);
+  covers JS-heavy sources; Zeeschuimer covers platform-captured feeds);
 - Telegram relies on the Vasama-OSINT collector being reachable (it
   reads `vasama_ai.events`); a file-export path works without Mongo;
+- Zeeschuimer text extraction probes common field names; new platform
+  payloads may need a `--text-fields` override until upstream field
+  naming is checked;
 - new channels: implement a function returning `CollectRecord`s and one
   CLI subcommand — the spine, dedup and storage are shared.
 
 ## Tests
 
-`tests/test_collect.py` — fully offline/synthetic: RSS + Atom parsing,
-URL normalization, dedup (native id / normalized URL / no cross-source
-merge), mocked web extraction, Hermes contract (commentary stays out of
-source text), manual text/file, Telegram adapter, CLI registration and
-end-to-end manual submission. No live feeds, channels or websites.
+`tests/test_collect.py` (RSS/Atom, normalization, dedup, mocked web,
+Hermes contract, manual, Telegram adapter, CLI) and
+`tests/test_collect_minet_zeeschuimer.py` (minet extract/collector CSVs,
+Zeeschuimer NDJSON + array exports, dedup, platform text overrides) —
+fully offline/synthetic; no live feeds, channels or websites.

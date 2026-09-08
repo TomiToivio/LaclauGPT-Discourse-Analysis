@@ -42,6 +42,25 @@ def register(sub) -> None:
                                help="normalize one Vasama-OSINT Telegram event (JSON)")
     telegram.add_argument("payload", help="JSON file or '-' for stdin")
 
+    minet = csub.add_parser("minet",
+                            help="import a minet CSV (extract or collector output)")
+    minet.add_argument("csv_path")
+    minet.add_argument("--kind", choices=("extract", "collector"),
+                       default="extract", help="minet output type")
+    minet.add_argument("--platform", help="platform tag for collector CSVs")
+    minet.add_argument("--text-column")
+    minet.add_argument("--url-column")
+    minet.add_argument("--author-column")
+    minet.add_argument("--timestamp-column")
+
+    zeeschuimer = csub.add_parser(
+        "zeeschuimer",
+        help="import a Zeeschuimer NDJSON export (browser capture)")
+    zeeschuimer.add_argument("ndjson_path")
+    zeeschuimer.add_argument("--text-fields",
+                             help="comma-separated probe keys for text extraction")
+    zeeschuimer.add_argument("--platform", help="platform tag override")
+
 
 def _urls_from_file(path: str) -> list[str]:
     return [u.strip() for u in Path(path).read_text(encoding="utf-8").splitlines()
@@ -97,6 +116,32 @@ def run(args: argparse.Namespace) -> int:
     elif args.collect_target == "telegram":
         saved, skipped = store.save_many(
             [collect_telegram_message(_read_payload(args.payload))])
+
+    elif args.collect_target == "minet":
+        from laclaugpt.collect.minet_zeeschuimer import (
+            collect_minet_collector, collect_minet_extract)
+        if args.kind == "collector":
+            records = collect_minet_collector(
+                args.csv_path, platform=args.platform or "unknown",
+                text_column=args.text_column)
+        else:
+            records = collect_minet_extract(
+                args.csv_path, text_column=args.text_column,
+                url_column=args.url_column, author_column=args.author_column,
+                timestamp_column=args.timestamp_column)
+        saved, skipped = store.save_many(records)
+
+    elif args.collect_target == "zeeschuimer":
+        from laclaugpt.collect.minet_zeeschuimer import collect_zeeschuimer
+        text_fields = (tuple(t.strip() for t in args.text_fields.split(","))
+                       if args.text_fields else None)
+        records = collect_zeeschuimer(
+            args.ndjson_path,
+            text_fields=text_fields if text_fields is not None
+            else ("desc", "caption", "text", "content", "title", "body",
+                  "full_text"),
+            platform_hint=args.platform)
+        saved, skipped = store.save_many(records)
 
     print(json.dumps({"collector_version": COLLECTOR_VERSION,
                       "saved": saved, "skipped_duplicates": skipped}))
