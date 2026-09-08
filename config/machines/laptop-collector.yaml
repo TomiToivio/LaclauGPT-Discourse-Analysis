@@ -1,0 +1,24 @@
+machine: laptop-collector
+backends:
+  source: filesystem
+  analysis: none
+  graph: none
+  vector: none
+  cache: none
+  analytics: none
+  blob: filesystem
+services:
+  collector:
+    enabled: true
+    backend: firefox-local
+  analysis:
+    enabled: false
+  dashboard:
+    enabled: false
+  llm:
+    mode: none
+  context_memory:
+    enabled: false
+runtime:
+  topology: collector-only
+  temporary_directory: ${TMPDIR:-./tmp}
