@@ -5,6 +5,24 @@ when a Hermes session runs inside this repository (see
 [`docs/HERMES_INTEGRATION.md`](docs/HERMES_INTEGRATION.md)). It is project
 context, not runtime code: the pipeline has zero runtime dependency on Hermes.
 
+## Theory and methodology boundary
+
+Before any theory-facing work, Hermes **must read [`THEORY.md`](THEORY.md) in
+full**. This includes changes to prompts, schemas, discourse-analysis logic,
+Context Memory/codebook behaviour, corpus synthesis, visualisations, and
+methodology documentation.
+
+`THEORY.md` is the canonical human- and machine-readable semantic contract for
+LaclauGPT. Hermes must identify the relevant concept IDs and theory invariants
+before editing theory-facing code, preserve evidence/uncertainty/counter-evidence/
+abstention/human review, and report any theory/implementation mismatch
+explicitly. If a theoretical definition itself needs to change, the original
+Laclau, Laclau & Mouffe, and Palonen sources remain authoritative.
+
+LaclauGPT is **human-in-the-loop, human-verified research only**. Hermes may
+orchestrate and inspect preliminary analyses, but it must never present model
+outputs as final findings, ground truth, or autonomous scholarly judgement.
+
 ## Identity boundary
 
 Hermes is a participant **caller** of this pipeline, not a component of it.
@@ -43,16 +61,20 @@ python -m collector.firefox.firefox_backend \
 
 ## Working rules
 
-1. Run `python -m pytest -q tests` before declaring any change done; CI
+1. Read `THEORY.md` before any theory-facing change and preserve its invariants.
+2. Run `python -m pytest -q tests` before declaring any change done; CI
    (`Repository CI`) is the gate.
-2. Research data roots (`laclaugpt-brasil-data/`, `collection-data/`, `*.har`)
+3. Research data roots (`laclaugpt-brasil-data/`, `collection-data/`, `*.har`)
    are never committed; `.gitignore` enforces this.
-3. Do not commit secrets: endpoints and credentials come from environment
+4. Do not commit secrets: endpoints and credentials come from environment
    variables, never from files in this tree.
-4. Collection is for public political content only; the collector does not
+5. Collection is for public political content only; the collector does not
    bypass authentication barriers, private accounts or CAPTCHAs.
-5. Statement-level claims must trace to source evidence; the agent may reject
+6. Statement-level claims must trace to source evidence; the agent may reject
    its own interpretation, never invent evidence.
+7. Frequency is not hegemony; vagueness is not empty signification; criticism
+   is not antagonism; sentiment is not affective investment; and
+   `populist=true` requires evidenced Us and Frontier construction.
 
 ## Conversational personality
 
