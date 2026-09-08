@@ -47,15 +47,21 @@ class CanonicalRegistry:
 
     def resolve(self, mention: str, kind: str,
                 candidate_provider: Callable[[str, str], Iterable[tuple[str, float]]] | None = None,
-                auto_merge_threshold: float = 0.98) -> Resolution:
+                auto_merge_threshold: float = 1.0) -> Resolution:
         exact = self.lookup.get((kind, normalized_label(mention)))
         if exact:
             return Resolution(exact, "reuse", 1.0)
         candidates = tuple(candidate_provider(mention, kind)) if candidate_provider else ()
-        allowed = [(cid, score) for cid, score in candidates if cid in self.records]
+        allowed = [(cid, score) for cid, score in candidates if cid in self.records
+                   # INV_HUMAN_REVIEW (issue #62): a pair whose merge a human
+                   # rejected is never auto-reused, whatever the similarity.
+                   and not any(
+                       cid in pair for pair in self.rejected_merges)]
         if allowed and allowed[0][1] >= auto_merge_threshold:
-            # Similarity proposes reuse only when it is extremely high. Any
-            # ambiguous/rejected case remains a candidate for human review.
+            # Only an exact normalised match (score 1.0, the default) is an
+            # unambiguous reuse. Near-identical surface forms below 1.0 stay
+            # candidates for human review instead of silently becoming the
+            # same canonical concept (issue #62 finding 3).
             cid, score = allowed[0]
             return Resolution(cid, "candidate_reuse", score, tuple(c for c, _ in allowed))
         return Resolution(None, "create_candidate", allowed[0][1] if allowed else 0.0,
