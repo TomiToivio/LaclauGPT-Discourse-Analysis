@@ -17,10 +17,10 @@ csv_dir: /scratch/project_2009497/laclaugpt2/ep24/csv    # fetched subset CSVs +
 videos_dir: /scratch/project_2009497/laclaugpt2/ep24/videos  # fetch-stage workdir override ($TMPDIR preferred for streaming)
 output_dir: /scratch/project_2009497/laclaugpt2/ep24/annotations  # annotations.jsonl + provenance land here
 repo_root: /users/totoivio/LaclauGPT-Discourse-Analysis  # checked-out repo on Roihu (pipeline.py, prompts/, config/)
-model: gemma4:e4b              # Roihu local tier; 31b/26b for the hardest stages
-ollama_mode: local
-ollama_host: ""
-allow_cloud_fallback: false    # source data never leaves the cluster
+model: gemma4:31b-cloud        # Ollama Cloud for ALL processing stages (2026-09-08 decision)
+ollama_mode: cloud
+ollama_host: ""                # cloud endpoint resolved by llm.py routing
+allow_cloud_fallback: true     # cloud IS the primary path now (local = fallback)
 temperature: 0.0
 num_ctx: 24576                 # fresh faster-whisper transcripts are long
 num_predict: 4096
