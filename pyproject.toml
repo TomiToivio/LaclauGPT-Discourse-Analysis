@@ -25,6 +25,10 @@ collector = [
   "websocket-client>=1.8",
   "tzdata>=2024.1",
 ]
+collect = [
+  "feedparser>=6.0",
+  "trafilatura>=1.8",
+]
 test = [
   "pytest>=8.0",
 ]
