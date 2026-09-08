@@ -74,6 +74,25 @@ class PopulismFormulaInvariants(unittest.TestCase):
         formula = Formula(populist=False, populism_analysis="x", non_populist_reason="no frontier")
         self.assertEqual(formula.populism_us, [])
 
+    def test_populist_false_may_retain_one_evidenced_side(self) -> None:
+        """Issue #59: partial evidence is not discarded — an abstention keeps
+        the evidenced side as structured document-level candidates."""
+        PopulismElement, Formula = self._formula()
+        us = PopulismElement(populism_element="us", evidence_quote="us quote",
+                             confidence=0.8)
+        formula = Formula(populist=False, populism_analysis="us without frontier",
+                          non_populist_reason="no constitutive frontier",
+                          populism_us=[us], populism_frontier=[])
+        self.assertFalse(formula.populist)
+        self.assertEqual(len(formula.populism_us), 1)
+        with self.assertRaises(ValidationError):
+            Formula(populist=False, populism_analysis="both sides but abstaining",
+                    non_populist_reason="contradictory",
+                    populism_us=[us],
+                    populism_frontier=[PopulismElement(
+                        populism_element="elite", evidence_quote="elite",
+                        confidence=0.8)])
+
 
 class EvidencePreservationInvariants(unittest.TestCase):
     """INV_EVIDENCE (THEORY.md §15): theory-facing schemas keep evidence fields."""
@@ -228,6 +247,24 @@ class InterchangePopulismInvariant(unittest.TestCase):
             parsed = from_jsonl(path)[0]
         self.assertTrue(parsed.populist)
         self.assertEqual(parsed.us[0].obj_id, "S001")
+
+    def test_populist_false_with_retained_sides_is_valid(self) -> None:
+        """Issue #59: the interchange keeps retained sides readable. One side
+        is the model's partial-evidence shape; both sides are the legitimate
+        human-review outcome where the reviewer rejects the formula while
+        keeping the codings. The strict both-sides rule lives in the prompt
+        validator (generation time), not here."""
+        from laclaugpt_interchange import DocumentAnnotation
+        partial = DocumentAnnotation(document_id="doc::1", populist=False,
+                                     non_populist_reason="no frontier",
+                                     us=[_iref("S001", "us")], frontier=[])
+        self.assertEqual(len(partial.us), 1)
+        self.assertEqual(partial.frontier, [])
+        reviewed = DocumentAnnotation(document_id="doc::2", populist=False,
+                                      non_populist_reason="reviewer rejects formula",
+                                      us=[_iref("S001", "us")],
+                                      frontier=[_iref("S002", "elite")])
+        self.assertEqual(len(reviewed.frontier), 1)
 
 
 class PopulismClaimStatusInvariant(unittest.TestCase):
@@ -437,6 +474,29 @@ class DiscourseMembershipAndSentimentProvenanceInvariant(unittest.TestCase):
         )
         self.assertEqual(len(ann.discourses), 1)
         self.assertEqual(ann.discourses[0].elements, [])
+
+    def test_partial_abstention_publishes_retained_side(self) -> None:
+        """Issue #59: populist=false keeps the evidenced side as structured
+        document-level candidates instead of discarding them."""
+        from pipeline import build_annotation
+        ann = build_annotation(
+            self._run(), {"platform": "synthetic", "id": "doc-1"}, "{}", {}, {},
+            {"populist": False, "non_populist_reason": "no constitutive frontier",
+             "populism_analysis": "us without frontier",
+             "populism_us": [{"obj_id": "S001", "label": "us",
+                              "kind": "signifier", "raw": "us",
+                              "evidence": "us quote", "confidence": 0.8,
+                              "evidence_verified": True,
+                              "claim_status": "asserted"}],
+             "populism_frontier": [],
+             "counter_evidence": [], "uncertainties": []},
+        )
+        self.assertFalse(ann.populist)
+        self.assertEqual(ann.non_populist_reason, "no constitutive frontier")
+        self.assertEqual([r.obj_id for r in ann.us], ["S001"])
+        self.assertEqual(ann.frontier, [])
+        self.assertEqual(len(ann.populism_elements), 1)
+        self.assertEqual(ann.populism_elements[0].side, "us")
 
     def test_sentiment_observation_records_actual_stage_model(self) -> None:
         from pipeline import build_annotation
