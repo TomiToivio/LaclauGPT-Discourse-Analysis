@@ -1,0 +1,27 @@
+machine: laptop-ollama
+backends:
+  source: filesystem
+  analysis: filesystem
+  graph: none
+  vector: none
+  cache: none
+  analytics: duckdb_local
+  blob: filesystem
+services:
+  collector:
+    enabled: false
+  analysis:
+    enabled: true
+  dashboard:
+    enabled: false
+  llm:
+    mode: local
+    provider: ollama
+    model: gemma4:e2b
+    base_url: ${OLLAMA_BASE_URL:-http://127.0.0.1:11434}
+  context_memory:
+    enabled: true
+runtime:
+  topology: analysis-only
+  resource_class: laptop-low-resource
+  temporary_directory: ${TMPDIR:-./tmp}
