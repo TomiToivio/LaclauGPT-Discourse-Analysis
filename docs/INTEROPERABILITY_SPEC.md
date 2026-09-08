@@ -390,6 +390,12 @@ Affect MUST NOT be reduced to sentiment polarity.
 ```
 
 Positive/negative sentiment MAY exist as a separate descriptive field.
+Implemented since schema 1.4 as `DocumentAnnotation.sentiment_observations`
+(descriptive `positive|neutral|negative` polarity over resolved stable-ID
+targets, with model/prompt provenance and `review_status`), deliberately a
+separate record family from `affects` (affective investment). Enabling or
+displaying a sentiment view never transforms sentiment polarity into
+affective investment (THEORY.md INV_AFFECT).
 
 ---
 
