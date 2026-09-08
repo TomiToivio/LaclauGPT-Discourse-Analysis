@@ -25,7 +25,7 @@ source adapter (rss | web | hermes | manual | telegram)
 
 Module: `laclaugpt/collect/` (spine) + `laclaugpt/collect/cli.py`
 (CLI). Runtime data lives under `collection-data/` (gitignored —
-never commit feeds, channel lists or credentials).
+never commit feeds, channel lists, private endpoints, watch lists or credentials).
 
 ## Canonical fields
 
@@ -42,7 +42,7 @@ Every collected item carries:
 | text | `SourceItem.raw_text` | raw or main-text extraction |
 | collection method | `IngestionRecord.collector` | `rss`/`web`/`hermes`/`manual`/`telegram` |
 | collector version | `IngestionRecord.collector_version` | `laclaugpt-collect-1.0` |
-| provenance | `Provenance(method=collect:<channel>)` | `imported_from` = feed URL / hermes / vasama-osint |
+| provenance | `Provenance(method=collect:<channel>)` | feed URL / Hermes / generic external collector boundary |
 | project/arena | only when explicitly configured | collection is project-independent |
 
 ## Deduplication
@@ -64,18 +64,21 @@ different items). Dedup ledger: `collection-data/seen.jsonl`.
 python -m laclaugpt collect rss https://example.org/feed.xml
 python -m laclaugpt collect rss collection-data/feeds.txt
 
+# Fetch full linked article text for new RSS entries through the standard web adapter
+python -m laclaugpt collect rss collection-data/feeds.txt --fetch-article
+
 # Web pages (also: --urls-file urls.txt)
 python -m laclaugpt collect web https://example.org/article
 
 # Manual researcher submission
 python -m laclaugpt collect manual --url https://example.org/src --title "Source"
-python -m laclaugpt collect manual --text "field note" --title "Note" --author "Tomi"
+python -m laclaugpt collect manual --text "field note" --title "Note" --author "Researcher"
 python -m laclaugpt collect manual --file notes.md --title "Notes"
 
 # Hermes Agent submission (JSON file or '-' for stdin)
 python -m laclaugpt collect hermes hermes_payload.json
 
-# Telegram (adapter: one Vasama-OSINT event as JSON)
+# Telegram: one event exported by the private/external Telegram collector
 python -m laclaugpt collect telegram telegram_event.json
 ```
 
@@ -85,24 +88,35 @@ Output per call: `{"collector_version": "...", "saved": N,
 ## RSS
 
 - deps: `feedparser` (parsing), optional `trafilatura` (web main text);
-- fields: feed URL/name, entry guid/link, title, author, published,
-  summary (HTML-stripped); `fetch_article` is a documented extension
-  point (fetch linked page, reuse the web adapter);
+- fields: feed URL/name, entry guid/link, title, author, published and
+  summary (HTML-stripped);
+- `--fetch-article` fetches each linked page through the **same standard
+  web adapter** used by `collect web`, replaces the short feed summary with
+  extracted article text when successful, and preserves the original summary
+  plus fetch status/final URL in metadata;
+- article-fetch failures are recorded in metadata and do not abort the feed run;
 - incremental: dedup ledger means old entries are never re-ingested;
 - cron-friendly — one process, no daemon state:
 
 ```cron
-# every 30 minutes, AI-corpus feeds
-*/30 * * * * cd /home/tomi/LaclauGPT-Discourse-Analysis && python -m laclaugpt collect rss collection-data/feeds.txt >> collection-data/rss.log 2>&1
+# every 30 minutes
+*/30 * * * * cd /path/to/LaclauGPT-Discourse-Analysis && python -m laclaugpt collect rss collection-data/feeds.txt --fetch-article >> collection-data/rss.log 2>&1
 ```
+
+Live feed lists belong in `collection-data/` or another private deployment
+location. Do not commit operational RSS watch lists merely because the feed URLs
+are publicly accessible.
 
 ## Web fetch
 
 - input: one URL, several URLs, or `--urls-file`;
 - extraction: `trafilatura` main text when available, HTML-strip
   fallback; keeps title + HTTP status for verification;
+- redirect resolution is retained when the HTTP response exposes a final URL;
 - fetch failures are recorded and skipped, never fatal to the batch;
 - not a crawler: exactly the requested URLs, no link following.
+
+Operational URL/watch lists should remain private by default.
 
 ## Hermes Agent submissions
 
@@ -135,21 +149,26 @@ submission never bypasses data-boundary rules.
 
 ## Telegram integration
 
-**Existing collector is reused, not duplicated.** The Vasama-OSINT
-Telegram collector (`vasama_collect_telegram.py` on Laskin: telethon
-sessions → `vasama_ai.events` in MongoDB) keeps running as the
-collection edge. The LaclauGPT side provides an adapter boundary:
+**The existing live Telegram collector is reused, not duplicated.** Its host,
+credentials, session material, database/collection names, channel identifiers,
+private invite links and operational watch lists are deployment-private and must
+not be documented or committed in this public repository.
+
+LaclauGPT exposes only a portable adapter boundary:
 
 ```python
 from laclaugpt.collect import collect_telegram_message, CollectionStore
-record = collect_telegram_message(event_document)   # one vasama_ai event
+record = collect_telegram_message(event_document)   # one exported Telegram event
 store.save(record)                                   # canonical SourceItem
 ```
 
 CLI equivalent: `python -m laclaugpt collect telegram event.json`.
-Provenance records `imported_from="vasama-osint:vasama_collect_telegram"`,
-so the message remains traceable to the original collector. No second
-telethon implementation exists or is planned inside LaclauGPT.
+Provenance records the generic `external-telegram-collector` boundary. A private
+deployment may keep richer upstream provenance in controlled storage, but public
+code and documentation must not reveal operational infrastructure or live source
+selection.
+
+No second Telegram client/session implementation is required inside LaclauGPT.
 
 ## Minet
 
@@ -161,7 +180,7 @@ layer (see also `docs/INTEROPERABILITY_SPEC.md` §12 and the existing
 # minet extract output (trafilatura-backed full text)
 python -m laclaugpt collect minet extract.csv
 
-# minet platform-collector output (twitter/youtube/telegram/...)
+# minet platform-collector output
 python -m laclaugpt collect minet collector.csv --kind collector --platform twitter
 
 # column overrides per the interoperability spec
@@ -216,20 +235,22 @@ for MongoDB/S3 later without touching the collectors.
 
 ## Configuration
 
-- `collection-data/` — feeds, URL lists, channel lists, credentials
-  (gitignored; contains per-deployment private endpoints);
+- `collection-data/` — feeds, URL lists, channel lists, credentials and
+  deployment-specific collection settings (gitignored/private);
+- `collector/config/` — only safe templates/examples and explicitly reviewed
+  reproducibility exceptions;
 - `config/` + `run_configs/` — research semantics (projects/arenas),
   unchanged by this work;
 - machine/execution profiles — unchanged.
 
+See [`DATA_COLLECTION_CONFIGURATION.md`](DATA_COLLECTION_CONFIGURATION.md) for
+the public/private configuration boundary.
+
 ## Current limitations & extension points
 
-- RSS `fetch_article` is a flag, article fetching reuses the web
-  adapter (to be wired through the CLI in a follow-up);
 - web fetch has no JS rendering (deliberate — the browser collector
   covers JS-heavy sources; Zeeschuimer covers platform-captured feeds);
-- Telegram relies on the Vasama-OSINT collector being reachable (it
-  reads `vasama_ai.events`); a file-export path works without Mongo;
+- Telegram is an adapter boundary: the live collector remains external/private;
 - Zeeschuimer text extraction probes common field names; new platform
   payloads may need a `--text-fields` override until upstream field
   naming is checked;
@@ -238,8 +259,8 @@ for MongoDB/S3 later without touching the collectors.
 
 ## Tests
 
-`tests/test_collect.py` (RSS/Atom, normalization, dedup, mocked web,
-Hermes contract, manual, Telegram adapter, CLI) and
-`tests/test_collect_minet_zeeschuimer.py` (minet extract/collector CSVs,
-Zeeschuimer NDJSON + array exports, dedup, platform text overrides) —
-fully offline/synthetic; no live feeds, channels or websites.
+`tests/test_collect.py` (RSS/Atom, RSS full-article enrichment,
+normalization, dedup, mocked web, Hermes contract, manual, generic Telegram
+adapter, CLI) and `tests/test_collect_minet_zeeschuimer.py` (minet
+extract/collector CSVs, Zeeschuimer NDJSON + array exports, dedup, platform text
+overrides) are fully offline/synthetic; no live feeds, channels or websites.
