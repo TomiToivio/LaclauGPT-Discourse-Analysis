@@ -1,29 +1,23 @@
-"""Issue #48 regression tests: authoritative module switches.
-
-`sentiment`, `context_memory` and `temporal` must be lossless and
-authoritative:
-
-- sentiment: true round-trips resolved observations through the interchange;
-  sentiment: false neither publishes sentiment output (strip) nor requests it.
-- context_memory: false keeps codebook context out of prompts while stable-ID
-  resolution stays on (canonical provenance, not optional context).
-- temporal: false prevents relation-history writes in Context Memory.
-"""
+"""Issue #48 regression tests: authoritative analysis-module switches."""
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from laclaugpt.canonical_pipeline import _apply_analysis_switches
-from laclaugpt_interchange import SCHEMA_VERSION, DocumentAnnotation, from_jsonl, to_jsonl
-from laclaugpt_memory import Memory as RealMemory
-from pipeline import DiscourseStage, PostprocessStage, Stage, SummaryStage
-from run_config import RunConfig, SourceSpec
+from laclaugpt_interchange import (
+    SCHEMA_VERSION, DocumentAnnotation, MemoryRef as IMemoryRef,
+    SentimentObservation, from_jsonl, to_jsonl,
+)
+from pipeline import DiscourseStage, PostprocessStage, Stage, build_annotation
+from prompts.source_metadata import SourceMetadata
+from run_config import RunConfig, SourceSpec, stages_for_analysis
 
 
 def _run(**overrides) -> RunConfig:
-    from pathlib import Path
-    import tempfile
     tmp = Path(tempfile.mkdtemp())
     defaults = dict(
         run_id="run-issue-48", analysis_profile="ai26:test", arena_id="test",
@@ -34,148 +28,146 @@ def _run(**overrides) -> RunConfig:
         topic_key="ai-contestation",
         sources=[SourceSpec(platform="synthetic", language="en")],
         database_dir=tmp / "database", log_dir=tmp / "logs",
-        memory_dir=tmp / "memory",
-        output_path=tmp / "annotations.jsonl",
+        memory_dir=tmp / "memory", output_path=tmp / "annotations.jsonl",
         model_text="synthetic", model_vision="synthetic",
     )
     defaults.update(overrides)
     return RunConfig(**defaults)
 
 
-def _resolved_target_ref():
-    return {"obj_id": "C001", "label": "European Union", "kind": "target",
-            "raw": "the EU", "decision": "NEW", "ner_type": ""}
+class FakeMemory:
+    def __init__(self):
+        self.context_calls: list[tuple[str, object]] = []
+        self.relations: list[tuple[tuple, dict]] = []
+        self.resolutions: list[tuple[str, str]] = []
+
+    def context_prompt_block(self, text, top_k_per_kind=5, kinds=None):
+        self.context_calls.append((text, kinds))
+        return "Established synthetic context"
+
+    def resolve(self, raw, kind, **kwargs):
+        self.resolutions.append((raw, kind))
+        prefix = {"target": "C", "entity": "E", "topic": "T", "signifier": "S",
+                  "formation": "F"}.get(kind, "X")
+        return SimpleNamespace(
+            obj_id=f"{prefix}001", label=raw, kind=kind, raw=raw,
+            decision="NEW", type_="",
+        )
+
+    def record_relation(self, *args, **kwargs):
+        self.relations.append((args, kwargs))
 
 
 class SentimentLosslessExportTests(unittest.TestCase):
-    """sentiment: true round-trips through build_annotation -> JSONL."""
-
-    def _memory(self, run):
-        return RealMemory(memory_dir=str(run.memory_dir), embedding_backend="none")
-
-    def test_postprocess_output_carries_sentiment_observations(self) -> None:
-        run = _run()
-        stage = PostprocessStage(run, self._memory(run))
-        stage.close()
-        extracted = {
-            "entities": [], "topics": [],
-            "positive": [], "neutral": [],
-            "negative": [_resolved_target_ref()],
-            "sentiment": [{"target": _resolved_target_ref(), "polarity": "negative"}],
-        }
+    def test_schema_14_round_trips_descriptive_sentiment(self) -> None:
         ann = DocumentAnnotation(document_id="synthetic::doc-1")
-        from pipeline import build_annotation
-        annotation = build_annotation(
-            run, {"platform": "synthetic", "id": "doc-1"}, "{}", {}, extracted, {},
-        )
-        self.assertEqual(len(annotation.sentiment_observations), 1)
-        obs = annotation.sentiment_observations[0]
-        self.assertEqual(obs.target.obj_id, "C001")
-        self.assertEqual(obs.polarity, "negative")
-        self.assertEqual(obs.prompt_version, stage.prompt_version)
-
-    def test_schema_14_round_trips_through_jsonl(self) -> None:
-        ann = DocumentAnnotation(document_id="synthetic::doc-1")
-        with patch("laclaugpt_interchange.datetime") as _:
-            pass
-        from laclaugpt_interchange import SentimentObservation
-        from laclaugpt_interchange import MemoryRef as IMemoryRef
         ann.sentiment_observations = [SentimentObservation(
             target=IMemoryRef(obj_id="C001", label="EU", kind="target", raw="the EU"),
-            polarity="negative", model="synthetic",
-            prompt_version="postprocess-v2.1",
+            polarity="negative", evidence_source="text", uncertainty=0.25,
+            model="synthetic", prompt_version="postprocess-v2.2",
+            review_status="PROVISIONAL",
         )]
-        import tempfile
-        from pathlib import Path
         with tempfile.TemporaryDirectory() as tmp:
             path = str(Path(tmp) / "ann.jsonl")
             to_jsonl([ann], path)
             parsed = from_jsonl(path)[0]
+        obs = parsed.sentiment_observations[0]
         self.assertEqual(parsed.schema_version, SCHEMA_VERSION)
-        self.assertEqual(parsed.sentiment_observations[0].polarity, "negative")
-        self.assertEqual(parsed.sentiment_observations[0].target.obj_id, "C001")
+        self.assertEqual(obs.target.obj_id, "C001")
+        self.assertEqual(obs.target.raw, "the EU")
+        self.assertEqual(obs.polarity, "negative")
+        self.assertEqual(obs.evidence_source, "text")
+        self.assertEqual(obs.uncertainty, 0.25)
+        self.assertEqual(obs.model, "synthetic")
+        self.assertEqual(obs.prompt_version, "postprocess-v2.2")
+        self.assertEqual(obs.review_status, "PROVISIONAL")
 
-    def test_sentiment_distinct_from_affect_family(self) -> None:
-        from laclaugpt_interchange import Affect, SentimentObservation
-        self.assertIsNot(SentimentObservation, Affect)
-        # descriptive polarity never auto-fills affective investment:
-        from laclaugpt_interchange import from_memory_results
-        ann = from_memory_results(
-            "doc::1", platform="synthetic",
-            populism={"populism_us": [
-                {"obj_id": "S001", "label": "us", "affect": "anger"}]},
+    def test_build_annotation_uses_postprocess_actual_model(self) -> None:
+        run = _run()
+        extracted = {"entities": [], "topics": [], "sentiment": [{
+            "target": {"obj_id": "C001", "label": "EU", "kind": "target",
+                       "raw": "the EU", "ner_type": ""},
+            "polarity": "negative", "evidence_source": "text", "uncertainty": 0.2,
+        }]}
+        ann = build_annotation(
+            run, {"platform": "synthetic", "id": "doc-1"}, "{}", {}, extracted, {},
+            stage_provenance={"postprocess": {"actual_model": "actual-post-model"}},
         )
-        for affect in ann.affects:
-            self.assertEqual(affect.polarity, "")
+        obs = ann.sentiment_observations[0]
+        self.assertEqual(obs.target.obj_id, "C001")
+        self.assertEqual(obs.target.raw, "the EU")
+        self.assertEqual(obs.model, "actual-post-model")
+        self.assertEqual(obs.review_status, "PROVISIONAL")
+
+    def test_sentiment_is_distinct_from_laclaudian_affect(self) -> None:
+        from laclaugpt_interchange import Affect
+        self.assertIsNot(SentimentObservation, Affect)
 
 
-class SentimentOffSwitchTests(unittest.TestCase):
-    """sentiment: false publishes no sentiment output."""
-
-    def test_canonical_strip_removes_sentiment_observations(self) -> None:
-        from laclaugpt_interchange import SentimentObservation
-        from laclaugpt_interchange import MemoryRef as IMemoryRef
+class SentimentSwitchTests(unittest.TestCase):
+    def test_sentiment_false_strips_publication(self) -> None:
         ann = DocumentAnnotation(document_id="synthetic::doc-1")
         ann.sentiment_observations = [SentimentObservation(
             target=IMemoryRef(obj_id="C001", label="EU", kind="target"),
             polarity="negative",
         )]
-        _apply_analysis_switches(ann, {"sentiment": False, "laclau": True,
-                                       "palonen": True, "topics": True,
-                                       "entities": True})
-        self.assertEqual(ann.sentiment_observations, [])
-        # enabled families survive:
-        self.assertEqual(ann.entities, [])
+        _apply_analysis_switches(ann, {
+            "sentiment": False, "laclau": True, "palonen": True,
+            "topics": True, "entities": True,
+        })
         self.assertEqual(ann.sentiment_observations, [])
 
-    def test_stages_for_analysis_excludes_postprocess_without_descriptive_modules(self) -> None:
-        from run_config import stages_for_analysis
-        # sentiment alone still routes through postprocess
+    def test_sentiment_false_is_not_requested_when_postprocess_runs_for_topics(self) -> None:
+        run = _run(analysis_modules={
+            "laclau": True, "sentiment": False, "context_memory": True,
+            "temporal": True, "topics": True, "entities": False,
+        })
+        memory = FakeMemory()
+        stage = PostprocessStage(run, memory)
+        Extraction = __import__("prompts.postprocess", fromlist=["pydantic_models"]).pydantic_models()
+        with patch.object(stage, "call", return_value=Extraction()) as mocked:
+            result = stage.run_row(
+                {"platform": "synthetic", "id": "doc-1", "text": "hello"},
+                "hello", "{}",
+            )
+        system = mocked.call_args.args[1]
+        self.assertNotIn("Determine descriptive sentiment", system)
+        self.assertEqual(result["sentiment"], [])
+        stage.close()
+
+    def test_sentiment_true_requests_structured_evidence_bearing_reading(self) -> None:
+        from prompts import postprocess as postprocess_prompt
+        run = _run()
+        memory = FakeMemory()
+        stage = PostprocessStage(run, memory)
+        Extraction = postprocess_prompt.pydantic_models()
+        reading_type = Extraction.model_fields["sentiments"].annotation.__args__[0]
+        result = Extraction(sentiments=[reading_type(
+            target="the EU", polarity="negative",
+            evidence_quote="the EU failed us", uncertainty=0.3,
+        )])
+        row = {"platform": "synthetic", "id": "doc-1",
+               "text": "the EU failed us"}
+        with patch.object(stage, "call", return_value=result) as mocked:
+            extracted = stage.run_row(row, row["text"], "{}")
+        system = mocked.call_args.args[1]
+        self.assertIn("Determine descriptive sentiment", system)
+        self.assertEqual(extracted["sentiment"][0]["target"]["obj_id"], "C001")
+        self.assertEqual(extracted["sentiment"][0]["target"]["raw"], "the EU")
+        self.assertEqual(extracted["sentiment"][0]["polarity"], "negative")
+        self.assertEqual(extracted["sentiment"][0]["evidence_source"], "text")
+        self.assertEqual(extracted["sentiment"][0]["uncertainty"], 0.3)
+        stage.close()
+
+    def test_stage_mapping_only_runs_postprocess_for_enabled_descriptive_families(self) -> None:
         self.assertIn("postprocess", stages_for_analysis({"sentiment": True}))
-        # and nothing descriptive means no postprocess stage at all
-        self.assertNotIn(
-            "postprocess",
-            stages_for_analysis({"sentiment": False, "topics": False,
-                                 "entities": False, "laclau": False}),
-        )
+        self.assertNotIn("postprocess", stages_for_analysis({
+            "sentiment": False, "topics": False, "entities": False, "laclau": False,
+        }))
 
 
 class ContextMemorySwitchTests(unittest.TestCase):
-    """context_memory: false keeps codebook context out of prompts."""
-
-    def test_memory_context_disabled_returns_placeholder_without_memory_call(self) -> None:
-        run = _run(analysis_modules={
-            "laclau": True, "context_memory": False, "temporal": True,
-            "sentiment": True, "topics": True, "entities": True,
-        })
-        memory = RealMemory(memory_dir=str(run.memory_dir), embedding_backend="none")
-
-        class RecordingMemory:
-            def __init__(self, inner):
-                self.inner = inner
-                self.calls = []
-
-            def context_prompt_block(self, text, top_k_per_kind=5, kinds=None):
-                self.calls.append((text, kinds))
-                return self.inner.context_prompt_block(text, top_k_per_kind, kinds)
-
-        recording = RecordingMemory(memory)
-        stage = Stage.__new__(Stage)
-        stage.run = run
-        stage.memory = recording
-        stage.stage_name = "summary"
-        stage.prompt_version = "test"
-        stage.last_provenance = {}
-        stage.conn = None
-
-        block = stage.memory_context("some text")
-        self.assertIn("context memory disabled", block)
-        self.assertEqual(recording.calls, [])
-        memory.close()
-
-    def test_memory_context_enabled_delegates_to_memory(self) -> None:
-        run = _run()
-        memory = RealMemory(memory_dir=str(run.memory_dir), embedding_backend="none")
+    def _stage(self, run, memory):
         stage = Stage.__new__(Stage)
         stage.run = run
         stage.memory = memory
@@ -183,125 +175,65 @@ class ContextMemorySwitchTests(unittest.TestCase):
         stage.prompt_version = "test"
         stage.last_provenance = {}
         stage.conn = None
-        block = stage.memory_context("some text")
-        self.assertIn("Established", block or "") if block else self.fail("empty block")
-        memory.close()
+        return stage
+
+    def test_context_memory_false_does_not_call_codebook_context(self) -> None:
+        run = _run(analysis_modules={
+            "laclau": True, "context_memory": False, "temporal": True,
+            "sentiment": True, "topics": True, "entities": True,
+        })
+        memory = FakeMemory()
+        block = self._stage(run, memory).memory_context("some text")
+        self.assertIn("context memory disabled", block)
+        self.assertEqual(memory.context_calls, [])
+
+    def test_context_memory_true_delegates_to_codebook_context(self) -> None:
+        run = _run()
+        memory = FakeMemory()
+        block = self._stage(run, memory).memory_context("some text")
+        self.assertEqual(block, "Established synthetic context")
+        self.assertEqual(len(memory.context_calls), 1)
 
 
 class TemporalSwitchTests(unittest.TestCase):
-    """temporal: false prevents relation-history writes."""
-
-    def test_discourse_stage_skips_record_relation_when_temporal_false(self) -> None:
+    def _run_discourse(self, temporal: bool) -> FakeMemory:
+        from prompts import discourse as discourse_prompt
         run = _run(analysis_modules={
-            "laclau": True, "context_memory": True, "temporal": False,
+            "laclau": True, "context_memory": True, "temporal": temporal,
             "sentiment": True, "topics": True, "entities": True,
         })
-        memory = RealMemory(memory_dir=str(run.memory_dir), embedding_backend="none")
+        memory = FakeMemory()
+        stage = DiscourseStage(run, memory)
+        Analysis = discourse_prompt.pydantic_models()
+        fake = Analysis(
+            applicable=True,
+            applicability_reason="synthetic",
+            signifiers=[{
+                "term": "freedom", "role": "element", "rationale": "synthetic",
+                "evidence_quote": "freedom is at stake", "confidence": 0.6,
+            }],
+            articulations=[{
+                "source": "freedom", "target": "prosperity",
+                "relation": "articulation", "rationale": "synthetic",
+                "evidence_quote": "freedom is at stake", "confidence": 0.6,
+            }],
+        )
+        metadata = SourceMetadata(
+            platform="synthetic", country="", language="en",
+            collection="synthetic test", has_metadata=True,
+        )
+        row = {"platform": "synthetic", "id": "doc-1",
+               "text": "freedom is at stake"}
+        with patch.object(stage, "call", return_value=fake):
+            stage.run_row(row, row["text"], "{}", metadata)
+        stage.close()
+        return memory
 
-        recorded = []
-        original = memory.record_relation
+    def test_temporal_false_skips_relation_history_write(self) -> None:
+        self.assertEqual(self._run_discourse(False).relations, [])
 
-        def recorder(*args, **kwargs):
-            recorded.append(args)
-            return original(*args, **kwargs)
-
-        with patch.object(type(memory), "record_relation", side_effect=recorder), \
-             patch("pipeline.resolve_endpoint", side_effect=lambda m: ("local", m)), \
-             patch("pipeline.model_digest", return_value="digest"), \
-             patch("llm.chat_structured") as fake_chat:
-            from prompts import discourse as discourse_prompt
-
-            Coding = discourse_prompt.pydantic_models()
-            # Build a minimal fake result matching the schema
-            class FakeCoding:
-                term = "freedom"
-                role = "element"
-                rationale = "r"
-                evidence_quote = "freedom is at stake"
-                confidence = 0.5
-                needs_corpus_validation = False
-
-            class FakeArticulation:
-                source = "freedom"
-                target = "prosperity"
-                relation = "articulation"
-                rationale = "r"
-                evidence_quote = "freedom is at stake"
-                confidence = 0.5
-                claim_status = "asserted"
-
-            class FakeResult:
-                applicable = True
-                applicability_reason = "ok"
-                signifiers = [FakeArticulation()]
-                articulations = [FakeArticulation()]
-                imaginaries = []
-                formation_candidates = []
-                hegemonic_evidence = []
-                uncertainties = []
-
-            fake_chat.return_value = (FakeResult(), {
-                "actual_model": "synthetic", "actual_model_digest": "digest",
-                "actual_mode": "local", "requested_mode": "local",
-                "requested_model": "synthetic", "endpoint": "x",
-                "fallback_used": False, "fallback_reason": "", "cache_hit": False,
-            })
-            stage = DiscourseStage(run, memory)
-            row = {"platform": "synthetic", "id": "doc-1",
-                   "text": "freedom is at stake"}
-            stage.run_row(row, "freedom is at stake", "{}", None)
-            stage.close()
-        self.assertEqual(recorded, [], "temporal: false must not write relations")
-        memory.close()
-
-    def test_discourse_stage_writes_relations_when_temporal_true(self) -> None:
-        run = _run()  # temporal: True
-        memory = RealMemory(memory_dir=str(run.memory_dir), embedding_backend="none")
-
-        recorded = []
-        with patch.object(type(memory), "record_relation",
-                          side_effect=lambda *a, **k: recorded.append(a)), \
-             patch("pipeline.resolve_endpoint", side_effect=lambda m: ("local", m)), \
-             patch("pipeline.model_digest", return_value="digest"), \
-             patch("llm.chat_structured") as fake_chat:
-            from prompts import discourse as discourse_prompt
-            class FakeCoding:
-                term = "freedom"
-                role = "element"
-                rationale = "r"
-                evidence_quote = "freedom is at stake"
-                confidence = 0.5
-                needs_corpus_validation = False
-            class FakeArticulation:
-                source = "freedom"
-                target = "prosperity"
-                relation = "articulation"
-                rationale = "r"
-                evidence_quote = "freedom is at stake"
-                confidence = 0.5
-                claim_status = "asserted"
-            class FakeResult:
-                applicable = True
-                applicability_reason = "test"
-                signifiers = [FakeArticulation()]
-                articulations = [FakeArticulation()]
-                imaginaries = []
-                formation_candidates = []
-                hegemonic_evidence = []
-                uncertainties = []
-            fake_chat.return_value = (FakeResult(), {
-                "actual_model": "synthetic", "actual_model_digest": "digest",
-                "actual_mode": "local", "requested_mode": "local",
-                "requested_model": "synthetic", "endpoint": "x",
-                "fallback_used": False, "fallback_reason": "", "cache_hit": False,
-            })
-            stage = DiscourseStage(run, memory)
-            row = {"platform": "synthetic", "id": "doc-1",
-                   "text": "freedom is at stake"}
-            stage.run_row(row, "freedom is at stake", "{}", None)
-            stage.close()
-        self.assertTrue(recorded, "temporal: true must write relations")
-        memory.close()
+    def test_temporal_true_writes_relation_history(self) -> None:
+        self.assertTrue(self._run_discourse(True).relations)
 
 
 if __name__ == "__main__":
