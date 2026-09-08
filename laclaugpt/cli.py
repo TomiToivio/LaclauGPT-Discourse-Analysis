@@ -23,6 +23,8 @@ def parser() -> argparse.ArgumentParser:
         "profiles",
         help="list canonical project, arena, machine and execution profiles",
     )
+    from laclaugpt.collect.cli import register as register_collect
+    register_collect(sub)
     analyze = sub.add_parser("analyze", help="compose and validate an analysis run")
     analyze.add_argument("dataset", nargs="?")
     analyze.add_argument("--project", required=True, choices=list_projects())
@@ -82,6 +84,9 @@ def _resolve_arena(args: argparse.Namespace) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    if args.command == "collect":
+        from laclaugpt.collect.cli import run as run_collect
+        return run_collect(args)
     if args.command == "profiles":
         print(json.dumps({
             "projects": list_projects(),
