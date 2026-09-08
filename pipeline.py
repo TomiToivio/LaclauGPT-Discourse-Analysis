@@ -115,6 +115,27 @@ def export_machine_csv(annotations: list[DocumentAnnotation],
     return path
 
 
+def export_discourse_graph(annotations: list[DocumentAnnotation],
+                           path: str, *, run: RunConfig | None = None) -> str:
+    """Canonical discourse-graph projection (docs/DISCOURSE_GRAPH_SCHEMA.md).
+
+    Deterministic evidence-linked projection over the run's annotations:
+    documents, signifiers, role assignments, Palonen Us/Frontier/affect
+    nodes and SUPPORTED_BY evidence edges. Written for Gephi/GraphML-style
+    downstream tooling; carries provenance per the schema contract.
+    """
+    from laclaugpt.graph import build_discourse_graph
+    graph = build_discourse_graph(annotations)
+    if run is not None:
+        graph.metadata.setdefault("run_id", run.run_id)
+        graph.metadata.setdefault("project", getattr(run, "project", ""))
+        graph.metadata.setdefault("arena", getattr(run, "arena", ""))
+    payload = graph.to_dict()
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False, indent=2)
+    return path
+
+
 def write_human_report(annotations: list[DocumentAnnotation],
                        synthesis: dict, path: str) -> str:
     """Human-readable run report (markdown), legacy-summary parity.
@@ -194,6 +215,9 @@ def _prepare_success_artifacts(
     # (flat subset of the JSONL); human report = readable markdown digest.
     machine_csv_destination = destination.with_suffix(".csv")
     report_destination = destination.with_suffix(".report.md")
+    # Canonical discourse graph projection (docs/DISCOURSE_GRAPH_SCHEMA.md):
+    # evidence-linked graph over the run's annotations for vis/Gephi tooling.
+    graph_destination = destination.with_suffix(".graph.json")
     run.log_dir.mkdir(parents=True, exist_ok=True)
 
     staged_output = _staging_path(destination)
@@ -201,13 +225,15 @@ def _prepare_success_artifacts(
     staged_review = _staging_path(review_destination)
     staged_machine_csv = _staging_path(machine_csv_destination)
     staged_report = _staging_path(report_destination)
+    staged_graph = _staging_path(graph_destination)
     staged = [staged_output, staged_corpus, staged_review,
-              staged_machine_csv, staged_report]
+              staged_machine_csv, staged_report, staged_graph]
     try:
         to_jsonl(annotations, str(staged_output))
         synthesis = corpus_synthesis(annotations, staged_corpus)
         export_machine_csv(annotations, str(staged_machine_csv))
         write_human_report(annotations, synthesis, str(staged_report))
+        export_discourse_graph(annotations, str(staged_graph), run=run)
         memory.export_review_csv(str(staged_review))
         memory.record_analysis(
             "run", "pipeline-run-prepared",
@@ -224,6 +250,7 @@ def _prepare_success_artifacts(
             (staged_review, review_destination),
             (staged_machine_csv, machine_csv_destination),
             (staged_report, report_destination),
+            (staged_graph, graph_destination),
             (staged_output, destination),
         ]
     except Exception:
