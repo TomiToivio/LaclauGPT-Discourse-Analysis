@@ -49,7 +49,8 @@ NER, topics, embeddings, similarity, sentiment, graph centrality, frequency, clu
 - Keep the canonical CLI/config/execution path intact unless a task explicitly changes it.
 - Keep collector/source acquisition separate from discourse-theoretical interpretation.
 - Do not commit research data, credentials, or private operational details.
-- Agent integrations such as Hermes are callers of the canonical pipeline, not parallel implementations of the methodology.
+- Agent integrations such as Hermes and Claude Code are callers of the canonical pipeline, not parallel implementations of the methodology.
+- Agent-triggered runs are restricted to **local Ollama open-source models**: `LLM_MODE=local` is required and cloud/external routing or cloud fallback is refused (`laclaugpt.integrations.agent_policy`).
 - Run the relevant offline tests before declaring a change complete. The full public suite is `python -m pytest -q tests` after installing the documented test/collector extras.
 
 ## Audit expectation

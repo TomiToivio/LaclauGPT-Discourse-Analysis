@@ -33,6 +33,14 @@ Every analysis the agent triggers must go through the canonical CLI
 agent must never reimplement pipeline stages or bypass configuration
 validation.
 
+## Model routing boundary
+
+Hermes uses **only local Ollama open-source models**. Agent-triggered runs
+require `LLM_MODE=local` in the environment: Ollama cloud, external endpoints
+and auto routing are refused, and `LLM_ALLOW_CLOUD_FALLBACK=1` is forbidden so
+a local run can never silently fall back to a cloud model. The same rule binds
+the Claude Code integration ([`docs/CLAUDE_INTEGRATION.md`](docs/CLAUDE_INTEGRATION.md)).
+
 ## Memory boundary
 
 Hermes memory = individual cognitive memory of one agent session/profile.
