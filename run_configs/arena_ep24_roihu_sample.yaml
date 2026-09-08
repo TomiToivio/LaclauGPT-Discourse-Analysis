@@ -1,0 +1,50 @@
+# EP24 Roihu SAMPLE run config — 20+20 videos, full multimodal chain.
+# Phase 1 pilot on CSC Roihu (issue #73): fetch -> faster-whisper ASR ->
+# screen-metadata OCR -> canonical join -> LLM stages on Ollama Cloud.
+# Data roots come from the sbatch scripts (scratch + /users checkout).
+
+name: ep24-roihu-sample
+paper_section: "3.3"
+topic_key: ep24-finland        # per-country override: ep24-poland
+source_platform: video         # Allas HEPP24 videos (Instagram/TikTok)
+languages: [fi, pl, en, pt, es, it]  # legacy whisper_language values vary
+countries: [FI, PL]
+
+memory_dir: /scratch/project_2009497/laclaugpt2/memory   # shared codebook
+data_root: /scratch/project_2009497/laclaugpt2
+csv_dir: /scratch/project_2009497/laclaugpt2/ep24/csv
+videos_dir: /scratch/project_2009497/laclaugpt2/ep24/videos
+output_dir: /scratch/project_2009497/laclaugpt2/ep24/annotations
+repo_root: /users/totoivio/LaclauGPT-Discourse-Analysis
+
+# LLM stages on Ollama Cloud (2026-09-08 decision); ASR is local faster-whisper.
+model: gemma4:31b-cloud
+ollama_mode: cloud
+ollama_host: ""
+allow_cloud_fallback: true
+temperature: 0.0
+num_ctx: 24576
+num_predict: 4096
+stages:
+  summary: true
+  discourse: true
+  populism: true
+  postprocess: true
+
+analysis_switches:
+  sentiment: true
+  context_memory: true
+  temporal: true
+
+codebook: ep24_finland         # ep24_poland for the Poland job
+seed_codebook_mode: human_curated
+
+improvements:
+  fresh_multimodal: true        # faster-whisper large-v3 + vad_filter
+  keyframes_v2: true            # duration/6, >=10s gap
+  screen_metadata_ocr: true     # poster @handle etc. from the UI (digital ethnography)
+  evidence_gates: true
+  abstention_allowed: true
+  neutral_priming: true
+  review_sidecar: true
+  mark_dont_drop: true          # relevance gate: mark irrelevant, never drop
