@@ -15,7 +15,8 @@ class AttributionTests(unittest.TestCase):
     def test_postprocess_sentiment_is_author_voice_only(self) -> None:
         prompt = postprocess.build_system_prompt(include_sentiment=True)
         self.assertIn("OWN ASSERTED VOICE", prompt)
-        self.assertIn("quoted, reported, parodied, cited, or rejected speech", prompt)
+        self.assertIn("quoted, reported, parodied, cited, or", prompt)
+        self.assertIn("rejected speech", prompt)
         self.assertIn("abstain", prompt)
 
     def test_entity_mentions_do_not_imply_endorsement(self) -> None:
