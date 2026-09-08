@@ -4,7 +4,7 @@ Status: initial repository audit for issue #50, updated for issue #48.
 
 Canonical semantic contract: [`THEORY.md`](../THEORY.md).
 
-This audit separates machine-checkable constraints from interpretive validity. Passing tests can verify schema/prompt guardrails, but it cannot establish that a Laclaudian interpretation is substantively correct. LaclauGPT remains human-in-the-loop, human-verified research: model outputs are preliminary analysis to be checked against source evidence by a human researcher.
+This audit separates machine-checkable constraints from interpretive validity. Passing unit tests can verify schema/prompt guardrails, but it cannot establish that a Laclaudian interpretation is substantively correct. LaclauGPT remains human-in-the-loop, human-verified research: model outputs are preliminary analysis to be checked against source evidence by a human researcher.
 
 ## Scope reviewed
 
@@ -19,6 +19,7 @@ The audit covers the theory-facing surfaces requested in issue #50 and the modul
 - `laclaugpt_interchange/`
 - canonical `laclaugpt/model/`
 - Context Memory/codebook boundaries
+- corpus synthesis
 - tests
 - visualization labels/data contract
 - collector/analysis boundary
@@ -26,6 +27,7 @@ The audit covers the theory-facing surfaces requested in issue #50 and the modul
 - `paper/PAPER.md`
 - `HERMES.md`
 - `CLAUDE.md`
+- `docs/HERMES_INTEGRATION.md`
 - relevant implementation/interoperability/visualization documentation
 
 ## Findings by invariant
@@ -44,11 +46,11 @@ Mechanical quote/source presence is not interpretive validation. Humans still de
 
 ### INV_RELATIONAL: aligned
 
-`prompts/discourse.py` defines articulation/equivalence/difference/antagonism relationally rather than as keyword classes. The descriptive analysis package states that NER/topics/similarity and related computational layers generate descriptive features or candidates, not Laclaudian judgements. Canonical model code also separates `DiscursiveRelationType` from `ComputationalRelationType`.
+`prompts/discourse.py` defines articulation/equivalence/difference/antagonism relationally rather than as keyword classes. The descriptive analysis package explicitly states that NER/topics/similarity and related computational layers generate descriptive features or candidates, not Laclaudian judgements. Canonical model code also separates `DiscursiveRelationType` from `ComputationalRelationType`.
 
 ### INV_FLOAT_CORPUS: aligned
 
-Document-level output uses `floating_candidate`, not a final floating-signifier finding. The Pydantic validator forces corpus validation for floating candidates. Corpus synthesis aggregates evidence but leaves final floating status to human adjudication.
+Document-level output uses `floating_candidate`, not a final floating-signifier finding. The Pydantic validator forces `needs_corpus_validation=true` for floating candidates. Corpus synthesis aggregates evidence but leaves final floating status to human adjudication.
 
 ### INV_EMPTY_CHAIN: aligned
 
@@ -62,13 +64,13 @@ The discourse prompt states that hegemony cannot be inferred from frequency in a
 
 Both theory-facing prompts distinguish constitutive antagonistic frontier construction from ordinary criticism, policy disagreement, negativity, opponent mention or sentiment.
 
-### INV_AFFECT: aligned
+### INV_AFFECT: aligned (UI gate fixed)
 
 The Formula of Populism prompt does not map Us to positive affect or Frontier to negative affect. The interchange schema keeps `Affect` and schema-1.4 `SentimentObservation` as separate record families. The postprocess prompt explicitly says descriptive polarity is not affective investment. The visualization Affects view is gated by Palonen analysis rather than the descriptive sentiment switch.
 
 ### INV_POPULISM: aligned
 
-`prompts/populism.py` validates that `populist=true` requires both evidenced Us and Frontier elements. `populist=false` requires empty sides and a non-populist reason. `tests/test_theory_invariants.py` protects this behaviour.
+`prompts/populism.py` validates that `populist=true` requires both evidenced Us and Frontier elements. `populist=false` requires empty sides and a non-populist reason. The theory-contract regression tests protect this behaviour.
 
 ### INV_DYNAMIC_LABELS: no violating runtime classifier found
 
@@ -96,11 +98,11 @@ These semantics are covered by `tests/test_module_switches.py` and documented in
 
 ### `prompts/discourse.py`
 
-Strong alignment. Evidence-first; candidate terminology for corpus-level concepts; explicit claim context; uncertainty and abstention retained.
+Strong alignment. It is evidence-first, distinguishes descriptive NLP from theoretical inference, uses candidate language for corpus-level concepts, preserves uncertainty, and records claim context. No clear theory correction was required.
 
 ### `prompts/populism.py`
 
-Strong alignment. Formula treated as diagnostic heuristic; Us + Frontier required; abstention valid; affects evidenced and not polarity-mapped from side membership.
+Strong alignment. It operationalises the Formula as a diagnostic heuristic, requires Us + Frontier, permits abstention, requires evidence, and keeps affect independent of side polarity. No clear theory correction was required.
 
 ### `prompts/postprocess.py`
 

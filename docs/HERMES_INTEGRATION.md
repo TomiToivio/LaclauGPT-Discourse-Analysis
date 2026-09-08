@@ -14,7 +14,8 @@ full. It is the framework-independent semantic contract for prompts, schemas,
 discourse-analysis logic, Context Memory/codebook behaviour, corpus synthesis,
 visualisations and methodology documentation. The original Laclau, Laclau &
 Mouffe, and Palonen sources remain authoritative if a theoretical definition is
-changed.
+changed. `HERMES.md` repeats the operational rule so that it reaches the agent
+system context.
 
 Hermes may orchestrate preliminary analysis, but it may not weaken the
 human-in-the-loop boundary. LaclauGPT outputs remain preliminary,
