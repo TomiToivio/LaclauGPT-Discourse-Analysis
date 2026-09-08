@@ -60,9 +60,9 @@ implementation:
 | `palonen` | enables Formula of Populism diagnosis; the shared discourse description is available as input |
 | `topics` | enables descriptive post-processing and topic publication |
 | `entities` | enables descriptive post-processing and entity publication |
-| `sentiment` | enables the descriptive post-processing stage's sentiment/target extraction path |
-| `context_memory` | identifies Context Memory as part of the enabled analysis profile; stable-ID resolution remains part of canonical interchange provenance |
-| `temporal` | preserves temporal/source metadata and relationship history for later corpus comparison |
+| `sentiment` | enables the descriptive post-processing stage's sentiment/target extraction path; `sentiment: false` publishes no sentiment output (schema 1.4 `sentiment_observations` are stripped before export) |
+| `context_memory` | controls codebook-context prompt injection; `context_memory: false` keeps codebook context out of prompts for a clean no-memory ablation, while stable-ID resolution remains part of canonical interchange provenance in every configuration |
+| `temporal` | controls relation-history writes; `temporal: false` prevents Context Memory temporal-relation writes while source timestamps remain in the annotation as provenance |
 | `multimodal` | permits derived image/OCR input; when disabled, canonical execution strips `frame_analysis`, `ocr` and `ocr_text` before analysis |
 | `sna`, `ant`, `valueflows` | currently false for AI26 and therefore do not enter the paper pipeline |
 

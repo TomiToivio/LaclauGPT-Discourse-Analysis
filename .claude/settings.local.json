@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh issue *)",
+      "Bash(LACLAUGPT_EMBED_BACKEND=none python -m pytest -q tests)",
+      "Bash(git fetch *)",
+      "Bash(git -c core.quotepath=false status --short)",
+      "Bash(git checkout *)",
+      "Bash(gh pr *)",
+      "Bash(LACLAUGPT_EMBED_BACKEND=none python -m pytest -q tests/test_theory_invariants.py)",
+      "Bash(LACLAUGPT_EMBED_BACKEND=none python -m pytest -q tests/test_theory_invariants.py::AttributionLiftInvariant)",
+      "Bash(LACLAUGPT_EMBED_BACKEND=none python -m pytest -q tests/test_fourcat_canonical_adapter.py::FourcatCanonicalAdapterTests::test_fourcat_matches_direct_canonical_analysis)"
+    ]
+  }
+}
