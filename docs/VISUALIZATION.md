@@ -135,6 +135,38 @@ Filters are generic: free search, platform, language, country, author, model
 review status, entity, topic and signifier. No country, party family, classifier
 or platform is assumed.
 
+## Canonical discourse graph views
+
+Issue #84 adds a graph projection layer shared by analysis exports and
+visualization. The visualization package does not create its own graph ontology.
+`laclaugpt.visualization.graph.graph_projection_data()` calls the canonical
+`laclaugpt.graph` builder and returns JSON-ready nodes/edges for the UI.
+
+Available visualization projections are:
+
+- `actor_signifier`: DNA-style actor/signifier network;
+- `signifier_field`: articulation, equivalence, difference, antagonism and
+  contextual signifier-role assignments;
+- `formation_map`: candidate discourse/formation evidence map;
+- `populism`: Palonen Us + Frontier + affective-investment graph;
+- `temporal`: canonical graph retaining timestamp metadata for slicing;
+- `evidence_claim`: theory-sensitive claims and their supporting evidence.
+
+`graph_projection_options()` derives the available views from the project's
+`laclau`, `palonen` and `temporal` switches. A disabled analytical family must not
+reappear through visualization.
+
+The canonical analysis pipeline also writes `.graph.json`, `.graph.graphml` and
+`.graph.gexf` sidecars. The JSON form is the richest web-facing representation;
+GraphML/GEXF are interoperability exports for NetworkX, visone, Gephi, Cytoscape
+and related tools.
+
+Graph layout is a visual aid, not a theoretical measurement. Node centrality,
+visual size, frequency and geometric position do not by themselves establish
+nodal status, empty/floating status, antagonism or hegemony. Those remain
+specific evidence-backed analytical claims. See
+[`DISCOURSE_GRAPH_SCHEMA.md`](DISCOURSE_GRAPH_SCHEMA.md).
+
 ## Researcher review notes
 
 The old dashboard mixed visualization and study-specific correction state. The
