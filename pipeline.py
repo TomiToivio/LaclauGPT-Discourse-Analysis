@@ -115,8 +115,6 @@ def _prepare_success_artifacts(
                 "artifact_state": "ready_to_publish",
             },
         )
-        # Publish ancillary files first and the annotation JSONL last. The
-        # annotation path is therefore the authoritative completion boundary.
         return synthesis, [
             (staged_corpus, corpus_destination),
             (staged_review, review_destination),
@@ -172,7 +170,6 @@ def document_key(row: Any) -> str:
     return "document::" + hashlib.sha256(payload.encode("utf-8")).hexdigest()[:20]
 
 
-# Backward-compatible name used by older utilities.
 video_key = document_key
 
 
@@ -278,7 +275,6 @@ class Stage:
         run.database_dir.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(run.database_dir / f"{stage_name}.db")
         try:
-            # v3 records the model/mode that actually produced the cached result.
             self.table = f"{stage_name}_v3"
             conn.execute(f"""CREATE TABLE IF NOT EXISTS {self.table} (
                 cache_key TEXT PRIMARY KEY,
@@ -300,13 +296,6 @@ class Stage:
         self.conn: sqlite3.Connection | None = conn
 
     def memory_context(self, text: str, kinds: Iterable[str] = tuple(KINDS)) -> str:
-        """Authoritative Context Memory switch (issue #48).
-
-        `context_memory: false` keeps codebook context out of prompts so a
-        no-memory ablation is clean. Stable-ID resolution itself stays on in
-        every configuration because stable IDs are part of canonical
-        interchange provenance, not optional prompt context.
-        """
         if not self.run.enabled("context_memory"):
             return "(context memory disabled for this analysis profile)"
         return self.memory.context_prompt_block(text, kinds=kinds)
@@ -323,8 +312,6 @@ class Stage:
             "run": self.run.fingerprint_payload(),
             "stage": self.stage_name,
             "prompt_version": self.prompt_version,
-            # The cache identity follows the model that actually produced the
-            # result. A cloud fallback is therefore never cached as local.
             "model": selected_model,
             "model_mode": selected_mode,
             "model_digest": selected_digest,
@@ -487,9 +474,6 @@ class DiscourseStage(Stage):
                     }
                     by_raw[raw.casefold()] = existing
                 refs.append(existing)
-            # Authoritative temporal switch (issue #48): `temporal: false`
-            # prevents relation-history writes. Source timestamps stay in the
-            # annotation as provenance either way.
             if self.run.enabled("temporal"):
                 self.memory.record_relation(
                     refs[0]["obj_id"], refs[1]["obj_id"], coding.relation,
@@ -557,8 +541,6 @@ class PostprocessStage(Stage):
             "neutral": (list(result.neutral), "target"),
             "negative": (list(result.negative), "target"),
         }
-        # entity_types[i] classifies result.entities[i]; new_entities have no
-        # LLM-assigned type (empty kind_type until human review assigns one)
         ner_by_index = list(result.entity_types or [])
         n_matched = len(result.entities)
         for name, (values, kind) in groups.items():
@@ -583,9 +565,6 @@ class PostprocessStage(Stage):
                     "ner_type": type_,
                 })
             out[name] = refs
-        # Descriptive sentiment observations ride along with the resolved
-        # targets so build_annotation() can publish them losslessly
-        # (issue #48): the polarity groups would otherwise be discarded.
         out["sentiment"] = [
             {"target": ref, "polarity": polarity}
             for polarity in ("positive", "neutral", "negative")
@@ -770,10 +749,6 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
         ann.counter_evidence
         + [item for formation in ann.formation_candidates for item in formation.counter_evidence]
     ))
-    # Descriptive sentiment (schema 1.4): publish resolved targets with their
-    # polarity group. Distinct from affective investment (ann.affects); the
-    # postprocess prompt version and the actual stage model ride along as
-    # provenance so each reading is auditable.
     ann.sentiment_observations = [
         SentimentObservation(
             target=_ref(x["target"]), polarity=x["polarity"],
@@ -841,8 +816,6 @@ def run_pipeline(run_id: str, csv_path: str, dry_run: bool = False,
 
     run = get_run(run_id)
     setup_logging(run.log_dir)
-    # machine-tier routing: YAML/env decides local vs cloud Ollama.
-    # YAML values are applied as env defaults (explicit env still wins).
     if run.ollama_mode in ("local", "cloud", "external", "auto"):
         os.environ.setdefault("LLM_MODE", run.ollama_mode)
     if run.ollama_host:
@@ -936,8 +909,6 @@ def run_pipeline(run_id: str, csv_path: str, dry_run: bool = False,
             annotations, destination, run, memory,
         )
 
-    # Resource cleanup is part of the success boundary: only publish the final
-    # output after every stage database and Context Memory have closed cleanly.
     _publish_success_artifacts(staged_artifacts)
     print(f"wrote {len(annotations)} provisional annotations to {destination}")
     return annotations
@@ -947,15 +918,9 @@ def corpus_synthesis(annotations: list[DocumentAnnotation],
                      output_path: Path | None = None) -> dict:
     """Workflow stage 6 (paper §3.3): corpus-level descriptive synthesis.
 
-    Produces ONLY descriptive counts and candidate flags — never corpus-level
-    theoretical claims. Floating/empty signifier status and hegemony remain
-    human judgements; this module only assembles the comparable evidence:
-    - signifier frequency and arena spread (how many documents per arena
-      nominate the signifier, and in which roles)
-    - floating-signifier candidates with their per-arena role distribution
-      (comparative evidence a human needs to adjudicate floating status)
-    - nodal/empty candidates and their evidence counts
-    - articulation relation frequencies (equivalence/difference/antagonism)
+    Produces ONLY descriptive counts and candidate flags, never corpus-level
+    theoretical claims. Candidate rows preserve document-level evidence so a
+    human can inspect the basis for later corpus adjudication.
     """
     signifier_docs: dict[str, set] = {}
     signifier_roles: dict[str, dict[str, int]] = {}
@@ -975,26 +940,26 @@ def corpus_synthesis(annotations: list[DocumentAnnotation],
                 continue
             relation_counts[art.relation] = relation_counts.get(art.relation, 0) + 1
 
-    floating_candidates = []
-    for ann in annotations:
-        for role in ann.signifier_roles:
-            if role.role == "floating_candidate" and role.evidence_verified:
-                key = role.signifier.obj_id or role.signifier.label
-                floating_candidates.append({
+    def candidate_rows(role_name: str) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for ann in annotations:
+            for role in ann.signifier_roles:
+                if role.role != role_name or not role.evidence_verified:
+                    continue
+                rows.append({
                     "obj_id": role.signifier.obj_id,
                     "label": role.signifier.label,
                     "document_id": ann.document_id,
                     "evidence": role.evidence,
+                    "evidence_source": role.evidence_source,
+                    "confidence": role.confidence,
                     "needs_corpus_validation": role.needs_corpus_validation,
                 })
+        return rows
 
-    empty_candidates = []
-    nodal_candidates = []
-    for key, roles in signifier_roles.items():
-        if roles.get("empty_candidate"):
-            empty_candidates.append(key)
-        if roles.get("nodal_candidate"):
-            nodal_candidates.append(key)
+    floating_candidates = candidate_rows("floating_candidate")
+    empty_candidates = candidate_rows("empty_candidate")
+    nodal_candidates = candidate_rows("nodal_candidate")
 
     synthesis = {
         "documents": len(annotations),
@@ -1006,9 +971,13 @@ def corpus_synthesis(annotations: list[DocumentAnnotation],
         "floating_candidates": floating_candidates,
         "empty_candidates": empty_candidates,
         "nodal_candidates": nodal_candidates,
-        "note": ("Descriptive corpus synthesis only. Floating/empty status and "
-                 "hegemony are human adjudications over this evidence, never "
-                 "automated findings (paper §3.3 stage 6)."),
+        "note": (
+            "Descriptive corpus synthesis only. Candidate rows preserve verified "
+            "document-level evidence for human adjudication. Floating/empty status "
+            "and hegemony are never automated findings. Signifier frequency is "
+            "descriptive only and must not be interpreted as hegemony "
+            "(THEORY.md INV_HEGEMONY_CORPUS; paper §3.3 stage 6)."
+        ),
     }
     if output_path is not None:
         output_path.parent.mkdir(parents=True, exist_ok=True)
