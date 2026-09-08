@@ -34,6 +34,11 @@ def _apply_analysis_switches(annotation, analysis: dict[str, bool]) -> None:
         annotation.topics = []
     if not analysis.get("entities", False):
         annotation.entities = []
+    if not analysis.get("sentiment", False):
+        # Descriptive sentiment observations (schema 1.4) follow the same
+        # authoritative-strip rule as every other coding family (issue #48):
+        # sentiment: false publishes no sentiment output.
+        annotation.sentiment_observations = []
     if not analysis.get("palonen", False):
         annotation.populist = None
         annotation.populism_analysis = ""
