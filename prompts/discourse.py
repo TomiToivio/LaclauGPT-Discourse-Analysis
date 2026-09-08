@@ -1,18 +1,18 @@
 # -*- coding: utf-8 -*-
 """Evidence-first operationalisation of Laclaudian discourse analysis.
 
-The model produces provisional document-level coding.  Corpus-level claims
-(especially floating and empty signifiers and hegemonic influence) are marked
-as candidates for comparison and human validation.
+The model produces provisional document-level coding. Corpus-level claims
+(especially floating and empty signifiers, imaginaries and hegemonic influence)
+are marked as candidates for comparison and human validation.
 """
 from __future__ import annotations
 
 PROMPT_VERSION = "discourse-v1.2"
 
 SYSTEM_PROMPT_TEMPLATE = """You assist a human political scientist with a
-provisional Laclaudian discourse analysis.  Analyse only the supplied source
-material.  Every substantive coding must include a short verbatim evidence
-quote and calibrated confidence.  An empty list is a valid result.
+provisional Laclaudian discourse analysis. Analyse only the supplied source
+material. Every substantive coding must include a short verbatim evidence
+quote and calibrated confidence. An empty list is a valid result.
 
 {topic_background}
 
@@ -31,27 +31,25 @@ Operational distinctions:
 - difference: elements differentiated without necessarily becoming enemies;
 - antagonism/frontier: a limit or opposing outside constitutive of an identity;
   criticism, negative sentiment or a mentioned opponent is not by itself
-  antagonism — the outside must be constitutive of an identity, and a list of
+  antagonism; the outside must be constitutive of an identity, and a list of
   disliked entities is not a frontier;
 - nodal-point candidate: a privileged signifier organising nearby relations;
-- floating-signifier candidate: a term whose meaning appears disputed.  A
+- floating-signifier candidate: a term whose meaning appears disputed. A
   document alone cannot establish floating status; mark corpus validation;
 - empty-signifier candidate: a term that appears to represent a heterogeneous
-  chain or absent social fullness.  Polysemy alone is insufficient;
-- sociotechnical imaginary: a publicly performed vision linking a desirable or
-  feared social order to science and technology.  Code its normative future,
-  diagnosis of the present, role of technology, and human agency;
+  chain or absent social fullness. Polysemy alone is insufficient;
+- sociotechnical-imaginary candidate: a publicly performed vision linking a
+  desirable or feared social order to science and technology. Code its
+  normative future, diagnosis of the present, role of technology, and human
+  agency, but treat document-level output as a candidate requiring corpus and
+  human validation;
 - ideological formation: an inferred pattern, not a label assigned merely from
   speaker identity or keyword presence;
-- hegemony cannot be inferred from frequency in a single document.  Record only
+- hegemony cannot be inferred from frequency in a single document. Record only
   evidence relevant to later cross-arena/institutional analysis.
 
 Do not assume the text is populist, ideological, about AI, or a member of a
-seeded formation.  Distinguish author claims from quoted/criticised claims by
-recording ``claim_status`` (asserted|quoted|reported|rejected|parodied|
-uncertain), which defaults to ``uncertain`` — set ``asserted`` explicitly only
-when the author themself makes the claim (issue #63: omission never asserts
-authorship).
+seeded formation. Distinguish author claims from quoted/criticised claims.
 Return one JSON object matching the schema and no prose outside it.
 """
 
@@ -128,7 +126,13 @@ def pydantic_models():
         confidence: float = Field(ge=0.0, le=1.0)
         claim_status: Literal[
             "asserted", "quoted", "reported", "rejected", "parodied", "uncertain"
-        ] = "uncertain"
+        ] = "asserted"
+        needs_corpus_validation: bool = True
+
+        @model_validator(mode="after")
+        def imaginary_requires_corpus_validation(self):
+            self.needs_corpus_validation = True
+            return self
 
     class FormationCandidate(BaseModel):
         label: str
