@@ -9,9 +9,11 @@ resources:
   memory: 64G
   gpus: 1
 runtime:
-  use_tmpdir: true
+  use_tmpdir: true          # $TMPDIR for transient video streams (never persisted)
   resume: true
   checkpoint: true
   retry_failed_items: true
   skip_already_processed: true
+data_root: /scratch/project_2009497/laclaugpt2   # EP24 phase-0 landing (csv/, videos/, annotations/, memory/)
+repo_root: /users/totoivio/LaclauGPT-Discourse-Analysis   # checked-out repo on Roihu (code, prompts, run_configs)
 

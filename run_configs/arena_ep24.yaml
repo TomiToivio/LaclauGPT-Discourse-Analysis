@@ -11,7 +11,12 @@ source_platform: video         # Allas HEPP24 videos (Instagram/TikTok)
 language: fi                   # per country: pl for Poland
 countries: [FI]                # [PL] for the Poland job
 
-memory_dir: null               # LACLAUGPT_DATA_DIR on Roihu (single shared codebook)
+memory_dir: /scratch/project_2009497/laclaugpt2/memory   # single shared codebook on Roihu scratch
+data_root: /scratch/project_2009497/laclaugpt2           # phase-0 landing root
+csv_dir: /scratch/project_2009497/laclaugpt2/ep24/csv    # fetched subset CSVs + manifests
+videos_dir: /scratch/project_2009497/laclaugpt2/ep24/videos  # fetch-stage workdir override ($TMPDIR preferred for streaming)
+output_dir: /scratch/project_2009497/laclaugpt2/ep24/annotations  # annotations.jsonl + provenance land here
+repo_root: /users/totoivio/LaclauGPT-Discourse-Analysis  # checked-out repo on Roihu (pipeline.py, prompts/, config/)
 model: gemma4:e4b              # Roihu local tier; 31b/26b for the hardest stages
 ollama_mode: local
 ollama_host: ""
