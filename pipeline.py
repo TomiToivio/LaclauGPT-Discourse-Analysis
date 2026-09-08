@@ -80,6 +80,100 @@ def _cleanup_staged(paths: list[Path]) -> None:
             logger.warning("could not remove staged artifact %s", path, exc_info=True)
 
 
+MACHINE_CSV_COLUMNS = (
+    # Legacy-dashboard parity subset: one flat row per document so the EP24
+    # review workflow (and pandas) can load results without JSONL parsing.
+    "document_id", "relevance", "relevance_reason", "review_status",
+    "populist", "language", "source_platform", "source_country",
+    "summary", "evidence_quotes", "signifiers", "nodal_points",
+    "uncertainties", "run_id", "schema_version",
+)
+
+
+def export_machine_csv(annotations: list[DocumentAnnotation],
+                       path: str) -> str:
+    """Flat machine-readable CSV (one row per annotated document)."""
+    import csv as _csv
+    with open(path, "w", encoding="utf-8", newline="") as fh:
+        writer = _csv.writer(fh)
+        writer.writerow(MACHINE_CSV_COLUMNS)
+        for ann in annotations:
+            writer.writerow([
+                ann.document_id,
+                ann.relevance or "",
+                ann.relevance_reason,
+                ann.review_status,
+                "" if ann.populist is None else str(ann.populist).lower(),
+                ann.language, ann.source_platform, ann.source_country,
+                ann.summary,
+                " | ".join(ann.evidence_quotes),
+                "; ".join(s.label for s in ann.signifiers),
+                "; ".join(s.label for s in ann.nodal_points),
+                " | ".join(ann.uncertainties),
+                ann.run_id, ann.schema_version,
+            ])
+    return path
+
+
+def write_human_report(annotations: list[DocumentAnnotation],
+                       synthesis: dict, path: str) -> str:
+    """Human-readable run report (markdown), legacy-summary parity.
+
+    One section per document: summary, populism verdict, key codings and
+    uncertainties — plus the run-level relevance/review bookkeeping.
+    """
+    relevant = [a for a in annotations if a.relevance != "irrelevant"]
+    irrelevant = [a for a in annotations if a.relevance == "irrelevant"]
+    lines: list[str] = [
+        "# EP24 analysis report",
+        "",
+        f"Documents: {len(annotations)} "
+        f"({len(relevant)} relevant, {len(irrelevant)} marked irrelevant)",
+        f"Review queue: {sum(1 for a in annotations if a.requires_human_review)} "
+        "provisional annotations need human review",
+        "",
+        "## Corpus synthesis (descriptive only)",
+        "",
+        f"- documents in synthesis: {synthesis.get('documents')}",
+        f"- signifier families: {len(synthesis.get('signifier_frequency', {}))}",
+        f"- floating candidates: {len(synthesis.get('floating_candidates', []))}",
+        f"- empty candidates: {len(synthesis.get('empty_candidates', []))}",
+        f"- nodal candidates: {len(synthesis.get('nodal_candidates', []))}",
+        "",
+        "> Frequency is not hegemony; candidate rows need human adjudication.",
+        "",
+    ]
+    for ann in annotations:
+        lines += [
+            f"## {ann.document_id}",
+            "",
+            f"- relevance: **{ann.relevance or 'not judged'}**"
+            + (f" — {ann.relevance_reason}" if ann.relevance_reason else ""),
+            f"- review: {ann.review_status}"
+            + (" (needs human review)" if ann.requires_human_review else ""),
+            f"- populist: {ann.populist}",
+            f"- language: {ann.language or '?'} | platform: {ann.source_platform or '?'}",
+            "",
+            "### Summary",
+            "",
+            ann.summary or "(no summary)",
+            "",
+        ]
+        if ann.populism_analysis:
+            lines += ["### Populism analysis", "", ann.populism_analysis, ""]
+        if ann.evidence_quotes:
+            lines += ["### Evidence quotes", ""]
+            lines += [f"- \"{q}\"" for q in ann.evidence_quotes[:5]]
+            lines += [""]
+        if ann.uncertainties:
+            lines += ["### Uncertainties", ""]
+            lines += [f"- {u}" for u in ann.uncertainties[:5]]
+            lines += [""]
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines))
+    return path
+
+
 def _prepare_success_artifacts(
     annotations: list[DocumentAnnotation], destination: Path,
     run: RunConfig, memory: Memory,
@@ -95,15 +189,25 @@ def _prepare_success_artifacts(
     """
     corpus_destination = destination.with_suffix(".corpus.json")
     review_destination = run.log_dir / "glossary_review.csv"
+    # Legacy parity (issue #73): the old dashboard consumed one wide CSV and
+    # one human-readable summary per run. Machine CSV = one row per document
+    # (flat subset of the JSONL); human report = readable markdown digest.
+    machine_csv_destination = destination.with_suffix(".csv")
+    report_destination = destination.with_suffix(".report.md")
     run.log_dir.mkdir(parents=True, exist_ok=True)
 
     staged_output = _staging_path(destination)
     staged_corpus = _staging_path(corpus_destination)
     staged_review = _staging_path(review_destination)
-    staged = [staged_output, staged_corpus, staged_review]
+    staged_machine_csv = _staging_path(machine_csv_destination)
+    staged_report = _staging_path(report_destination)
+    staged = [staged_output, staged_corpus, staged_review,
+              staged_machine_csv, staged_report]
     try:
         to_jsonl(annotations, str(staged_output))
         synthesis = corpus_synthesis(annotations, staged_corpus)
+        export_machine_csv(annotations, str(staged_machine_csv))
+        write_human_report(annotations, synthesis, str(staged_report))
         memory.export_review_csv(str(staged_review))
         memory.record_analysis(
             "run", "pipeline-run-prepared",
@@ -118,6 +222,8 @@ def _prepare_success_artifacts(
         return synthesis, [
             (staged_corpus, corpus_destination),
             (staged_review, review_destination),
+            (staged_machine_csv, machine_csv_destination),
+            (staged_report, report_destination),
             (staged_output, destination),
         ]
     except Exception:
@@ -899,7 +1005,50 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
         ann.uncertainties.append(
             f"{invalid_count} discourse evidence quote(s) were not found verbatim in the source"
         )
+    _apply_relevance(ann, summary_json, discourse)
     return ann
+
+
+def _apply_relevance(ann: DocumentAnnotation, summary_json: str,
+                     discourse: dict) -> None:
+    """Mark-don't-drop relevance gate (issue #73 legacy parity).
+
+    The old EP24 dashboard silently dropped rows its operator judged
+    non-political. The new pipeline MARKS them instead: an irrelevant
+    document keeps its annotation (queryable, auditable) but is excluded
+    from corpus synthesis and human-review priority. Signals, in order:
+    1. the discourse stage already abstained as non-applicable;
+    2. the summary shows no political/electoral content (keyword gate on
+       EP24 scope: parties, candidates, elections, EU institutions).
+    The mark is PROVISIONAL by definition — human review can flip it.
+    """
+    if ann.discourse_applicable is False:
+        ann.relevance = "irrelevant"
+        ann.relevance_reason = (
+            "discourse stage judged the Laclaudian analysis non-applicable: "
+            + ann.discourse_applicability_reason)[:500]
+        return
+    summary_text = ann.summary or summary_json or ""
+    low = summary_text.lower()
+    scope_hits = any(token in low for token in (
+        "puolue", "vaali", "europaanse", "eu-parlament", "eduskunta", "euroryhmä",
+        "party", "election", "european parliament", "mep", "candidate",
+        "partia", "wybory", "parlament europejski", "kandydat",
+        "kokoomus", "perussuomalaiset", "sdp", "vasemmistoliitto", "keskusta",
+        "pis", "konfederacja", "kaczyński", "tusk", "sikorski",
+        "politiikka", "poliittinen", "politics", "political",
+    ))
+    has_coded_content = bool(
+        ann.signifier_roles or ann.articulations or ann.populism_elements
+        or ann.us or ann.frontier)
+    if scope_hits or has_coded_content:
+        ann.relevance = "relevant"
+        ann.relevance_reason = ""
+    else:
+        ann.relevance = "irrelevant"
+        ann.relevance_reason = (
+            "summary shows no political/electoral content and no coding "
+            "family produced evidence (EP24 scope gate)")
 
 
 def run_pipeline(run_id: str, csv_path: str, dry_run: bool = False,
@@ -1013,7 +1162,10 @@ def corpus_synthesis(annotations: list[DocumentAnnotation],
     Produces ONLY descriptive counts and candidate flags, never corpus-level
     theoretical claims. Candidate rows preserve document-level evidence so a
     human can inspect the basis for later corpus adjudication.
+    Irrelevant documents (relevance gate) are excluded from the analytic
+    counts but reported by count (mark-don't-drop, issue #73).
     """
+    annotations = [a for a in annotations if a.relevance != "irrelevant"] or annotations
     signifier_docs: dict[str, set] = {}
     signifier_roles: dict[str, dict[str, int]] = {}
     for ann in annotations:
