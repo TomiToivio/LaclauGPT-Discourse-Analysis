@@ -207,7 +207,11 @@ class DocumentAnnotation(BaseModel):
     def populist_requires_both_sides(self):
         # INV_POPULISM (THEORY.md §15): populist=true requires an evidenced
         # Us and Frontier construction. Enforcement lives at the prompt stage
-        # and here, at the schema every downstream consumer reads.
+        # and here, at the schema every downstream consumer reads. Since
+        # issue #59, populist=false may carry evidenced sides (one side from
+        # the model's partial abstention; both sides after human review that
+        # rejects the formula while retaining the codings), so only the
+        # populist=true direction is schema-enforced here.
         if self.populist and not (self.us and self.frontier):
             raise ValueError(
                 "populist=true requires non-empty us and frontier lists "
