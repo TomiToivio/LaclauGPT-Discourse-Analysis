@@ -641,14 +641,6 @@ class PopulismStage(Stage):
         )
         _, Formula = populism_prompt.pydantic_models()
         result = self.call(key, system, user, Formula)
-        if not result.populist:
-            return {
-                "populist": False, "non_populist_reason": result.non_populist_reason,
-                "populism_analysis": result.populism_analysis,
-                "populism_us": [], "populism_frontier": [],
-                "counter_evidence": result.counter_evidence,
-                "uncertainties": result.uncertainties,
-            }
 
         def resolve_side(items):
             out = []
@@ -671,6 +663,19 @@ class PopulismStage(Stage):
                     "evidence_source": evidence_source(item.evidence_quote, row),
                 })
             return out
+
+        if not result.populist:
+            # Issue #59: an abstention may retain ONE evidenced side as
+            # structured document-level candidates instead of discarding
+            # partial evidence; the prompt validator forbids both sides here.
+            return {
+                "populist": False, "non_populist_reason": result.non_populist_reason,
+                "populism_analysis": result.populism_analysis,
+                "populism_us": resolve_side(result.populism_us),
+                "populism_frontier": resolve_side(result.populism_frontier),
+                "counter_evidence": result.counter_evidence,
+                "uncertainties": result.uncertainties,
+            }
 
         return {
             "populist": True, "non_populist_reason": "",
