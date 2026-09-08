@@ -251,6 +251,12 @@ LaclauGPT-native browser extension remain alternative capture paths. See
 [`collector/README.md`](collector/README.md) for the current status and research
 constraints.
 
+For basic source ingestion (RSS feeds, plain web pages, Hermes Agent
+submissions, manual researcher submissions and Telegram via the
+Vasama-OSINT adapter), see [`docs/DATA_COLLECTION.md`](docs/DATA_COLLECTION.md)
+— all channels converge into the same canonical corpus, and collection
+settings stay in gitignored `collection-data/`.
+
 ## Installation and running
 
 Python 3.11+ is supported; CI uses Python 3.12. From a fresh checkout, install
