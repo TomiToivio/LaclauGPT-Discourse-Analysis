@@ -24,7 +24,15 @@ def graph_projection_data(
     if projection not in DASHBOARD_PROJECTIONS:
         raise ValueError(f"unsupported dashboard graph projection: {projection}")
     graph = build_discourse_graph(list(annotations))
-    return project_graph(graph, projection).to_dict()
+    data = project_graph(graph, projection).to_dict()
+    node_ids = {node["id"] for node in data["nodes"]}
+    # Relation claims preserve their evidence_id directly. A visualization must
+    # never create an implicit node merely because an edge-reference exists.
+    data["edges"] = [
+        edge for edge in data["edges"]
+        if edge["source"] in node_ids and edge["target"] in node_ids
+    ]
+    return data
 
 
 def graph_projection_options(*, laclau: bool, palonen: bool, temporal: bool) -> list[str]:
