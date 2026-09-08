@@ -3,12 +3,13 @@
 
 The postprocess stage is shared by topics, entities and descriptive sentiment,
 but the canonical project switches are authoritative: disabled families are not
-requested from the model. Sentiment observations are evidence-bearing and stay
-strictly separate from Laclaudian affective investment.
+requested from the model. Sentiment observations are evidence-bearing, limited
+to the source author's/narrator's asserted voice, and stay strictly separate
+from Laclaudian affective investment.
 """
 from __future__ import annotations
 
-PROMPT_VERSION = "postprocess-v2.2"
+PROMPT_VERSION = "postprocess-v2.3"
 
 
 def build_system_prompt(
@@ -33,7 +34,10 @@ def build_system_prompt(
 
     if include_entities:
         tasks.append("""2. **Extract Entities**:
-- Extract entities mentioned in the analysis.
+- Extract entities mentioned in the source/analysis as descriptive mentions.
+- Entity presence never implies endorsement, authorship, ideology, or sentiment;
+  an entity mentioned only inside quoted/reported/rejected speech is still a
+  mention, not the document author's position.
 - Provide only the name of each entity.
 - Classify each matched entity with exactly one spaCy NER type from this closed
   list: PERSON, NORP, FAC, ORG, GPE, LOC, PRODUCT, EVENT, WORK_OF_ART, LAW,
@@ -47,7 +51,11 @@ def build_system_prompt(
     if include_sentiment:
         tasks.append("""3. **Determine descriptive sentiment**:
 - Identify only source-supported positive, neutral or negative sentiment
-  readings and their targets.
+  expressed in the document author's/speaker's OWN ASSERTED VOICE and its
+  target.
+- Do NOT turn sentiment contained only in quoted, reported, parodied, cited, or
+  rejected speech into a document-level sentiment observation. If attribution
+  is unclear, abstain rather than assigning it to the author.
 - For every reading return the target, polarity, one short verbatim
   `evidence_quote` from the SOURCE MATERIAL, and `uncertainty` from 0.0 to 1.0
   (0 = no uncertainty recorded, 1 = maximally uncertain).
@@ -58,7 +66,7 @@ def build_system_prompt(
 - `sentiments` is descriptive polarity only. It is NOT Laclaudian affective
   investment and must never be used as a substitute for it.
 - The legacy `positive`, `neutral` and `negative` target lists are retained for
-  compatibility and should mirror the structured readings.""")
+  compatibility and should mirror only the author-voice structured readings.""")
         output_fields.extend(["sentiments", "positive", "neutral", "negative"])
 
     if not tasks:

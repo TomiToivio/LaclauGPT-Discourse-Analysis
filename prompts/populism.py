@@ -44,7 +44,8 @@ position.
 Use ``nodal_candidate`` only for a privileged signifier that visibly organises
 the chain.  Use ``empty_candidate`` only when a partial demand appears to stand
 for a heterogeneous totality or absent fullness; polysemy is insufficient.
-These are document-level candidates requiring human and corpus validation.
+Every ``empty_candidate=true`` is a document-level candidate and MUST carry
+``needs_corpus_validation=true``. It is not a final empty-signifier finding.
 
 Return a single JSON object matching the schema.  The prose analysis must state
 counter-evidence and uncertainty and must not exceed what the source supports.
@@ -77,9 +78,16 @@ def pydantic_models():
                               "parodied", "uncertain"] = "uncertain"
         nodal_candidate: bool = False
         empty_candidate: bool = False
+        needs_corpus_validation: bool = False
 
         _affect_null = field_validator("populism_affect", mode="before")(
             staticmethod(_null_to_empty))
+
+        @model_validator(mode="after")
+        def empty_candidates_require_corpus_validation(self):
+            if self.empty_candidate:
+                self.needs_corpus_validation = True
+            return self
 
     class FormulaOfPopulism(BaseModel):
         populist: bool
@@ -95,12 +103,6 @@ def pydantic_models():
 
         @model_validator(mode="after")
         def formula_requires_both_sides_or_abstention(self):
-            # INV_POPULISM (THEORY.md §15): populist=true requires evidenced Us
-            # and Frontier. INV_ABSTAIN: populist=false is valid, and since
-            # issue #59 it may retain ONE evidenced side as structured
-            # document-level candidates instead of discarding partial
-            # evidence; both fully evidenced sides under populist=false is the
-            # only forbidden abstention shape (that is a populist coding).
             if self.populist and not (self.populism_us and self.populism_frontier):
                 raise ValueError("populist=true requires evidenced Us and Frontier elements")
             if not self.populist and self.populism_us and self.populism_frontier:
