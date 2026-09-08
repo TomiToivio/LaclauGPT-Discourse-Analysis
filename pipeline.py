@@ -445,7 +445,7 @@ class DiscourseStage(Stage):
         key = document_key(row)
         system = discourse_prompt.build_system_prompt(
             tb.topic_background(self.run.topic_key), metadata.prompt_text(),
-            analytic_hints_text(self.run), self.memory.context_prompt_block(text),
+            analytic_hints_text(self.run), self.memory_context(text),
         )
         user = discourse_prompt.build_user_prompt(
             text, json.dumps(_row_dict(row), ensure_ascii=False, default=str), summary_json,
@@ -487,10 +487,14 @@ class DiscourseStage(Stage):
                     }
                     by_raw[raw.casefold()] = existing
                 refs.append(existing)
-            self.memory.record_relation(
-                refs[0]["obj_id"], refs[1]["obj_id"], coding.relation,
-                source_ref=key,
-            )
+            # Authoritative temporal switch (issue #48): `temporal: false`
+            # prevents relation-history writes. Source timestamps stay in the
+            # annotation as provenance either way.
+            if self.run.enabled("temporal"):
+                self.memory.record_relation(
+                    refs[0]["obj_id"], refs[1]["obj_id"], coding.relation,
+                    source_ref=key,
+                )
             articulations.append({
                 "source": refs[0], "target": refs[1], "relation": coding.relation,
                 "rationale": coding.rationale, "evidence": coding.evidence_quote,
@@ -539,7 +543,7 @@ class PostprocessStage(Stage):
     def run_row(self, row: Any, text: str, summary_json: str) -> dict:
         key = document_key(row)
         system = postprocess_prompt.build_system_prompt(
-            self.memory.context_prompt_block(text, kinds=("topic", "entity", "target"))
+            self.memory_context(text, kinds=("topic", "entity", "target"))
         )
         Extraction = postprocess_prompt.pydantic_models()
         result = self.call(
@@ -599,7 +603,7 @@ class PopulismStage(Stage):
         key = document_key(row)
         system = populism_prompt.build_system_prompt(
             tb.topic_background(self.run.topic_key), metadata.prompt_text(),
-            self.memory.context_prompt_block(text, kinds=("signifier", "target")),
+            self.memory_context(text, kinds=("signifier", "target")),
         )
         user = (
             f"SOURCE MATERIAL:\n{text}\n\nPRELIMINARY SUMMARY:\n{summary_json}"
