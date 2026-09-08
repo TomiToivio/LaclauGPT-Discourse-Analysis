@@ -302,7 +302,9 @@ class PopulismClaimStatusInvariant(unittest.TestCase):
         us_element = next(e for e in ann.populism_elements if e.side == "us")
         self.assertEqual(us_element.claim_status, "quoted")
         frontier = next(e for e in ann.populism_elements if e.side == "frontier")
-        self.assertEqual(frontier.claim_status, "asserted")
+        # issue #63: omission no longer asserts authorship — the default is
+        # "uncertain" at every layer (prompt schema, interchange, pipeline).
+        self.assertEqual(frontier.claim_status, "uncertain")
 
 
 class DiscourseAbstentionInvariant(unittest.TestCase):
@@ -362,10 +364,92 @@ class AttributionLiftInvariant(unittest.TestCase):
                          AttributionType.REPORTED)
         self.assertEqual(self._corpus("parodied").statements[0].attribution_type,
                          AttributionType.IRONIC)
-        # rejected/uncertain conservatively stay non-author (never AUTHOR)
-        for status in ("rejected", "uncertain", "unknown-value"):
+        # issue #63: "rejected" maps to AttributionType.REJECTED — the document
+        # explicitly distances itself from the claim, stronger than UNCLEAR.
+        self.assertEqual(self._corpus("rejected").statements[0].attribution_type,
+                         AttributionType.REJECTED)
+        # uncertain/unknown values conservatively stay non-author (never AUTHOR)
+        for status in ("uncertain", "unknown-value"):
             self.assertEqual(self._corpus(status).statements[0].attribution_type,
                              AttributionType.UNCLEAR)
+
+
+class AttributionDefaultsAndCanonicalGatesInvariant(unittest.TestCase):
+    """Issue #63: omission never asserts authorship, settled floating/empty
+    roles are corpus-gated, and discourse review advancement is evidence-gated
+    (INV_CONTEXT / INV_FLOAT_CORPUS / INV_EMPTY_CHAIN / INV_EVIDENCE)."""
+
+    def test_prompt_and_interchange_default_to_uncertain(self) -> None:
+        PopulismElement, _ = populism_prompt.pydantic_models()
+        self.assertEqual(PopulismElement(
+            populism_element="us", evidence_quote="q", confidence=0.5,
+        ).claim_status, "uncertain")
+        self.assertEqual(
+            populism_prompt.PROMPT_VERSION, "populism-v3.3")
+        DiscourseAnalysis = discourse_prompt.pydantic_models()
+        analysis = DiscourseAnalysis(
+            applicable=True, applicability_reason="political",
+            articulations=[{
+                "source": "S001", "target": "T001",
+                "relation": "articulation",
+                "rationale": "r", "evidence_quote": "quote",
+                "confidence": 0.5,
+            }],
+            imaginaries=[{
+                "label": "control society", "normative_future": "f",
+                "present_diagnosis": "d", "technology_role": "t",
+                "human_agency": "a", "evidence_quote": "quote",
+                "confidence": 0.5,
+            }],
+        )
+        self.assertEqual(analysis.articulations[0].claim_status, "uncertain")
+        self.assertEqual(analysis.imaginaries[0].claim_status, "uncertain")
+        self.assertEqual(discourse_prompt.PROMPT_VERSION, "discourse-v1.2")
+        from laclaugpt_interchange import (
+            Articulation, MemoryRef, PopulismElementAssessment,
+            SociotechnicalImaginary)
+        iref = MemoryRef(obj_id="S001", label="freedom", kind="signifier")
+        self.assertEqual(Articulation(signifier=iref).claim_status, "uncertain")
+        self.assertEqual(SociotechnicalImaginary(label="x").claim_status,
+                         "uncertain")
+        self.assertEqual(PopulismElementAssessment(
+            element=iref, side="us").claim_status, "uncertain")
+        self.assertEqual(SCHEMA_VERSION, "1.6")
+
+    def test_canonical_rejected_attribution_exists(self) -> None:
+        from laclaugpt.model import AttributionType
+        self.assertEqual(AttributionType.REJECTED.value, "rejected")
+
+    def test_settled_floating_empty_roles_require_corpus_validation(self) -> None:
+        from laclaugpt.model import (
+            DiscursiveRole, DiscursiveRoleAssignment)
+        kwargs = {
+            "concept_id": "DT_FLOAT", "discourse_id": "disc_1",
+            "evidence_ids": ["E001"], "provenance_id": "prov_1",
+        }
+        for role in (DiscursiveRole.FLOATING_SIGNIFIER,
+                     DiscursiveRole.EMPTY_SIGNIFIER):
+            with self.assertRaises(ValidationError):
+                DiscursiveRoleAssignment(role=role, **kwargs)
+            assignment = DiscursiveRoleAssignment(
+                role=role, corpus_validated=True, **kwargs)
+            self.assertTrue(assignment.corpus_validated)
+        # document-level coding roles remain unaffected
+        nodal = DiscursiveRoleAssignment(
+            role=DiscursiveRole.NODAL_POINT, **kwargs)
+        self.assertFalse(nodal.corpus_validated)
+
+    def test_discourse_review_advancement_requires_evidence(self) -> None:
+        from laclaugpt.model import Discourse, ReviewStatus
+        with self.assertRaises(ValidationError):
+            Discourse(label="tech-liberation",
+                      review_status=ReviewStatus.HUMAN_REVIEWED)
+        reviewed = Discourse(label="tech-liberation", evidence_ids=["E001"],
+                             review_status=ReviewStatus.ACCEPTED)
+        self.assertEqual(reviewed.evidence_ids, ["E001"])
+        # proposed states need no evidence yet
+        proposed = Discourse(label="tech-liberation")
+        self.assertEqual(proposed.evidence_ids, [])
 
 
 class InceptionMergePopulismCoherenceInvariant(unittest.TestCase):
