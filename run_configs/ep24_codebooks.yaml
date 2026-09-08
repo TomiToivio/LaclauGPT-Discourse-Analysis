@@ -1,0 +1,152 @@
+# EP24 seed codebooks: Finland + Poland (issue #73 reprocessing pilot).
+# Grounded in legacy entities.xlsx/themes.xlsx canonical mappings, research
+# diary mentions, and public sources (Wikipedia fi/pl, Yle Uutiset).
+# These seeds are HUMAN-CURATED: model repetition is not validation.
+
+ep24_finland:
+  country: Finland
+  country_code: FI
+  ep_seats: 15
+  election_date: "2024-06-09"
+  language: fi
+  topic_key: ep24-finland
+  legacy_preference_buckets: [Far right, Centre right, Red-green]
+
+  seed_actors:
+    - label: National Coalition Party (Finland)
+      short: Kokoomus
+      family: Centre right
+    - label: Finns Party (Finland)
+      short: Perussuomalaiset
+      family: Far right
+    - label: Finnish Social Democratic Party (Finland)
+      short: SDP
+      family: Red-green
+    - label: Green League (Finland)
+      short: Vihreä liitto
+      family: Red-green
+    - label: Left Alliance (Finland)
+      short: Vasemmistoliitto
+      family: Red-green
+    - label: Centre Party (Finland)
+      short: Keskusta
+      family: Centre right
+    - label: Swedish People's Party of Finland
+      short: RKP
+      family: Centre right
+    - label: Christian Democrats (Finland)
+      short: Kristillisdemokraatit
+      family: Centre right
+    - label: Movement Now (Finland)
+      short: Liike Nyt
+      family: Others
+
+  seed_entities:
+    - Petteri Orpo (National Coalition Party; Finland)
+    - Riikka Purra (Finns Party; Finland)
+    - Jussi Saramo (Left Alliance; Finland)
+    - Sirpa Pietikäinen (National Coalition Party; Finland)
+    - Jenna Simula (Finns Party; Finland)
+    - Kaisa Juuso (Finns Party; Finland)
+    - Mari Rantanen (Finns Party; Finland)
+    - Pekka Toveri (National Coalition Party; Finland)
+    - Simo Grönroos (Finns Party; Finland)
+    - Ville Merinen (Finnish Social Democratic Party; Finland)
+    - Antti Lindtman (Finnish Social Democratic Party; Finland)
+    - Sebastian Tynkkynen (Finns Party; Finland)
+    - Li Andersson (Left Alliance; Finland)
+    - Henna Virkkunen (National Coalition Party; Finland)
+    - Eero Heinäluoma (Finnish Social Democratic Party; Finland)
+
+  seed_signifiers:
+    - artificial intelligence
+    - europarlamenttivaalit
+    - EU-kritiikki
+    - ilmasto
+    - maahanmuutto
+    - turvallisuus
+    - hyvinvointivaltio
+    - energian hinnat
+    - suomalainen työ
+    - maataloustuet
+
+  topic_background: |
+    Context: Finland, European Parliament election 2024-06-09, 15 seats.
+    Government at election time: Orpo cabinet (Kokoomus–Finns Party–RKP–
+    Christian Democrats). Campaign dynamics: SDP and Left Alliance ran as
+    opposition to the sitting government; government parties defended the
+    coalition record. Key contested areas: EU criticism vs EU benefits,
+    climate policy, immigration, security/NATO, energy prices, welfare
+    state funding, CAP farm subsidies. Public-source references:
+    Wikipedia (fi) party pages, Yle Uutiset campaign archive.
+
+ep24_poland:
+  country: Poland
+  country_code: PL
+  ep_seats: 53
+  election_date: "2024-06-09"
+  topic_key: ep24-poland
+  legacy_preference_buckets: [Far right, Centre right, Red-green]
+
+  seed_actors:
+    - label: Law and Justice (Poland)
+      short: PiS
+      family: Far right
+    - label: Civic Coalition (Poland)
+      short: Koalicja Obywatelska
+      family: Centre right
+    - label: Third Way (Poland)
+      short: Trzecia Droga
+      family: Centre right
+    - label: Left (Poland)
+      short: Lewica
+      family: Red-green
+    - label: Confederation Liberty and Independence (Poland)
+      short: Konfederacja
+      family: Far right
+    - label: Polish People's Party (Poland)
+      short: PSL
+      family: Centre right
+    - label: National Movement (Poland)
+      short: Ruch Narodowy
+      family: Far right
+    - label: New Left (Poland)
+      short: Nowa Lewica
+      family: Red-green
+
+  seed_entities:
+    - Jarosław Kaczyński (Law and Justice; Poland)
+    - Donald Tusk (Civic Coalition; Poland)
+    - Radosław Sikorski (Civic Coalition; Poland)
+    - Andrzej Halicki (Civic Coalition; Poland)
+    - Dominik Tarczyński (Law and Justice; Poland)
+    - Jacek Kurski (Law and Justice; Poland)
+    - Katarzyna Pełczyńska-Nałęcz (Third Way; Poland)
+    - Ryszard Petru (Third Way; Poland)
+    - Marcin Kierwiński (Civic Coalition; Poland)
+    - Michał Wawrykiewicz (Civic Coalition; Poland)
+    - Bronisław Komorowski (Civic Coalition; Poland)
+    - Dorota Anna Kolarska (The Left; Poland)
+    - Marcin Banot (Others; Poland)
+    - Antoni Macierewicz (Law and Justice; Poland)
+
+  seed_signifiers:
+    - artificial intelligence
+    - wybory do Parlamentu Europejskiego
+    - krytyka UE
+    - klimat
+    - imigracja
+    - bezpieczeństwo
+    - polska wieś
+    - suwerenność
+    - praworządność
+    - ceny energii
+
+  topic_background: |
+    Context: Poland, European Parliament election 2024-06-09, 53 seats
+    (largest post-Brexit gain). Campaign axes: Tusk coalition (Civic
+    Coalition–Third Way–Left) vs opposition PiS, Confederation further
+    right. Axes: sovereignty vs integration, rule-of-law dispute, war
+    neighbour (Ukraine) framing, farm-sector discontent (PSL base).
+    Public-source references: Wikipedia (pl) party pages, Yle Uutiset
+    coverage.
