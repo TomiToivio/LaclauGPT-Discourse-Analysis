@@ -184,9 +184,14 @@ def source_text(row: Any) -> str:
     return "\n\n".join(chunks)
 
 
+def _normalise_quote(value: str) -> str:
+    """Shared quote normalisation for the mechanical evidence gates."""
+    return " ".join((value or "").casefold().split()).strip(' "“”')
+
+
 def evidence_source(quote: str, row: Any) -> str:
     """Locate a verbatim model quote in the original source column."""
-    needle = " ".join((quote or "").casefold().split()).strip(' "“”')
+    needle = _normalise_quote(quote)
     if not needle:
         return ""
     data = _row_dict(row)
@@ -235,12 +240,13 @@ def analytic_hints_text(run: RunConfig) -> str:
 
 
 def evidence_is_in_source(quote: str, text: str) -> bool:
-    """Mechanical hallucination gate for verbatim evidence spans."""
-    def normalise(value: str) -> str:
-        return " ".join((value or "").casefold().split()).strip(' "“”')
+    """Mechanical hallucination gate for verbatim evidence spans.
 
-    needle = normalise(quote)
-    return bool(needle) and needle in normalise(text)
+    Delegates to the shared normalisation so this gate and
+    ``evidence_source()`` can never drift apart (issue #60).
+    """
+    needle = _normalise_quote(quote)
+    return bool(needle) and needle in _normalise_quote(text)
 
 
 def source_description(run: RunConfig, row: Any) -> sm.SourceMetadata:
@@ -515,7 +521,15 @@ class DiscourseStage(Stage):
                 for x in result.imaginaries
             ],
             "formation_candidates": formations,
-            "hegemonic_evidence": result.hegemonic_evidence,
+            "hegemonic_evidence": [
+                # INV_HEGEMONY_CORPUS (issue #60): hegemonic evidence passes
+                # through the same mechanical verbatim gate as every other
+                # coding family instead of riding in as unchecked prose.
+                {"quote": quote,
+                 "evidence_source": evidence_source(quote, row),
+                 "evidence_verified": bool(evidence_source(quote, row))}
+                for quote in result.hegemonic_evidence if (quote or "").strip()
+            ],
             "uncertainties": result.uncertainties,
         }
 
@@ -874,6 +888,9 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
     invalid_count += sum(not x.evidence_verified for x in ann.imaginaries)
     invalid_count += sum(not x.evidence_verified for x in ann.formation_candidates)
     invalid_count += sum(not x.evidence_verified for x in ann.populism_elements)
+    # INV_HEGEMONY_CORPUS (issue #60): hegemonic evidence participates in the
+    # unverified-evidence tally like every other coding family.
+    invalid_count += sum(not x.evidence_verified for x in ann.hegemonic_evidence)
     if invalid_count:
         ann.uncertainties.append(
             f"{invalid_count} discourse evidence quote(s) were not found verbatim in the source"
