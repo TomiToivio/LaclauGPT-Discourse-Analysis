@@ -23,6 +23,7 @@ The audit covered the theory-facing surfaces requested in issue #50:
 - `README.md`
 - `paper/PAPER.md`
 - `HERMES.md`
+- `CLAUDE.md`
 - `docs/HERMES_INTEGRATION.md`
 - relevant implementation/interoperability/visualization documentation
 
@@ -30,13 +31,13 @@ The audit covered the theory-facing surfaces requested in issue #50:
 
 ### INV_EVIDENCE: aligned
 
-Theory-facing prompt schemas require evidence quotes for substantive document-level codings. The pipeline verifies whether proposed evidence occurs in the source and propagates evidence/evidence-source fields into interchange output. Canonical domain classes such as `Articulation`, `DiscursiveRelation`, `DiscursiveRoleAssignment`, `CollectiveSubject`, `AntagonisticFrontier`, `AffectiveInvestment`, `PopulistConfiguration`, and `HegemonyAssessment` require evidence IDs.
+Theory-facing prompt schemas require evidence quotes for substantive document-level codings. The pipeline verifies whether proposed evidence occurs in the source and propagates evidence/evidence-source fields into interchange output. Canonical domain classes such as `Articulation`, `DiscursiveRelation`, `DiscursiveRoleAssignment`, `CollectiveSubject`, `AntagonisticFrontier`, `AffectiveInvestment`, `PopulistConfiguration`, and `HegemonyAssessment` carry evidence IDs.
 
 Important boundary: mechanical quote presence is not interpretive validation. Human researchers still decide whether a passage supports the proposed coding.
 
 ### INV_ABSTAIN: aligned
 
-`prompts/populism.py` explicitly supports `populist=false` and requires a reason when the Formula of Populism is not evidenced. Empty lists are valid outputs. The discourse prompt likewise states that an empty list is a valid result.
+`prompts/populism.py` supports `populist=false` and requires a reason when the Formula of Populism is not evidenced. Empty lists are valid outputs. The discourse prompt likewise permits empty output rather than forced interpretation.
 
 ### INV_RELATIONAL: aligned
 
@@ -44,15 +45,15 @@ Important boundary: mechanical quote presence is not interpretive validation. Hu
 
 ### INV_FLOAT_CORPUS: aligned
 
-Document-level output uses `floating_candidate`, not a final floating-signifier finding. The Pydantic validator forces `needs_corpus_validation=true` for floating candidates. Corpus synthesis aggregates evidence but labels floating status a human adjudication.
+Document-level output uses `floating_candidate`, not a final floating-signifier finding. The Pydantic validator forces `needs_corpus_validation=true` for floating candidates. Corpus synthesis aggregates evidence but leaves final floating status to human adjudication.
 
 ### INV_EMPTY_CHAIN: aligned
 
-The discourse and populism prompts explicitly reject polysemy/vagueness as sufficient evidence for an empty signifier. Document-level output is `empty_candidate`; the discourse schema forces corpus validation. Final emptiness remains a corpus/human judgement.
+The discourse and populism prompts explicitly reject polysemy/vagueness as sufficient evidence for an empty signifier. Document-level output is an `empty_candidate`; final emptiness remains a corpus/human judgement.
 
 ### INV_HEGEMONY_CORPUS: aligned
 
-The discourse prompt says hegemony cannot be inferred from frequency in a single document. Corpus synthesis produces descriptive candidate evidence only and states explicitly that hegemony is a human adjudication. `HegemonyAssessment` supports separate frequency, actor coverage, institutional uptake, stability and contestation metrics rather than collapsing hegemony into one count.
+The discourse prompt states that hegemony cannot be inferred from frequency in a single document. Corpus synthesis is explicitly descriptive and leaves hegemony to human adjudication. `HegemonyAssessment` supports separate frequency, actor coverage, institutional uptake, stability and contestation metrics rather than collapsing hegemony into a count.
 
 ### INV_ANTAGONISM: aligned
 
@@ -66,21 +67,19 @@ The visualization previously gated the Affects tab on `sentiment or palonen`. Th
 
 ### INV_POPULISM: aligned
 
-`prompts/populism.py` has a model validator: `populist=true` requires both evidenced Us and Frontier elements; `populist=false` requires both lists empty and a non-populist reason. The new theory-contract regression tests preserve this behaviour.
+`prompts/populism.py` validates that `populist=true` requires both evidenced Us and Frontier elements. `populist=false` requires empty sides and a non-populist reason. The theory-contract regression tests protect this behaviour.
 
 ### INV_DYNAMIC_LABELS: no violating runtime classifier found
 
-The current public core does not appear to assign Palonen's fringe/mainstream/competing dynamics as permanent actor types. `THEORY.md` defines them as corpus-level relational dynamics. If these dynamics are implemented later, they must be time/relationship/arena dependent rather than actor attributes.
+The current public core does not assign Palonen's fringe/mainstream/competing dynamics as permanent actor types. `THEORY.md` defines them as corpus-level relational dynamics. If implemented later, they must remain time/relationship/arena dependent.
 
-### INV_HUMAN_REVIEW: aligned and strengthened
+### INV_HUMAN_REVIEW: aligned
 
-The interchange defaults to `requires_human_review=true` and `review_status="PROVISIONAL"`. The dashboard stores researcher review in a separate sidecar rather than overwriting model output. The README now carries a prominent human-in-the-loop warning.
-
-Issue #50 strengthens agent compliance further by adding `AGENTS.md`, requiring Hermes to read `THEORY.md`, and testing that agent-facing context files preserve this requirement.
+The interchange defaults to `requires_human_review=true` and `review_status="PROVISIONAL"`. The dashboard stores researcher review in a separate sidecar instead of overwriting model output. The README carries a prominent human-in-the-loop warning. Agent instruction files now require the theory contract before theory-facing work.
 
 ### INV_CONTEXT: aligned
 
-`prompts/discourse.py` supports `asserted`, `quoted`, `reported`, `rejected`, `parodied`, and `uncertain` claim statuses. `pipeline.py` propagates `claim_status` into interchange articulations/imaginaries rather than discarding it. This prevents quoted or rejected positions from being silently treated as asserted author claims when downstream consumers respect the field.
+`prompts/discourse.py` supports `asserted`, `quoted`, `reported`, `rejected`, `parodied`, and `uncertain` claim statuses. `pipeline.py` propagates claim status into interchange output so downstream analysis can distinguish authorial assertion from quoted/reported/rejected material.
 
 ## Component audit
 
@@ -98,19 +97,19 @@ Strong alignment. It verifies quote occurrence, preserves claim status and prove
 
 ### Interchange and canonical model
 
-The interchange schema visibly marks human review as required/provisional and separates affect from sentiment polarity. Canonical theory-facing relation/role classes carry evidence IDs. Compatibility fields such as `nodal_points` should be interpreted as candidate document-level readings unless human/corpus validation has occurred; visualization already labels aggregate nodal output as candidates.
+Human review is explicit/provisional. Affect and sentiment remain distinct. Theory-facing relation/role classes preserve evidence. Compatibility fields such as `nodal_points` should be understood as candidate document-level readings until corpus/human validation.
 
 ### Context Memory/codebook
 
-Context Memory supplies stable references and candidate context. It must not turn retrieved codebook entries into ground truth. Current prompts explicitly say retrieved codebook candidates are suggestions/hints and must be supported by the source, which satisfies the theory boundary.
+Retrieved codebook candidates are hints, not evidence. Current prompts explicitly say source material must support them, satisfying the Context Memory boundary.
 
 ### Visualization
 
-The dashboard exposes source evidence, uncertainty, provenance, model review status and a separate researcher-review sidecar. Aggregate signifier counts are displayed descriptively; nodal output is labelled as candidate output in the corpus view. The main caveat is the UI configuration wording around sentiment/affect noted above.
+The dashboard exposes source evidence, uncertainty, provenance, model review status and a separate researcher-review sidecar. Nodal output is presented as candidate output in aggregate views. The Affects view is no longer gated by descriptive sentiment.
 
 ### Collector boundary
 
-No evidence was found that the collector performs discourse-theoretical coding. Collection remains source acquisition/normalisation, while theory-guided interpretation occurs in the analysis pipeline. This separation should be preserved.
+The collector performs acquisition/normalisation, not discourse-theoretical classification. Theory-guided interpretation remains in the analysis pipeline. This separation should be preserved.
 
 ### Paper and README
 
@@ -118,35 +117,26 @@ No evidence was found that the collector performs discourse-theoretical coding. 
 
 ### Agent instructions
 
-This was the clearest gap found by the audit. `THEORY.md` was canonical but repository agents were not uniformly instructed to load it before theory-facing work. This issue adds:
+The main gap motivating issue #50 was agent context. The repository now has theory-contract instructions for Hermes and Claude, plus framework-neutral [`AGENTS.md`](AGENTS.md). Agents are required to read `THEORY.md` before theory-facing changes, identify relevant invariants, preserve evidence/uncertainty/abstention/human review, and verify theoretical changes against the original books.
 
-- root `AGENTS.md` as a framework-independent agent contract;
-- an explicit `THEORY.md` requirement in `HERMES.md`;
-- the same boundary in `docs/HERMES_INTEGRATION.md`;
-- regression tests checking that agent-facing context references the theory contract.
+## Machine-checkable safeguards
 
-## Machine-checkable tests added
+`tests/test_theory_invariants.py` checks machine-verifiable parts of the contract, including:
 
-`tests/test_theory_contract.py` checks:
-
-- all normative invariant IDs remain present in `THEORY.md`;
-- `AGENTS.md` and `HERMES.md` require `THEORY.md` before theory-facing work;
-- `populist=true` cannot validate without both Us and Frontier;
-- abstention/non-populist output retains the expected empty-side shape;
-- floating and empty candidates are forced to corpus validation;
-- theory-facing articulation output cannot omit evidence;
-- quoted claim status remains representable;
-- interchange defaults remain human-review-required and provisional;
-- the README keeps the human-verified/preliminary-analysis warning.
+- Formula of Populism requires both Us and Frontier;
+- abstention/non-populist output is valid;
+- theory-facing schemas preserve evidence;
+- floating/empty candidates require corpus validation;
+- affect is not inferred from sentiment polarity or side membership;
+- the visualization does not gate affect by the sentiment switch;
+- agent-facing documentation references `THEORY.md`.
 
 These tests are guardrails, not a validity test for discourse analysis.
 
-## Remaining interpretive issues
+## Remaining interpretive boundary
 
-1. **Sentiment vs affect visualization wording.** Resolved for the tab gate (this PR: Affects tab follows `palonen` alone). A standalone follow-up remains open for richer UI documentation: enabling or displaying an affect view does not transform sentiment scores into affective investment (see #51 for the summary-stage side of this concern).
-2. **Corpus-level adjudication remains human work.** The repository can aggregate candidate evidence for floating/empty signifiers, hegemony, polarisation, myths/imaginaries and ideological formations, but deciding those statuses cannot be made correct by a unit-test rule alone.
-3. **Dynamic populist typology is not yet a runtime classifier.** If Palonen's fringe/mainstream/competing dynamics are added, implementation should model relations over time/arena/frontier, not permanent actor labels.
+Corpus-level claims such as floating/empty signifier status, hegemony, polarisation, myths/imaginaries and ideological formations remain substantive human research judgements. The code can aggregate comparable evidence and candidates, but unit tests cannot decide whether those interpretations are valid.
 
 ## Conclusion
 
-The current public core is substantially aligned with `THEORY.md`. The main repository-level defect addressed by issue #50 was not a methodological error in the analysis prompts, but an **agent-context gap**: agents were not uniformly required to read the semantic contract before theory-facing changes. This PR closes that gap and adds executable regressions for the parts of the theory contract that can responsibly be machine-checked.
+The current public core is substantially aligned with `THEORY.md`. Issue #50 primarily closes an **agent-context and regression-safety gap**, rather than correcting a major theoretical error in the existing prompts. Future theory-facing changes should treat `THEORY.md` as a semantic contract while keeping the original books authoritative.
