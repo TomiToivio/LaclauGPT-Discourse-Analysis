@@ -21,7 +21,7 @@ def register(sub) -> None:
     rss.add_argument("feeds", nargs="+",
                      help="feed URLs or a config file with one URL per line")
     rss.add_argument("--fetch-article", action="store_true",
-                     help="also fetch the linked article page")
+                     help="also fetch linked article pages through the standard web adapter")
 
     web = csub.add_parser("web", help="fetch plain web pages")
     web.add_argument("urls", nargs="+", help="URLs to fetch")
@@ -39,7 +39,7 @@ def register(sub) -> None:
     hermes.add_argument("payload", help="JSON file or '-' for stdin")
 
     telegram = csub.add_parser("telegram",
-                               help="normalize one Vasama-OSINT Telegram event (JSON)")
+                               help="normalize one external Telegram event (JSON)")
     telegram.add_argument("payload", help="JSON file or '-' for stdin")
 
     minet = csub.add_parser("minet",
@@ -73,6 +73,49 @@ def _read_payload(path: str) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
+def _fetch_web_record(url: str):
+    """Fetch one URL and normalize it through the same web adapter used by CLI web."""
+    import urllib.request
+
+    req = urllib.request.Request(url, headers={"User-Agent": "LaclauGPT-collect"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        final_url = resp.geturl() or url
+        return collect_web(
+            final_url,
+            html_text=resp.read().decode("utf-8", errors="replace"),
+            http_status=resp.status,
+        )
+
+
+def _enrich_rss_articles(records):
+    """Replace feed-summary text with fetched article text while preserving provenance."""
+    for record in records:
+        if not record.url:
+            continue
+        try:
+            web_record = _fetch_web_record(record.url)
+        except Exception as exc:
+            record.metadata["article_fetch"] = {
+                "status": "failed",
+                "requested_url": record.url,
+                "reason": str(exc),
+            }
+            continue
+        record.metadata["feed_summary"] = record.text
+        record.metadata["article_fetch"] = {
+            "status": "ok",
+            "requested_url": record.url,
+            "final_url": web_record.url,
+            "http_status": web_record.metadata.get("http_status"),
+            "extraction": web_record.metadata.get("extraction"),
+        }
+        if web_record.text:
+            record.text = web_record.text
+        if not record.title and web_record.title:
+            record.title = web_record.title
+    return records
+
+
 def run(args: argparse.Namespace) -> int:
     store = CollectionStore()
     saved = skipped = 0
@@ -81,11 +124,15 @@ def run(args: argparse.Namespace) -> int:
         records = []
         for feed in args.feeds:
             if feed.startswith("http"):
-                records.extend(collect_rss(feed, fetch_article=args.fetch_article))
+                feed_records = collect_rss(feed, fetch_article=args.fetch_article)
+                records.extend(_enrich_rss_articles(feed_records)
+                               if args.fetch_article else feed_records)
             else:
                 for feed_url in _urls_from_file(feed):
-                    records.extend(collect_rss(feed_url,
-                                               fetch_article=args.fetch_article))
+                    feed_records = collect_rss(feed_url,
+                                               fetch_article=args.fetch_article)
+                    records.extend(_enrich_rss_articles(feed_records)
+                                   if args.fetch_article else feed_records)
         saved, skipped = store.save_many(records)
 
     elif args.collect_target == "web":
@@ -94,12 +141,8 @@ def run(args: argparse.Namespace) -> int:
             urls.extend(_urls_from_file(args.urls_file))
         records = []
         for url in urls:
-            try:  # network fetch outside the pure function
-                import urllib.request
-                req = urllib.request.Request(url, headers={"User-Agent": "LaclauGPT-collect"})
-                with urllib.request.urlopen(req, timeout=30) as resp:
-                    records.append(collect_web(url, html_text=resp.read().decode(
-                        "utf-8", errors="replace"), http_status=resp.status))
+            try:
+                records.append(_fetch_web_record(url))
             except Exception as exc:  # recorded as skipped, never fatal
                 print(json.dumps({"skipped": url, "reason": str(exc)}))
         saved, skipped = store.save_many(records)

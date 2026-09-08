@@ -195,13 +195,25 @@ GraphML is emitted as the primary interoperable graph format. It is intended for
 
 Properties that cannot be represented as scalar XML text are serialized deterministically as JSON strings.
 
+Canonical JSON can attach evidence directly to a semantic edge. GraphML and GEXF cannot use an edge ID as the endpoint of another edge, so the interoperable exporter **reifies edge-level claims as `relation_assertion` nodes** when needed:
+
+```text
+Signifier A ---- semantic relation ----> Signifier B
+     |                                      ^
+     +--> relation_assertion ---------------+
+                |
+                +--> SUPPORTED_BY --> Evidence
+```
+
+The exported assertion node records the original semantic edge ID and relation type. `ASSERTION_SOURCE` and `ASSERTION_TARGET` reconnect it to the original endpoints. This preserves the evidentiary topology instead of silently dropping edge-to-evidence links.
+
 ### GEXF
 
-A deterministic static GEXF projection is also emitted for Gephi and related tools. The current GEXF writer intentionally keeps the portable node/edge core small. Rich evidence/provenance remains most complete in JSON and GraphML.
+A deterministic static GEXF projection is also emitted for Gephi and related tools. The same `relation_assertion` reification is used for edge-level evidence, so evidence links survive both GraphML and GEXF export. Rich provenance values that are not native graph scalars are serialized into portable attributes.
 
 ### JSON
 
-The JSON graph bundle is the loss-minimizing LaclauGPT representation for web/dashboard consumers.
+The JSON graph bundle remains the loss-minimizing LaclauGPT representation for web/dashboard consumers. It can retain the original semantic-edge/evidence reference directly; GraphML/GEXF use the equivalent assertion-node representation described above.
 
 ## DNA compatibility
 
@@ -215,7 +227,7 @@ Synthetic graph fixtures may be public. Aggregate graph publications require dis
 
 ## Implemented now vs later
 
-Implemented in issue #84:
+Implemented in issue #84 and subsequent hardening:
 
 - canonical graph projection module;
 - stable-ID reuse for interchange references;
@@ -224,6 +236,7 @@ Implemented in issue #84:
 - actor-signifier, signifier-field, formation, populism, temporal and evidence projections;
 - pipeline graph sidecars;
 - GraphML, GEXF and JSON exports;
+- evidence-preserving `relation_assertion` reification for interoperable exports;
 - dashboard projection adapter;
 - synthetic offline tests.
 
