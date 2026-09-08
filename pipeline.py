@@ -18,15 +18,15 @@ from contextlib import ExitStack
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 from laclaugpt_interchange import (
     SCHEMA_VERSION,
     Affect, Articulation, Discourse, DocumentAnnotation, FormationAssessment,
-    MemoryRef, PopulismElementAssessment, SignifierRole,
+    MemoryRef, PopulismElementAssessment, SentimentObservation, SignifierRole,
     SociotechnicalImaginary, to_jsonl,
 )
-from laclaugpt_memory import Memory
+from laclaugpt_memory import KINDS, Memory
 from llm import chat_structured, model_digest, resolve_endpoint
 from prompts import discourse as discourse_prompt
 from prompts import populism as populism_prompt
@@ -299,6 +299,18 @@ class Stage:
             raise
         self.conn: sqlite3.Connection | None = conn
 
+    def memory_context(self, text: str, kinds: Iterable[str] = tuple(KINDS)) -> str:
+        """Authoritative Context Memory switch (issue #48).
+
+        `context_memory: false` keeps codebook context out of prompts so a
+        no-memory ablation is clean. Stable-ID resolution itself stays on in
+        every configuration because stable IDs are part of canonical
+        interchange provenance, not optional prompt context.
+        """
+        if not self.run.enabled("context_memory"):
+            return "(context memory disabled for this analysis profile)"
+        return self.memory.context_prompt_block(text, kinds=kinds)
+
     def fingerprint(self, key: str, system: str, user: str, *,
                     model: str | None = None, digest: str | None = None,
                     mode: str | None = None) -> str:
@@ -412,7 +424,7 @@ class SummaryStage(Stage):
     def run_row(self, row: Any, text: str, metadata: sm.SourceMetadata):
         topic = tb.topic_background(self.run.topic_key)
         system = summary_prompt.build_system_prompt(
-            topic, metadata.prompt_text(), self.memory.context_prompt_block(text),
+            topic, metadata.prompt_text(), self.memory_context(text),
         )
         data = _row_dict(row)
         user = summary_prompt.build_user_prompt(
@@ -567,6 +579,14 @@ class PostprocessStage(Stage):
                     "ner_type": type_,
                 })
             out[name] = refs
+        # Descriptive sentiment observations ride along with the resolved
+        # targets so build_annotation() can publish them losslessly
+        # (issue #48): the polarity groups would otherwise be discarded.
+        out["sentiment"] = [
+            {"target": ref, "polarity": polarity}
+            for polarity in ("positive", "neutral", "negative")
+            for ref in out.get(polarity, [])
+        ]
         return out
 
 
@@ -746,6 +766,18 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
         ann.counter_evidence
         + [item for formation in ann.formation_candidates for item in formation.counter_evidence]
     ))
+    # Descriptive sentiment (schema 1.4): publish resolved targets with their
+    # polarity group. Distinct from affective investment (ann.affects); the
+    # postprocess prompt version and the actual stage model ride along as
+    # provenance so each reading is auditable.
+    ann.sentiment_observations = [
+        SentimentObservation(
+            target=_ref(x["target"]), polarity=x["polarity"],
+            evidence_source="postprocess",
+            model=annotation_model, prompt_version=POSTPROCESS_PROMPT_VERSION,
+        )
+        for x in extracted.get("sentiment", [])
+    ]
     ann.discourses = [
         Discourse(label=x["label"], confidence=x["confidence"], elements=ann.signifiers)
         for x in discourse.get("formation_candidates", [])
