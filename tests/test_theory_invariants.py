@@ -193,5 +193,269 @@ class AgentInstructionInvariant(unittest.TestCase):
         self.assertIn("theory_invariants:", theory)
 
 
+def _iref(obj_id: str, label: str) -> "object":
+    from laclaugpt_interchange import MemoryRef
+    return MemoryRef(obj_id=obj_id, label=label, kind="signifier", raw=label)
+
+
+class InterchangePopulismInvariant(unittest.TestCase):
+    """INV_POPULISM at the interchange schema level (issue #50).
+
+    The prompt-stage validator is not enough: the interchange file is what
+    4CAT/DNA/INCEpTION actually consume, so populist=true must be invalid
+    there too without both a Us and a Frontier side.
+    """
+
+    def test_populist_true_without_both_sides_is_invalid(self) -> None:
+        from laclaugpt_interchange import DocumentAnnotation
+        for kwargs in ({"us": [], "frontier": []},
+                       {"us": [_iref("S001", "us")], "frontier": []},
+                       {"us": [], "frontier": [_iref("S002", "elite")]}):
+            with self.assertRaises(ValidationError):
+                DocumentAnnotation(document_id="doc::1", populist=True, **kwargs)
+            with self.assertRaises(ValidationError):
+                DocumentAnnotation.model_validate({
+                    "document_id": "doc::1", "populist": True, **kwargs})
+
+    def test_populist_true_with_both_sides_round_trips(self) -> None:
+        from laclaugpt_interchange import DocumentAnnotation, from_jsonl, to_jsonl
+        ann = DocumentAnnotation(document_id="doc::1", populist=True,
+                                 us=[_iref("S001", "us")],
+                                 frontier=[_iref("S002", "elite")])
+        with tempfile.TemporaryDirectory() as tmp:
+            path = str(Path(tmp) / "ann.jsonl")
+            to_jsonl([ann], path)
+            parsed = from_jsonl(path)[0]
+        self.assertTrue(parsed.populist)
+        self.assertEqual(parsed.us[0].obj_id, "S001")
+
+
+class PopulismClaimStatusInvariant(unittest.TestCase):
+    """INV_CONTEXT (issue #50): Us/Frontier elements carry claim_status so a
+    quoted/reported/parodied/rejected articulation is never published as the
+    author's asserted position."""
+
+    def test_populism_element_schema_accepts_and_restricts_claim_status(self) -> None:
+        PopulismElement, Formula = populism_prompt.pydantic_models()
+        element = PopulismElement(
+            populism_element="us", evidence_quote="quote", confidence=0.5,
+            claim_status="quoted")
+        self.assertEqual(element.claim_status, "quoted")
+        with self.assertRaises(ValidationError):
+            PopulismElement(populism_element="us", evidence_quote="q",
+                            confidence=0.5, claim_status="shouted")
+        # abstention validator still applies with the new field present
+        with self.assertRaises(ValidationError):
+            Formula(populist=True, populism_analysis="x",
+                    populism_us=[element])
+
+    def test_interchange_propagates_claim_status(self) -> None:
+        from laclaugpt_interchange import (
+            PopulismElementAssessment, from_memory_results)
+        self.assertIn("claim_status", PopulismElementAssessment.model_fields)
+        ann = from_memory_results(
+            "doc::1", platform="synthetic",
+            populism={
+                "populist": True,
+                "populism_us": [{"obj_id": "S001", "label": "us",
+                                 "claim_status": "quoted"}],
+                "populism_frontier": [{"obj_id": "S002", "label": "elite"}],
+            },
+        )
+        us_element = next(e for e in ann.populism_elements if e.side == "us")
+        self.assertEqual(us_element.claim_status, "quoted")
+        frontier = next(e for e in ann.populism_elements if e.side == "frontier")
+        self.assertEqual(frontier.claim_status, "asserted")
+
+
+class DiscourseAbstentionInvariant(unittest.TestCase):
+    """INV_ABSTAIN (issue #50): the discourse stage's applicability signal is
+    published, so a 'not applicable' document is distinguishable from one with
+    legitimately empty codings."""
+
+    def test_annotation_carries_and_round_trips_applicability(self) -> None:
+        from laclaugpt_interchange import DocumentAnnotation, from_jsonl, to_jsonl
+        ann = DocumentAnnotation(document_id="doc::1",
+                                 discourse_applicable=False,
+                                 discourse_applicability_reason="not political discourse")
+        self.assertIs(ann.discourse_applicable, False)
+        self.assertIn("discourse_applicable", DocumentAnnotation.model_fields)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = str(Path(tmp) / "ann.jsonl")
+            to_jsonl([ann], path)
+            parsed = from_jsonl(path)[0]
+        self.assertIs(parsed.discourse_applicable, False)
+        self.assertEqual(parsed.discourse_applicability_reason,
+                         "not political discourse")
+        # default state stays None (no forced abstention)
+        self.assertIsNone(DocumentAnnotation(document_id="doc::2").discourse_applicable)
+
+
+class AttributionLiftInvariant(unittest.TestCase):
+    """INV_CONTEXT (issue #50): interchange_to_v2 maps claim_status onto the
+    canonical AttributionType instead of flattening everything to 'unclear'."""
+
+    def _corpus(self, claim_status: str):
+        import json
+        from laclaugpt.adapters.interchange import interchange_to_v2
+        ann = {
+            "schema_version": SCHEMA_VERSION, "document_id": "doc::1",
+            "source_platform": "synthetic", "summary": "the quote",
+            "articulations": [{
+                "signifier": {"obj_id": "S001", "label": "freedom",
+                              "kind": "signifier", "raw": "freedom"},
+                "related_to": [{"obj_id": "S002", "label": "chain",
+                                "kind": "signifier", "raw": "chain"}],
+                "relation": "equivalence", "evidence": "the quote",
+                "claim_status": claim_status, "confidence": 0.5,
+            }],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "ann.jsonl"
+            path.write_text(json.dumps(ann) + "\n", encoding="utf-8")
+            return interchange_to_v2(str(path))
+
+    def test_claim_status_maps_to_attribution(self) -> None:
+        from laclaugpt.model import AttributionType
+        self.assertEqual(self._corpus("asserted").statements[0].attribution_type,
+                         AttributionType.AUTHOR)
+        self.assertEqual(self._corpus("quoted").statements[0].attribution_type,
+                         AttributionType.QUOTED)
+        self.assertEqual(self._corpus("reported").statements[0].attribution_type,
+                         AttributionType.REPORTED)
+        self.assertEqual(self._corpus("parodied").statements[0].attribution_type,
+                         AttributionType.IRONIC)
+        # rejected/uncertain conservatively stay non-author (never AUTHOR)
+        for status in ("rejected", "uncertain", "unknown-value"):
+            self.assertEqual(self._corpus(status).statements[0].attribution_type,
+                             AttributionType.UNCLEAR)
+
+
+class InceptionMergePopulismCoherenceInvariant(unittest.TestCase):
+    """INV_POPULISM (issue #50): human INCEpTION corrections re-derive the
+    Formula of Populism instead of exporting contradictory states."""
+
+    def test_human_us_and_frontier_spans_upgrade_abstention(self) -> None:
+        from inception_adapter import merge_inception_corrections
+        from laclaugpt_interchange import (
+            DocumentAnnotation, PopulismElementAssessment, from_jsonl)
+        base = DocumentAnnotation(
+            document_id="doc::1", populist=False,
+            non_populist_reason="no frontier",
+            populism_elements=[PopulismElementAssessment(
+                element=_iref("S001", "us"), side="us",
+                evidence="us quote", evidence_verified=True, confidence=0.9,
+            )])
+        with tempfile.TemporaryDirectory() as tmp:
+            src = str(Path(tmp) / "in.jsonl")
+            out = str(Path(tmp) / "out.jsonl")
+            to_jsonl([base], src)
+            counts = merge_inception_corrections(src, [{
+                "document_id": "doc::1",
+                "span": {"obj_id": "S002", "label": "elite",
+                         "covered_text": "the elites", "side": "frontier",
+                         "affect": "", "evidence": "elite quote",
+                         "confidence": 0.9, "nodal_candidate": False,
+                         "empty_candidate": False},
+            }], out)
+            merged = from_jsonl(out)[0]
+        self.assertEqual(counts["new_elements"], 1)
+        self.assertTrue(merged.populist)
+        self.assertEqual(merged.non_populist_reason, "")
+        self.assertEqual([r.obj_id for r in merged.us], ["S001"])
+        self.assertEqual([r.obj_id for r in merged.frontier], ["S002"])
+
+    def test_demoted_populist_true_never_publishes_invalid_state(self) -> None:
+        from inception_adapter import merge_inception_corrections
+        from laclaugpt_interchange import (
+            DocumentAnnotation, PopulismElementAssessment)
+        base = DocumentAnnotation(
+            document_id="doc::2", populist=True,
+            us=[_iref("S001", "us")], frontier=[_iref("S002", "elite")],
+            populism_elements=[
+                PopulismElementAssessment(element=_iref("S001", "us"),
+                                          side="us", evidence="q", confidence=0.9),
+                PopulismElementAssessment(element=_iref("S002", "elite"),
+                                          side="frontier", evidence="q", confidence=0.9),
+            ])
+        with tempfile.TemporaryDirectory() as tmp:
+            src = str(Path(tmp) / "in.jsonl")
+            out = str(Path(tmp) / "out.jsonl")
+            to_jsonl([base], src)
+            merge_inception_corrections(src, [{
+                "document_id": "doc::2",
+                "span": {"obj_id": "S001", "label": "us",
+                         "covered_text": "us", "side": "frontier",
+                         "affect": "", "evidence": "q", "confidence": 0.9,
+                         "nodal_candidate": False, "empty_candidate": False},
+            }], out)
+            merged = from_jsonl(out)[0]
+        self.assertFalse(merged.populist)
+        self.assertTrue(merged.non_populist_reason)
+        self.assertEqual(merged.us, [])
+        self.assertEqual(merged.frontier, [])
+
+
+class DiscourseMembershipAndSentimentProvenanceInvariant(unittest.TestCase):
+    """INV_RELATIONAL/INV_EVIDENCE (issue #50): formation candidates do not
+    fabricate signifier membership, and sentiment readings record the model
+    that actually produced the postprocess stage."""
+
+    def _run(self):
+        from pathlib import Path
+        import tempfile
+        from run_config import RunConfig, SourceSpec
+        tmp = Path(tempfile.mkdtemp())
+        return RunConfig(
+            run_id="run-issue-50", analysis_profile="ai26:test", arena_id="test",
+            project="ai26", analysis_modules={
+                "laclau": True, "sentiment": True, "context_memory": True,
+                "temporal": True, "topics": True, "entities": True,
+            },
+            topic_key="ai-contestation",
+            sources=[SourceSpec(platform="synthetic", language="en")],
+            database_dir=tmp / "database", log_dir=tmp / "logs",
+            memory_dir=tmp / "memory",
+            output_path=tmp / "annotations.jsonl",
+            model_text="synthetic", model_vision="synthetic",
+        )
+
+    def test_discourse_candidates_carry_no_fabricated_membership(self) -> None:
+        from pipeline import build_annotation
+        ann = build_annotation(
+            self._run(), {"platform": "synthetic", "id": "doc-1"}, "{}",
+            {"formation_candidates": [
+                {"obj_id": "F001", "label": "accelerationism", "kind": "formation",
+                 "raw": "accelerationism", "supporting_features": [],
+                 "counter_evidence": [], "evidence": "q", "confidence": 0.7}],
+             "signifiers": [{"obj_id": "S009", "label": "freedom",
+                             "kind": "signifier", "raw": "freedom",
+                             "role": "nodal_candidate", "rationale": "r",
+                             "evidence": "q", "confidence": 0.5,
+                             "needs_corpus_validation": False}]},
+            {}, {},
+        )
+        self.assertEqual(len(ann.discourses), 1)
+        self.assertEqual(ann.discourses[0].elements, [])
+
+    def test_sentiment_observation_records_actual_stage_model(self) -> None:
+        from pipeline import build_annotation
+        run = self._run()
+        extracted = {"sentiment": [{"target": {
+            "obj_id": "C001", "label": "EU", "kind": "target", "raw": "the EU"},
+            "polarity": "negative"}]}
+        ann = build_annotation(
+            run, {"platform": "synthetic", "id": "doc-1"}, "{}", {}, extracted, {},
+            stage_provenance={
+                "summary": {"actual_model": "model-a", "actual_model_digest": "d"},
+                "postprocess": {"actual_model": "model-b", "actual_model_digest": "e"},
+            },
+        )
+        # Top-level model is honestly "mixed"; the sentiment reading itself
+        # records the model that produced the postprocess stage.
+        self.assertEqual(ann.model, "mixed")
+        self.assertEqual(ann.sentiment_observations[0].model, "model-b")
+
+
 if __name__ == "__main__":
     unittest.main()
