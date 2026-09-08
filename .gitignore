@@ -194,3 +194,4 @@ collection-data/
 # Explicit EP24 runtime inputs (redundant with /data/*, kept as defence in depth)
 data/csv/ep24_poland.csv
 data/csv/ep24_finland.csv
+/.venv-ep24
