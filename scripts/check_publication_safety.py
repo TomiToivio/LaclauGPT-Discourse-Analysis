@@ -45,9 +45,10 @@ FORBIDDEN_EXTENSIONS = {
 
 # High-signal production/research-storage patterns. Safe example/test URLs may
 # be explicitly marked with PUBLICATION-SAFETY: allow on the same line.
+# Documentation may legitimately mention generic CSC paths, so path strings are
+# handled structurally rather than by broad text matching.
 SUSPICIOUS_CONTENT = (
     re.compile(r"https?://a3s\.fi/swift/v1/", re.IGNORECASE),
-    re.compile(r"/scratch/project_[0-9]+/", re.IGNORECASE),
     re.compile(r"(?i)(api[_-]?key|access[_-]?token|secret[_-]?key)\s*[:=]\s*['\"][^'\"]+['\"]"),
 )
 
@@ -88,7 +89,7 @@ def path_violations(paths: list[str]) -> list[str]:
         if p.suffix.lower() in FORBIDDEN_EXTENSIONS:
             problems.append(f"tracked database/media artifact ({p.suffix}): {rel}")
 
-        if p.name == ".env" or p.name.startswith(".env.") and p.name != ".env.example":
+        if p.name == ".env" or (p.name.startswith(".env.") and p.name != ".env.example"):
             problems.append(f"tracked environment/secrets file: {rel}")
 
     return problems
