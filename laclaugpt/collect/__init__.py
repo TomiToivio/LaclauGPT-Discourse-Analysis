@@ -307,10 +307,11 @@ def collect_hermes(payload: dict) -> list[CollectRecord]:
 
 
 def collect_telegram_message(msg: dict) -> CollectRecord:
-    """Adapter boundary for the EXISTING Vasama-OSINT Telegram collector
-    (vasama_collect_telegram.py on DEPLOYMENT_HOST: telethon sessions → laclaugpt_ai26
-    MongoDB events). That collector keeps running; this adapter converts
-    one event document into the canonical spine without re-implementing
+    """Normalize one event from an external Telegram collector.
+
+    The live Telegram collector, its host, database/collection names, session
+    material and channel/watch-list settings are deployment-private. This public
+    adapter only defines the portable event boundary and does not reimplement
     Telegram collection.
     """
     return CollectRecord(
@@ -322,7 +323,7 @@ def collect_telegram_message(msg: dict) -> CollectRecord:
         text=msg.get("text") or msg.get("message"),
         platform="telegram",
         metadata={"channel": msg.get("channel"),
-                  "upstream_db": "laclaugpt_ai26.events"},
+                  "upstream_source": "external-telegram-event"},
         collector="telegram",
-        imported_from="vasama-osint:vasama_collect_telegram",
+        imported_from="external-telegram-collector",
     )
