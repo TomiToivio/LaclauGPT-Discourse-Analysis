@@ -114,7 +114,7 @@ def pydantic_models():
         confidence: float = Field(ge=0.0, le=1.0)
         claim_status: Literal[
             "asserted", "quoted", "reported", "rejected", "parodied", "uncertain"
-        ] = "asserted"
+        ] = "uncertain"
 
     class ImaginaryCoding(BaseModel):
         label: str

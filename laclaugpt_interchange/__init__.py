@@ -20,7 +20,11 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
-SCHEMA_VERSION = "1.5"   # 1.5: PopulismElementAssessment.claim_status (INV_CONTEXT);
+SCHEMA_VERSION = "1.6"   # 1.6: claim_status defaults to "uncertain" (INV_CONTEXT:
+                         #       omitting the field no longer silently asserts
+                         #       authorship); Discourse.evidence for candidate
+                         #       discourse labels
+                         # 1.5: PopulismElementAssessment.claim_status (INV_CONTEXT);
                          #       DocumentAnnotation.discourse_applicable /
                          #       discourse_applicability_reason (INV_ABSTAIN);
                          #       populist=true requires non-empty us AND frontier
@@ -47,7 +51,8 @@ class Articulation(BaseModel):
     evidence: str = ""              # quote from the document
     evidence_source: str = ""       # source column/modal transformation
     evidence_verified: bool = False
-    claim_status: str = "asserted"
+    claim_status: str = "uncertain" # asserted|quoted|reported|rejected|parodied|uncertain;
+                                    # default uncertain so omission never asserts authorship
     confidence: float = 0.0
     rationale: str = ""
 
@@ -76,6 +81,7 @@ class UsFrontier(BaseModel):
 class Discourse(BaseModel):
     label: str = ""                 # free label (candidate discourse)
     confidence: float = 0.0
+    evidence: str = ""              # evidence quote for the label itself
     elements: list[MemoryRef] = []
 
 
@@ -99,7 +105,7 @@ class SociotechnicalImaginary(BaseModel):
     evidence: str = ""
     evidence_source: str = ""
     confidence: float = 0.0
-    claim_status: str = "asserted"
+    claim_status: str = "uncertain" # asserted|quoted|reported|rejected|parodied|uncertain
     evidence_verified: bool = False
 
 
@@ -122,7 +128,7 @@ class PopulismElementAssessment(BaseModel):
     evidence_source: str = ""
     evidence_verified: bool = False
     confidence: float = 0.0
-    claim_status: str = "asserted"    # asserted|quoted|reported|rejected|parodied|uncertain
+    claim_status: str = "uncertain"   # asserted|quoted|reported|rejected|parodied|uncertain
     nodal_candidate: bool = False
     empty_candidate: bool = False
 
@@ -331,7 +337,7 @@ def from_memory_results(document_id: str, *, platform: str = "", country: str = 
                 evidence_source=r.get("evidence_source", ""),
                 evidence_verified=r.get("evidence_verified", False),
                 confidence=r.get("confidence", 0.0),
-                claim_status=r.get("claim_status", "asserted"),
+                claim_status=r.get("claim_status", "uncertain"),
                 nodal_candidate=r.get("nodal", False),
                 empty_candidate=r.get("empty_candidate", False),
             )

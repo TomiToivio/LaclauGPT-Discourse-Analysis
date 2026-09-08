@@ -35,7 +35,9 @@ only if affect is evidenced, and confidence from 0 to 1.  Do not force Us affect
 to be positive or Frontier affects to be negative: anger can invest an Us and
 admiration can qualify an opponent.  Distinguish the author's articulation from
 speech that is quoted, reported, parodied, or rejected by recording it in
-``claim_status`` (asserted|quoted|reported|rejected|parodied|uncertain); a
+``claim_status`` (asserted|quoted|reported|rejected|parodied|uncertain), which
+defaults to ``uncertain`` — set ``asserted`` explicitly only when the author
+themself makes the claim (issue #63: omission never asserts authorship); a
 quoted or rejected politician's articulation must not become the author's
 position.
 
@@ -73,7 +75,7 @@ def pydantic_models():
         evidence_quote: str = Field(min_length=1)
         confidence: float = Field(ge=0.0, le=1.0)
         claim_status: Literal["asserted", "quoted", "reported", "rejected",
-                              "parodied", "uncertain"] = "asserted"
+                              "parodied", "uncertain"] = "uncertain"
         nodal_candidate: bool = False
         empty_candidate: bool = False
         needs_corpus_validation: bool = False
