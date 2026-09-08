@@ -58,11 +58,11 @@ The discourse prompt says hegemony cannot be inferred from frequency in a single
 
 Both theory-facing prompts distinguish constitutive antagonistic frontier construction from ordinary criticism, policy disagreement, negativity, opponent mention or sentiment.
 
-### INV_AFFECT: aligned, with UI wording caveat
+### INV_AFFECT: aligned (UI gate fixed)
 
 The Formula of Populism prompt does not map Us to positive affect or Frontier to negative affect. The interchange schema keeps affect and optional sentiment polarity separate, and the source contains an explicit warning that polarity is not inferred from side membership.
 
-The visualization configuration currently allows the Affects tab to be visible when either `sentiment` or `palonen` is enabled. The tab displays stored `Affect` records rather than deriving affective investment from sentiment, so this is not currently an inference violation. However, the wording can be misread as equating sentiment and affect. This should remain a documentation/UI clarity concern, not a reason to merge the concepts.
+The visualization previously gated the Affects tab on `sentiment or palonen`. The tab displays stored `Affect` records rather than deriving affective investment from sentiment, so this was not an inference violation — but the gate wording could be misread as equating sentiment and affect. Resolved in this PR (issue #50 follow-up): the tab is now gated on `palonen` alone, the stage that produces the Affect records, so the view's visibility can no longer suggest that the descriptive sentiment switch controls affective investment.
 
 ### INV_POPULISM: aligned
 
@@ -143,7 +143,7 @@ These tests are guardrails, not a validity test for discourse analysis.
 
 ## Remaining interpretive issues
 
-1. **Sentiment vs affect visualization wording.** The underlying schema is separated correctly, but UI/config documentation can be made even more explicit that enabling or displaying an affect view does not transform sentiment scores into affective investment.
+1. **Sentiment vs affect visualization wording.** Resolved for the tab gate (this PR: Affects tab follows `palonen` alone). A standalone follow-up remains open for richer UI documentation: enabling or displaying an affect view does not transform sentiment scores into affective investment (see #51 for the summary-stage side of this concern).
 2. **Corpus-level adjudication remains human work.** The repository can aggregate candidate evidence for floating/empty signifiers, hegemony, polarisation, myths/imaginaries and ideological formations, but deciding those statuses cannot be made correct by a unit-test rule alone.
 3. **Dynamic populist typology is not yet a runtime classifier.** If Palonen's fringe/mainstream/competing dynamics are added, implementation should model relations over time/arena/frontier, not permanent actor labels.
 

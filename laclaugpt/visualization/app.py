@@ -279,7 +279,12 @@ def main(argv: list[str] | None = None) -> None:
     if analysis.get("laclau"): tab_names.append("Discourse")
     if analysis.get("palonen"): tab_names.append("Populism")
     if analysis.get("sociotechnical_imaginaries"): tab_names.append("Imaginaries")
-    if analysis.get("sentiment") or analysis.get("palonen"): tab_names.append("Affects")
+    # INV_AFFECT (THEORY.md §15): the tab displays stored Laclaudian
+    # Affect records, so it follows the palonen stage that produces them.
+    # The descriptive sentiment switch must not gate this view — gating it
+    # on sentiment would read as if sentiment polarity substituted for
+    # affective investment (see docs/THEORY_IMPLEMENTATION_AUDIT.md).
+    if analysis.get("palonen"): tab_names.append("Affects")
     tab_names.extend(["Documents", "Review"])
     tabs = dict(zip(tab_names, st.tabs(tab_names)))
 
