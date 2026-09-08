@@ -157,7 +157,9 @@ The repository has theory-contract instructions for Hermes and Claude, plus fram
 
 ## Machine-checkable safeguards
 
-`tests/test_theory_invariants.py` checks machine-verifiable parts of the theory contract. `tests/test_module_switches.py` checks configuration semantics from issue #48. `tests/test_summary_theory_boundary.py` protects the issue-51 descriptive boundary by checking that the summary schema no longer exposes `populist_elements`, that `present` requires both observed sides plus evidence, that `absent`/`uncertain` are valid, and that prompt/provenance versioning is explicit.
+## Machine-checkable safeguards
+
+`tests/test_theory_invariants.py` checks machine-verifiable parts of the theory contract. `tests/test_module_switches.py` checks configuration semantics from issue #48. `tests/test_evidence_gates.py` (issue #60) checks the hardened evidence surface: hegemonic-evidence verbatim gating and legacy-string upgrade, schema-level evidence requirements with legacy-JSONL compatibility, and full interchange_to_v2 lifting coverage. `tests/test_summary_theory_boundary.py` protects the issue-51 descriptive boundary by checking that the summary schema no longer exposes `populist_elements`, that `present` requires both observed sides plus evidence, that `absent`/`uncertain` are valid, and that prompt/provenance versioning is explicit.
 
 These tests are guardrails, not a validity test for discourse analysis.
 
@@ -167,4 +169,4 @@ Corpus-level claims such as floating/empty signifier status, hegemony, polarisat
 
 ## Conclusion
 
-The current public core is substantially aligned with `THEORY.md`. Issue #48 closes an important reproducibility gap in module switches, and issue #51 removes an upstream prompt path that could prematurely inject theory labels into descriptive summary JSON. Future theory-facing changes should treat `THEORY.md` as a semantic contract while keeping the original books authoritative.
+The current public core is substantially aligned with `THEORY.md`. Issue #48 closes an important reproducibility gap in module switches, and issue #51 removes an upstream prompt path that could prematurely inject theory labels into descriptive summary JSON. Issue #60 closes the remaining schema-level evidence gaps: hegemonic evidence passes the mechanical verbatim gate and joins the uncertainty tally, substantive codings require evidence at the interchange contract level (with legacy rows degrading to explicit uncertainty), and the documented interchange_to_v2 lift path preserves populism, affects, signifier roles, hegemonic evidence, review state and uncertainties. Future theory-facing changes should treat `THEORY.md` as a semantic contract while keeping the original books authoritative.

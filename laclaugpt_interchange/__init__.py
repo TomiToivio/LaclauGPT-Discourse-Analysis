@@ -127,6 +127,20 @@ class PopulismElementAssessment(BaseModel):
     empty_candidate: bool = False
 
 
+class HegemonicEvidenceSpan(BaseModel):
+    """One verified-or-flagged hegemonic evidence quote (schema 1.4).
+
+    Hegemony is the most theory-sensitive claim family (INV_HEGEMONY_CORPUS):
+    its evidence quotes now pass through the same mechanical verbatim gate and
+    carry the same evidence_source provenance as every other coding family.
+    Legacy bare-string entries (schema ≤1.3) are upgraded with verified=False,
+    so an unverified legacy quote can never silently pass as verified.
+    """
+    quote: str = Field(min_length=1)
+    evidence_source: str = ""         # source column/modal transformation
+    evidence_verified: bool = False
+
+
 class SentimentObservation(BaseModel):
     """Descriptive sentiment observation (schema 1.4).
 
@@ -177,7 +191,7 @@ class DocumentAnnotation(BaseModel):
     populism_analysis: str = ""
     non_populist_reason: str = ""
     uncertainties: list[str] = []
-    hegemonic_evidence: list[str] = []
+    hegemonic_evidence: list[HegemonicEvidenceSpan] = []
     requires_human_review: bool = True
     review_status: str = "PROVISIONAL"
     prompt_versions: dict[str, str] = {}
@@ -216,6 +230,52 @@ class DocumentAnnotation(BaseModel):
             raise ValueError(
                 "populist=true requires non-empty us and frontier lists "
                 "(INV_POPULISM: evidenced Us + Frontier construction)")
+        return self
+
+    @model_validator(mode="before")
+    @classmethod
+    def upgrade_legacy_hegemonic_evidence(cls, data):
+        # Schema-1.3 compatibility (INV_EVIDENCE / INV_HEGEMONY_CORPUS): the
+        # hegemonic evidence family used to be bare strings. Upgrade them to
+        # verified=False spans so an unverified legacy quote can never pass
+        # as verified, and older JSONL files stay readable.
+        if not isinstance(data, dict):
+            return data
+        legacy = data.get("hegemonic_evidence")
+        if isinstance(legacy, list):
+            data["hegemonic_evidence"] = [
+                item if isinstance(item, (dict, HegemonicEvidenceSpan))
+                else {"quote": str(item), "evidence_source": "",
+                      "evidence_verified": False}
+                for item in legacy if str(item).strip()
+            ]
+        return data
+
+    @model_validator(mode="after")
+    def substantive_codings_require_evidence(self):
+        # INV_EVIDENCE at schema level (issue #60): substantive theoretical
+        # codings must carry evidence. Older JSONL (schema ≤1.3) legitimately
+        # lacks verified fields, so legacy rows degrade to an explicit
+        # uncertainty instead of failing the whole file. New pipeline output
+        # fills these fields; a coding with no evidence text at all is a
+        # contract violation.
+        missing = []
+        for art in self.articulations:
+            if not (art.evidence or "").strip():
+                missing.append(f"articulation {art.signifier.obj_id}")
+        for role in self.signifier_roles:
+            if not (role.evidence or "").strip():
+                missing.append(f"signifier_role {role.signifier.obj_id}")
+        for element in self.populism_elements:
+            if not (element.evidence or "").strip():
+                missing.append(f"populism_element {element.element.obj_id}")
+        for span in self.hegemonic_evidence:
+            if not (span.quote or "").strip():
+                missing.append("hegemonic_evidence span")
+        if missing:
+            self.uncertainties.append(
+                "evidence-optional legacy coding(s) without evidence text: "
+                + "; ".join(missing[:5]))
         return self
 
 
