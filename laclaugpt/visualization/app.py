@@ -279,7 +279,9 @@ def main(argv: list[str] | None = None) -> None:
     if analysis.get("laclau"): tab_names.append("Discourse")
     if analysis.get("palonen"): tab_names.append("Populism")
     if analysis.get("sociotechnical_imaginaries"): tab_names.append("Imaginaries")
-    if analysis.get("sentiment") or analysis.get("palonen"): tab_names.append("Affects")
+    # INV_AFFECT (THEORY.md §15): affective investment is Laclaudian coding
+    # gated by the palonen stage, never by the descriptive sentiment switch.
+    if analysis.get("palonen"): tab_names.append("Affects")
     tab_names.extend(["Documents", "Review"])
     tabs = dict(zip(tab_names, st.tabs(tab_names)))
 

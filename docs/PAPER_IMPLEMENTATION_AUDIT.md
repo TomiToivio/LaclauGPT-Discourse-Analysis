@@ -27,6 +27,7 @@ model under `laclaugpt/model/`.
 
 | Concern | Current implementation | Boundary/status |
 |---|---|---|
+| Theory/methodology contract | [`THEORY.md`](../THEORY.md) | Canonical semantic contract (concept registry §14, invariants §15) for prompts, schemas, code, tests, visualisations, agents; audited 2026-09-08 against `907fc0a` (issue #50) — one visualisation invariant violation fixed (Affects tab no longer gated by the sentiment switch) |
 | Public entry point | `python -m laclaugpt.cli` | Canonical CLI |
 | Run orchestration | `laclaugpt/canonical_pipeline.py` + `laclaugpt/execution/` | Canonical dispatcher/checkpoint layer |
 | Paper analysis | root `pipeline.py` | Current evidence-linked analysis implementation |
@@ -55,7 +56,7 @@ model under `laclaugpt/model/`.
 | Human validation | Repeated model uses could promote codes | Model repetition never promotes by itself; outputs remain PROVISIONAL until explicit review | Independent double coding/adjudication workflow remains research work |
 | Entity/topic multiplication | Resolve-first memory existed | Persistent Context Memory keeps stable IDs, aliases, open-world states and reviewable merge history | Semantic merges still require review |
 | Prompt reproducibility | Stage cache ignored prompt/config versions | Cache fingerprint covers document, prompt text/version, model, options and run config; actual model provenance is recorded after fallback | Serving-runtime/container versioning can be strengthened further |
-| Standard output | Interchange fields existed but pipeline did not export complete annotations | One provisional schema-1.3 JSONL annotation per document includes relations, imaginaries, populism, provenance and versions | Schema migration policy should remain explicit |
+| Standard output | Interchange fields existed but pipeline did not export complete annotations | One provisional current-schema JSONL annotation per document includes relations, imaginaries, populism, provenance and versions | Schema migration policy should remain explicit |
 | Local inference | Ollama wrapper existed | Local/external/cloud routing records actual endpoint/model and honors fallback policy | Real runs require the configured service/model |
 | Multimodality | Pipeline had an empty placeholder | Prepared transcript/OCR/frame-analysis fields are accepted as source material | Automatic media-to-text orchestration remains separate |
 | Hegemony | Risk of equating labels/frequency with hegemony | Output is limited to document-level hegemonic evidence/candidates | Institutional, temporal and cross-arena inference remains human/corpus work |
