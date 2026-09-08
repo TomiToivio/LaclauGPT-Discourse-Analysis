@@ -43,7 +43,25 @@ from laclaugpt.memory import Memory, MemoryRef, ContextBuilder
 - **Interchange**: `laclaugpt_interchange/` is the JSONL/Pydantic batch-exchange pivot; the version lives in `laclaugpt_interchange.SCHEMA_VERSION` — never hard-code it. Current interchange enters the canonical model via `laclaugpt.adapters.interchange.interchange_to_v2()`.
 - **Frozen layers** (bug fixes only, no new features, no new dependencies from new code): `laclaugpt_model/` (older model generation, emits deprecation warning) and `run_configs/arena_*.yaml` (deprecated aliases for canonical arena profiles, still accepted via `--pipeline-config`).
 - **Entry points**: `laclaugpt.cli` is canonical (`laclaugpt` console script equivalent); `laclaugpt_processor.py` is the shipped 4CAT processor delegating analysis to the same canonical execution path; `laclaugpt/visualization/` is an optional Streamlit dashboard driven by project analysis-module switches — local/Pouta only, it rejects Roihu markers and Slurm allocations.
-- **Agents as callers**: agent-triggered runs must go through the CLI with `--execution agent` so provenance records the caller; never reimplement pipeline stages or bypass config validation. See `HERMES.md` / `docs/HERMES_INTEGRATION.md`.
+- **Agents as callers**: agent-triggered runs must go through the CLI with `--execution agent` so provenance records the caller; never reimplement pipeline stages or bypass config validation. See `HERMES.md` / `docs/HERMES_INTEGRATION.md` for Hermes and `docs/CLAUDE_INTEGRATION.md` for Claude Code.
+
+## Claude Code agent boundary (this file is the Claude project context)
+
+Claude Code is a participant **caller** of this pipeline, exactly like the
+Hermes integration: trigger analyses only through the canonical CLI with
+`--execution agent`, never reimplement pipeline stages or bypass config
+validation. An audited tool surface (`laclaugpt.integrations.claude`,
+reusing the Hermes wrapper with a `claude-code` audit actor) is available for
+tool-driven runs.
+
+**Model routing**: both Hermes and Claude Code use **only local Ollama
+open-source models** — agent-triggered runs require `LLM_MODE=local`;
+Ollama cloud, external endpoints, auto routing and cloud fallback are refused
+by `laclaugpt.integrations.agent_policy`. Human CLI invocations keep the full
+machine-tier routing.
+
+LaclauGPT output stays preliminary and human-reviewed; never present model
+coding as a final scholarly finding.
 
 Analysis chain per document: prepare → describe → propose theoretical codes (with exact evidence quotes, uncertainty, counter-evidence, explicit abstention) → resolve entities via Context Memory → corpus comparison → human review.
 
