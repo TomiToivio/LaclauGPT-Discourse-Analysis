@@ -20,7 +20,8 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
-SCHEMA_VERSION = "1.3"   # 1.3: MemoryRef.ner_type (spaCy NER classes)
+SCHEMA_VERSION = "1.4"   # 1.4: DocumentAnnotation.sentiment_observations (descriptive)
+                         # 1.3: MemoryRef.ner_type (spaCy NER classes)
 
 
 class MemoryRef(BaseModel):
@@ -121,6 +122,25 @@ class PopulismElementAssessment(BaseModel):
     empty_candidate: bool = False
 
 
+class SentimentObservation(BaseModel):
+    """Descriptive sentiment observation (schema 1.4).
+
+    Deliberately distinct from Laclaudian affective investment (Affect):
+    this is the coarse positive/neutral/negative polarity assigned by the
+    descriptive post-processing stage, with the target resolved to a
+    stable codebook ID. Affect MUST NOT be reduced to this polarity
+    (paper §3.1, INTEROPERABILITY_SPEC §8); the two record families
+    coexist on one annotation but never substitute for each other.
+    """
+    target: MemoryRef                 # stable ID from laclaugpt_memory (C-kind)
+    polarity: str                     # positive | neutral | negative
+    evidence_source: str = ""         # stage/source field the reading came from
+    uncertainty: float = 0.0          # 0..1; 0 = no uncertainty recorded
+    model: str = ""                   # actual model that produced the reading
+    prompt_version: str = ""          # postprocess prompt version
+    review_status: str = "PROVISIONAL"
+
+
 class DocumentAnnotation(BaseModel):
     """One annotated document — the interchange unit."""
     schema_version: str = SCHEMA_VERSION
@@ -166,6 +186,7 @@ class DocumentAnnotation(BaseModel):
     collection_provenance: dict[str, Any] = {}
     populism_elements: list[PopulismElementAssessment] = []
     counter_evidence: list[str] = []
+    sentiment_observations: list[SentimentObservation] = []
 
     summary: str = ""
     evidence_quotes: list[str] = []
