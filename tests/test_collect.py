@@ -1,8 +1,8 @@
 """Offline tests for the collection spine (issue: many sources, one corpus).
 
 No network, no live feeds, no real channel identifiers — synthetic
-fixtures only. Telegram is tested through the adapter boundary against
-a synthetic Vasama-OSINT event shape.
+fixtures only. Telegram is tested through the generic external-collector
+adapter boundary.
 """
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from laclaugpt.collect import (CollectRecord, CollectionStore, collect_hermes,
                                collect_manual, collect_rss, collect_telegram_message,
@@ -113,6 +114,24 @@ class RssTests(unittest.TestCase):
         self.assertEqual(len(parsed.entries), 1)
         self.assertEqual(parsed.entries[0].id, "urn:uuid:aaa-bbb")
 
+    def test_fetch_article_enriches_rss_through_web_adapter(self) -> None:
+        from laclaugpt.collect.cli import _enrich_rss_articles
+        rss_record = CollectRecord(
+            source_type="rss", native_id="guid-1",
+            url="https://example.org/article", title="Feed title",
+            text="Short feed summary", collector="rss",
+            metadata={"feed_url": "https://example.org/feed.xml"},
+        )
+        web_record = collect_web(
+            "https://example.org/final-article", html_text=WEB_HTML, http_status=200)
+        with patch("laclaugpt.collect.cli._fetch_web_record", return_value=web_record):
+            enriched = _enrich_rss_articles([rss_record])[0]
+        self.assertIn("Main political content", enriched.text or "")
+        self.assertEqual(enriched.metadata["feed_summary"], "Short feed summary")
+        self.assertEqual(enriched.metadata["article_fetch"]["status"], "ok")
+        self.assertEqual(enriched.metadata["article_fetch"]["final_url"],
+                         "https://example.org/final-article")
+
 
 class WebTests(unittest.TestCase):
 
@@ -149,7 +168,7 @@ class ManualTests(unittest.TestCase):
 
     def test_manual_text(self) -> None:
         rec = collect_manual(text="field note", title="Note",
-                             author="Tomi", notes="pilot")
+                             author="Synthetic Researcher", notes="pilot")
         self.assertEqual(rec.collector, "manual")
         self.assertEqual(rec.text, "field note")
 
@@ -163,18 +182,20 @@ class ManualTests(unittest.TestCase):
 
 class TelegramTests(unittest.TestCase):
 
-    def test_vasama_event_normalization(self) -> None:
-        # synthetic Vasama-OSINT event (vasama_ai.events shape)
-        event = {"_id": "64ff1", "message_id": "64ff1",
-                 "channel": "ai_news",
-                 "text": "channel post", "url": "https://t.me/ai_news/64ff1",
+    def test_external_event_normalization(self) -> None:
+        event = {"_id": "synthetic-64ff1", "message_id": "synthetic-64ff1",
+                 "channel": "synthetic_ai_news",
+                 "text": "channel post",
+                 "url": "https://example.org/telegram/synthetic-64ff1",
                  "published_at": "2026-09-07T09:00:00Z"}
         rec = collect_telegram_message(event)
         self.assertEqual(rec.source_type, "telegram")
         self.assertEqual(rec.collector, "telegram")
         self.assertEqual(rec.platform, "telegram")
-        self.assertEqual(rec.native_id, "64ff1")
-        self.assertIn("vasama", rec.metadata["upstream_db"])
+        self.assertEqual(rec.native_id, "synthetic-64ff1")
+        self.assertEqual(rec.metadata["upstream_source"], "external-telegram-event")
+        self.assertEqual(rec.imported_from, "external-telegram-collector")
+        self.assertNotIn("vasama", json.dumps(rec.metadata).lower())
 
 
 class CliTests(unittest.TestCase):
