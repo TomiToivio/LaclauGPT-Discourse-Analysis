@@ -6,6 +6,15 @@ nodal/floating/empty signifiers, equivalence/difference/antagonism,
 Palonen's Formula of Populism) to large text corpora, with every
 interpretation traceable to source evidence and open to human rejection.
 
+> [!WARNING]
+> **Human-in-the-loop research only.** LaclauGPT's machine-generated summaries,
+> classifications, discourse-theoretical codes, populism analyses, signifier roles,
+> ideological formations, affects, and other interpretations are **preliminary
+> analysis to be verified by a human researcher**. They must not be treated as
+> final research findings, ground truth, or autonomous scholarly judgement.
+> Human verification of the source evidence and interpretation is required before
+> results are used, reported, published, or cited as research conclusions.
+
 This repository is the **sanitized, AI-project-only public core**.
 It contains the minimum needed to understand and reproduce the
 methodological design of the evolving manuscript *LaclauGPT: Ideological
