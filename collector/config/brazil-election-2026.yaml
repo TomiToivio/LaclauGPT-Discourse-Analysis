@@ -1,5 +1,12 @@
 # Brazilian election study 2026 — LaclauGPT social-media collection
 #
+# OPERATIONAL RESEARCH CONFIGURATION, NOT A TEST/DEMO FIXTURE.
+# This file intentionally contains factual public-figure/party account handles
+# needed to reproduce the named study. Public tests and documentation examples
+# must use tests/fixtures/synthetic-collector-study.yaml instead. Publication of
+# this configuration is subject to the named-public-figure review rule in
+# docs/DATA_PUBLICATION_POLICY.md; do not add inferred personal attributes here.
+#
 # Study: seven main presidential candidates + two parties (PT, PL) on
 # Instagram, TikTok and X. 7 September – 10 October 2026, inclusive.
 #
