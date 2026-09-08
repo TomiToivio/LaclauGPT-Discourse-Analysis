@@ -9,8 +9,8 @@ LaclauGPT is an LLM-assisted discourse-analysis pipeline applying Laclau/Mouffe/
 ## Commands
 
 ```bash
-python -m pip install -e ".[collector,test]"   # exact CI install
-python -m pytest -q tests                      # full offline suite (no LLM/GPU/network calls)
+python -m pip install -e ".[collector,collect,test]"   # exact CI install
+python -m pytest -q tests                              # full offline suite (no LLM/GPU/network calls)
 python -m pytest -q tests/test_pipeline_failure_cleanup.py -k name   # single test
 LACLAUGPT_EMBED_BACKEND=none python -m pytest -q tests               # CI sets this env var
 

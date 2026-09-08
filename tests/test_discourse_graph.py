@@ -5,7 +5,7 @@ from pathlib import Path
 import networkx as nx
 
 from laclaugpt.graph import build_discourse_graph, project_graph
-from laclaugpt.graph_export import write_gexf, write_graphml
+from laclaugpt.graph_export import to_networkx, write_gexf, write_graphml
 from laclaugpt.visualization.graph import graph_projection_data, graph_projection_options
 from laclaugpt_interchange import (
     Affect,
@@ -157,6 +157,26 @@ def test_populism_projection_abstains_when_components_absent() -> None:
     assert not any(edge.relation == "ANTAGONISTIC_FRONTIER" for edge in graph.edges.values())
 
 
+def test_networkx_export_reifies_edge_level_evidence() -> None:
+    graph = build_discourse_graph([synthetic_annotation()])
+    exported = to_networkx(graph)
+    assertion_nodes = [
+        node_id for node_id, attrs in exported.nodes(data=True)
+        if attrs.get("node_type") == "relation_assertion"
+    ]
+    assert assertion_nodes, "articulation evidence must survive graph export"
+    assertion = assertion_nodes[0]
+    relations = {
+        attrs.get("relation") for _, _, attrs in exported.edges(data=True)
+    }
+    assert "ASSERTION_SOURCE" in relations
+    assert "ASSERTION_TARGET" in relations
+    assert "SUPPORTED_BY" in relations
+    assert any(target.startswith("evidence:")
+               for _, target, attrs in exported.out_edges(assertion, data=True)
+               if attrs.get("relation") == "SUPPORTED_BY")
+
+
 def test_graphml_and_gexf_exports_are_readable(tmp_path: Path) -> None:
     graph = build_discourse_graph([synthetic_annotation()])
     graphml = write_graphml(graph, tmp_path / "graph.graphml")
@@ -165,6 +185,10 @@ def test_graphml_and_gexf_exports_are_readable(tmp_path: Path) -> None:
     loaded_gexf = nx.read_gexf(gexf)
     assert "S001" in loaded_graphml.nodes
     assert "S001" in loaded_gexf.nodes
+    assert any(attrs.get("node_type") == "relation_assertion"
+               for _, attrs in loaded_graphml.nodes(data=True))
+    assert any(attrs.get("node_type") == "relation_assertion"
+               for _, attrs in loaded_gexf.nodes(data=True))
     first = graphml.read_text(encoding="utf-8")
     write_graphml(graph, graphml)
     assert graphml.read_text(encoding="utf-8") == first
