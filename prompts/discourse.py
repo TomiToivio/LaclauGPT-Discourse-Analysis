@@ -7,7 +7,7 @@ are marked as candidates for comparison and human validation.
 """
 from __future__ import annotations
 
-PROMPT_VERSION = "discourse-v1.2"
+PROMPT_VERSION = "discourse-v1.3"
 
 SYSTEM_PROMPT_TEMPLATE = """You assist a human political scientist with a
 provisional Laclaudian discourse analysis. Analyse only the supplied source
@@ -126,7 +126,7 @@ def pydantic_models():
         confidence: float = Field(ge=0.0, le=1.0)
         claim_status: Literal[
             "asserted", "quoted", "reported", "rejected", "parodied", "uncertain"
-        ] = "asserted"
+        ] = "uncertain"
         needs_corpus_validation: bool = True
 
         @model_validator(mode="after")
