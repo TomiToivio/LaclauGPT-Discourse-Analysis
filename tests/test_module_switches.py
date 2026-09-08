@@ -247,9 +247,14 @@ class TemporalSwitchTests(unittest.TestCase):
                 "fallback_used": False, "fallback_reason": "", "cache_hit": False,
             })
             stage = DiscourseStage(run, memory)
+            from prompts.source_metadata import SourceMetadata
+            metadata = SourceMetadata(
+                platform="synthetic", country="", language="en",
+                collection="test", has_metadata=True,
+            )
             row = {"platform": "synthetic", "id": "doc-1",
                    "text": "freedom is at stake"}
-            stage.run_row(row, "freedom is at stake", "{}", None)
+            stage.run_row(row, "freedom is at stake", "{}", metadata)
             stage.close()
         self.assertEqual(recorded, [], "temporal: false must not write relations")
         memory.close()
@@ -296,9 +301,14 @@ class TemporalSwitchTests(unittest.TestCase):
                 "fallback_used": False, "fallback_reason": "", "cache_hit": False,
             })
             stage = DiscourseStage(run, memory)
+            from prompts.source_metadata import SourceMetadata
+            metadata = SourceMetadata(
+                platform="synthetic", country="", language="en",
+                collection="test", has_metadata=True,
+            )
             row = {"platform": "synthetic", "id": "doc-1",
                    "text": "freedom is at stake"}
-            stage.run_row(row, "freedom is at stake", "{}", None)
+            stage.run_row(row, "freedom is at stake", "{}", metadata)
             stage.close()
         self.assertTrue(recorded, "temporal: true must write relations")
         memory.close()
