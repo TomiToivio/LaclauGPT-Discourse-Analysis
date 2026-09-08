@@ -802,7 +802,7 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
             relation=x["relation"], evidence=x["evidence"],
             evidence_source=x.get("evidence_source", ""),
             evidence_verified=x.get("evidence_verified", False),
-            claim_status=x.get("claim_status", "asserted"),
+            claim_status=x.get("claim_status", "uncertain"),
             confidence=x.get("confidence", 0.0), rationale=x.get("rationale", ""),
         ) for x in discourse.get("articulations", [])
     ]
@@ -812,7 +812,7 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
             present_diagnosis=x["present_diagnosis"], technology_role=x["technology_role"],
             human_agency=x["human_agency"], evidence=x["evidence_quote"],
             evidence_source=x.get("evidence_source", ""),
-            confidence=x["confidence"], claim_status=x.get("claim_status", "asserted"),
+            confidence=x["confidence"], claim_status=x.get("claim_status", "uncertain"),
             evidence_verified=x.get("evidence_verified", False),
         ) for x in discourse.get("imaginaries", [])
     ]
@@ -849,7 +849,8 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
     # own evidence; signifier membership is not fabricated here by assigning
     # every coded signifier to every candidate discourse.
     ann.discourses = [
-        Discourse(label=x["label"], confidence=x["confidence"], elements=[])
+        Discourse(label=x["label"], confidence=x["confidence"],
+                  evidence=x.get("evidence", ""), elements=[])
         for x in discourse.get("formation_candidates", [])
     ]
     ann.nodal_points.extend(_ref(x) for x in us_items + frontier_items if x.get("nodal"))
@@ -860,7 +861,7 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
             evidence_source=x.get("evidence_source", ""),
             evidence_verified=x.get("evidence_verified", False),
             confidence=x.get("confidence", 0.0),
-            claim_status=x.get("claim_status", "asserted"),
+            claim_status=x.get("claim_status", "uncertain"),
             nodal_candidate=x.get("nodal", False),
             empty_candidate=x.get("empty_candidate", False),
         )
