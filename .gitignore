@@ -186,6 +186,10 @@ cython_debug/
 /data/*
 !/sources/README.md
 !/data/README.md
+# EP24 codebooks are public research artifacts (human-curated, grounded in
+# public sources): track them despite the sources/ content rule.
+!/sources/codebooks/
+!/sources/codebooks/*.md
 
 # LaclauGPT collector: research data roots are never committed
 laclaugpt-brasil-data/
