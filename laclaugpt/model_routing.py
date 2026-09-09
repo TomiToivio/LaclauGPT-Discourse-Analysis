@@ -1,30 +1,30 @@
 # -*- coding: utf-8 -*-
 """AI26 task-difficulty model routing for Gemma 4 variants.
 
-Tomi's rule (2026-09-08): pick the Gemma 4 model by stage difficulty,
-not one-size-fits-all. All LOCAL (no cloud fallback for research).
+Tomi's rule (2026-09-08, revised same day): FEWER models. Three local tiers,
+31b and 12b retired on DEPLOYMENT_HOST. All LOCAL (no cloud fallback for research).
 
-Tiers on DEPLOYMENT_HOST (2x Tesla V100-32GB):
-    gemma4:e2b   7.2 GB  — cheap/dense stages (sentiment, entities, topics)
-    gemma4:e4b   9.6 GB  — default descriptive work
-    gemma4:12b   7.6 GB  — mid complexity, long context at lower rank
-    gemma4:26b  18.0 GB  — default RESEARCH model (MoE, strong reasoning)
-    gemma4:31b  19.9 GB  — hardest stage: discourse w/ evidence quotes
+Tiers on DEPLOYMENT_HOST (V100-32GB GPUs):
+    gemma4:e2b   7.2 GB  — cheap/dense stages (postprocess, entities, sentiment)
+    gemma4:e4b   9.6 GB  — default descriptive work (summary)
+    gemma4:26b  18.0 GB  — default RESEARCH model (MoE, strong reasoning):
+                           discourse (Laclau/Palonen coding + verbatim
+                           evidence) and populism (Us/Frontier judgement)
 
 Routing by pipeline stage:
-    summary      -> gemma4:e4b   (dense summary; quality gate is discourse)
-    discourse    -> gemma4:31b   (Laclau/Palonen coding + verbatim evidence)
-    postprocess  -> gemma4:e2b   (structured extraction, low ambiguity)
-    populism     -> gemma4:26b   (Us/Frontier judgement, needs reasoning)
+    summary      -> gemma4:e4b
+    discourse    -> gemma4:26b
+    postprocess  -> gemma4:e2b
+    populism     -> gemma4:26b
     entities     -> gemma4:e2b
     sentiment    -> gemma4:e2b
-    topics       -> gemma4:12b
-    temporal     -> gemma4:12b
+    topics       -> gemma4:26b  (long-context reasoning on a small rotation)
+    temporal     -> gemma4:26b
 
-Document-length override: very long texts (transcripts > 8000 chars)
-escalate one tier for summary/discourse to preserve evidence fidelity.
-GPU memory guard: 31b needs ~20GB VRAM; if the other GPU is busy the
-worker falls back 31b -> 26b -> 12b and records the fallback reason.
+Document-length override: very long texts (>8000 chars) escalate e2b/e4b
+one tier to preserve evidence fidelity. GPU memory guard: if a tier does
+not fit free VRAM the worker walks DOWN the capability order and records
+the fallback reason.
 """
 from __future__ import annotations
 
@@ -35,23 +35,21 @@ from functools import lru_cache
 MODELS = {
     "e2b": "gemma4:e2b",
     "e4b": "gemma4:e4b",
-    "12b": "gemma4:12b",
     "26b": "gemma4:26b",
-    "31b": "gemma4:31b",
 }
 
 # Ascending capability order for fallback walks
-CAPABILITY_ORDER = ["e2b", "e4b", "12b", "26b", "31b"]
+CAPABILITY_ORDER = ["e2b", "e4b", "26b"]
 
 STAGE_ROUTING = {
     "summary": "e4b",
-    "discourse": "31b",
+    "discourse": "26b",
     "postprocess": "e2b",
     "populism": "26b",
     "entities": "e2b",
     "sentiment": "e2b",
-    "topics": "12b",
-    "temporal": "12b",
+    "topics": "26b",
+    "temporal": "26b",
 }
 
 # texts longer than this escalate one tier (evidence fidelity on long posts)
@@ -95,7 +93,7 @@ def pick_model(stage: str, text_len: int = 0) -> str:
     """
     tier = STAGE_ROUTING.get(stage, "26b")
     if text_len > LONG_TEXT_CHARS and tier in ("e2b", "e4b"):
-        tier = "12b"
+        tier = "26b"
     loaded = _loaded_models()
     free = _free_vram_gb()
     # walk DOWN the capability order from the requested tier
@@ -105,7 +103,7 @@ def pick_model(stage: str, text_len: int = 0) -> str:
         if tag not in loaded:
             continue
         # rough VRAM guards: need model size + KV cache headroom
-        need = {"e2b": 6, "e4b": 8, "12b": 7, "26b": 17, "31b": 19}[name]
+        need = {"e2b": 6, "e4b": 8, "26b": 17}[name]
         if free == 0 or free >= need * 0.9:
             return tag
     # nothing fits by VRAM estimate — return the smallest present as last resort
