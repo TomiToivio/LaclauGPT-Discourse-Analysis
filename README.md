@@ -348,13 +348,36 @@ install both collector and test extras to run the exact full suite used by CI:
 
 ```bash
 python -m pip install -e ".[collector,test]"
-python -m pytest -q tests
+LACLAUGPT_EMBED_BACKEND=none python -m pytest -q tests
+```
+
+The regression suite covers the main public contracts of the repository, including:
+
+- canonical API consolidation, configuration composition and execution profiles;
+- theory-contract validation, discourse roles, populism structures and corpus-level synthesis candidates;
+- Context Memory, review state, evidence/provenance handling and interchange round-trips;
+- LLM routing and agent integration policy without making live model calls;
+- discourse-graph construction and visualization-facing data contracts;
+- source collection, minet/Zeeschuimer ingestion, collector parsers, media handling and runner behaviour;
+- EP24 ASR/media compatibility and other historical/public regression paths;
+- failure cleanup, CLI smoke paths, deployment profiles and compatibility shims.
+
+Useful focused runs include:
+
+```bash
+python -m pytest -q tests/test_theory_contract.py
+python -m pytest -q tests/test_config_chain.py tests/test_canonical_config_execution.py
+python -m pytest -q tests/test_context_memory_review.py
+python -m pytest -q tests/test_discourse_graph.py
+python -m pytest -q tests/collectors
+python -m pytest -q tests/test_pipeline_failure_cleanup.py -k name
 ```
 
 `tests/fixtures/synthetic_ai.csv` is a small public synthetic corpus. The mocked
 end-to-end tests run the real pipeline I/O, canonical configuration adapter,
 Context Memory and success-artifact publication path while replacing only model
-calls, then round-trip the emitted current-schema annotation JSONL.
+calls, then round-trip the emitted current-schema annotation JSONL. Collector
+tests use synthetic fixtures under `tests/fixtures/` and `tests/collectors/`.
 
 `.github/workflows/ci.yml` runs on every pull request and every push to `main`.
 Its core job installs `.[collector,test]`, compiles the shipped Python surface,
