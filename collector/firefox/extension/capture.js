@@ -15,7 +15,7 @@
 (() => {
   "use strict";
 
-  const BACKEND_URL = "http://127.0.0.1:8765";
+  const BACKEND_URL = "http://100.64.0.10:8765";
 
   // Request URL matchers per platform. Match endpoint families, never
   // deployment-specific GraphQL query IDs.
