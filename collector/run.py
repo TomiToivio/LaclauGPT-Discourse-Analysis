@@ -46,7 +46,8 @@ def _load_normalized_records(store: Store) -> list[dict]:
 
 def collect_account(store: Store, cfg: StudyConfig, row: dict,
                     driver: Any, run_id: str,
-                    scrolls: int | None = None) -> dict:
+                    scrolls: int | None = None,
+                    download_media: bool = False) -> dict:
     """Collect one account on one platform. Returns a per-account result."""
     platform = row["platform"]
     module = PLATFORM_MODULES[platform]
@@ -100,6 +101,23 @@ def collect_account(store: Store, cfg: StudyConfig, row: dict,
                     record["raw_ref"] = raw_ref
                     if store.upsert_post(record, raw_ref):
                         result["posts"] += 1
+                    # Media download IMMEDIATELY after upsert, while the CDN
+                    # signatures from this browsing session are still fresh
+                    # (TikTok signs video URLs for a few hours; the hourly
+                    # post-pass misses most of them — 673/673 failures were
+                    # 403 with valid-looking expire params). The captured
+                    # cookies in the live browser session are also required:
+                    # bare urllib gets 403 even for unexpired URLs.
+                    if download_media:
+                        downloader = MediaDownloader(store, workers=1)
+                        m_jobs = downloader.enqueue_from_records([record])
+                        if m_jobs:
+                            m_results = downloader.run_queue(m_jobs)
+                            result.setdefault("media_inline", {
+                                "ok": 0, "failed": 0})
+                            for r in m_results:
+                                key = "ok" if r.get("status") == "ok" else "failed"
+                                result["media_inline"][key] += 1
 
         store.checkpoint(account, platform, status="ok")
         result["new_posts"] = store.seen_count(platform) - seen_now
@@ -178,7 +196,8 @@ def run_collection(config_path: str, data_root: str, driver=None,
         total_new = 0
         for row in cfg.accounts():
             result = collect_account(
-                store, cfg, row, driver, run_id=run_id, scrolls=scrolls)
+                store, cfg, row, driver, run_id=run_id, scrolls=scrolls,
+                download_media=download_media)
             manifest["accounts"].append(result)
             if result["status"] != "ok":
                 manifest["errors"].append(result)
