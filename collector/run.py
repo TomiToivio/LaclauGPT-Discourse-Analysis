@@ -99,25 +99,26 @@ def collect_account(store: Store, cfg: StudyConfig, row: dict,
                     mapped = module.map_item(item, meta)
                     record = normalize.normalise(platform, mapped, item, meta)
                     record["raw_ref"] = raw_ref
-                    if store.upsert_post(record, raw_ref):
+                    is_new = store.upsert_post(record, raw_ref)
+                    if is_new:
                         result["posts"] += 1
-                    # Media download IMMEDIATELY after upsert, while the CDN
-                    # signatures from this browsing session are still fresh
-                    # (TikTok signs video URLs for a few hours; the hourly
-                    # post-pass misses most of them — 673/673 failures were
-                    # 403 with valid-looking expire params). The captured
-                    # cookies in the live browser session are also required:
-                    # bare urllib gets 403 even for unexpired URLs.
-                    if download_media:
+                    # Media download while the CDN signatures from THIS browsing
+                    # session are still fresh. TikTok signs video URLs per
+                    # session: a signature that fails with 403 in a later
+                    # hourly pass may be valid RIGHT NOW in this capture.
+                    # Fires for NEW posts AND for already-seen posts whose
+                    # media previously failed (retroactive recovery: the fresh
+                    # capture carries a fresh signed URL for the same post).
+                    if download_media and record.get("media_references"):
                         downloader = MediaDownloader(store, workers=1)
                         m_jobs = downloader.enqueue_from_records([record])
                         if m_jobs:
                             m_results = downloader.run_queue(m_jobs)
-                            result.setdefault("media_inline", {
+                            stats = result.setdefault("media_inline", {
                                 "ok": 0, "failed": 0})
                             for r in m_results:
                                 key = "ok" if r.get("status") == "ok" else "failed"
-                                result["media_inline"][key] += 1
+                                stats[key] += 1
 
         store.checkpoint(account, platform, status="ok")
         result["new_posts"] = store.seen_count(platform) - seen_now
