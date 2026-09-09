@@ -22,7 +22,7 @@
   const MATCHERS = {
     tiktok: /api\.tiktokv\.com|\/api\/post\/item_list|\/api\/search\/(?:item_list|general\/full)|\/api\/preload\/item_list/,
     instagram: /\/api\/v1\/|\/graphql(?:\/query)?(?:[/?]|$)/,
-    x: /\/i\/api\/graphql(?:\/|\?|$)/,
+    x: /(?:^|\.)x\.com\/i\/api\/graphql|(?:^|\.)twitter\.com\/i\/api\/graphql|\/i\/api\/graphql(?:\/|\?|$)/,
   };
 
   function platformFor(url) {
