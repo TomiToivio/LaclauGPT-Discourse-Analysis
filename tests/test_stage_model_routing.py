@@ -83,7 +83,7 @@ class StageRoutingTests(unittest.TestCase):
             try:
                 with (
                     patch.object(pipeline, "_stage_pick_model",
-                                 lambda stage_name, text_len: "gemma4:31b"),
+                                 lambda stage_name, text_len: "gemma4:26b"),
                     patch.object(pipeline, "chat_structured",
                                  return_value=(_Result(), _Provenance())) as fake,
                     patch.object(pipeline, "resolve_endpoint",
@@ -93,7 +93,7 @@ class StageRoutingTests(unittest.TestCase):
                 ):
                     stage.call("doc-1", "system", "user text", _Model)
                 served = fake.call_args[0][0]
-                self.assertEqual(served, "gemma4:31b")
+                self.assertEqual(served, "gemma4:26b")
             finally:
                 stage.close()
 
@@ -106,7 +106,7 @@ class StageRoutingTests(unittest.TestCase):
                 def router(stage_name: str, text_len: int) -> str:
                     seen["stage"] = stage_name
                     seen["text_len"] = text_len
-                    return "gemma4:12b"
+                    return "gemma4:26b"
 
                 with (
                     patch.object(pipeline, "_stage_pick_model", router),
@@ -131,7 +131,7 @@ class StageRoutingTests(unittest.TestCase):
 
                 def router(stage_name: str, text_len: int) -> str:
                     routed.append(stage_name)
-                    return "gemma4:31b"
+                    return "gemma4:26b"
 
                 with (
                     patch.object(pipeline, "_stage_pick_model", router),
