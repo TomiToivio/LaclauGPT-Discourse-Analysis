@@ -21,7 +21,7 @@ P = "ai26_"
 
 
 def _mongo_uri() -> str:
-    # private config holds the URI with the old vasama password
+    # private config holds the full MongoDB URI (credentials live outside the repo)
     text = CONFIG.read_text(encoding="utf-8")
     return re.search(r'uri: "(mongodb://[^"]+)"', text).group(1)
 
