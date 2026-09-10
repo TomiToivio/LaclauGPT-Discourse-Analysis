@@ -1,0 +1,12 @@
+# Example systemd user unit (DEPLOYMENT_HOST deployment; paths/host are environment-specific).
+[Unit]
+Description=AI26 Streamlit dashboard (Mongo-exported canonical annotations)
+
+[Service]
+Type=simple
+WorkingDirectory=LACLAUGPT_REPO_ROOT
+ExecStart=/usr/bin/python3 -m laclaugpt.cli dashboard collection-data/dashboard/elites.jsonl --project ai26 --arena elites --host 127.0.0.1 --port 8502
+Restart=on-failure
+RestartSec=30
+StandardOutput=append:%h/.config/laclaugpt/ai26/dashboard.log
+StandardError=append:%h/.config/laclaugpt/ai26/dashboard.log

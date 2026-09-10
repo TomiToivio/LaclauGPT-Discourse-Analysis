@@ -1,0 +1,11 @@
+# Example systemd user unit (DEPLOYMENT_HOST deployment; paths/host are environment-specific).
+[Unit]
+Description=AI26 YouTube channel RSS collection
+After=network-online.target mongodb.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=LACLAUGPT_REPO_ROOT/ai26_runtime
+ExecStart=/usr/bin/python3 LACLAUGPT_REPO_ROOT/ai26_runtime/collect_youtube_loop.py
+StandardOutput=append:%h/.config/laclaugpt/ai26/youtube.log
+StandardError=append:%h/.config/laclaugpt/ai26/youtube.log
