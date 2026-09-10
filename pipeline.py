@@ -18,16 +18,21 @@ from contextlib import ExitStack
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 from laclaugpt_interchange import (
     SCHEMA_VERSION,
     Affect, Articulation, Discourse, DocumentAnnotation, FormationAssessment,
-    MemoryRef, PopulismElementAssessment, SignifierRole,
+    MemoryRef, PopulismElementAssessment, SentimentObservation, SignifierRole,
     SociotechnicalImaginary, to_jsonl,
 )
-from laclaugpt_memory import Memory
+from laclaugpt_memory import KINDS, Memory
 from llm import chat_structured, model_digest, resolve_endpoint
+
+try:  # stage-aware local model routing (Laskin AI26); absent in older checkouts
+    from laclaugpt.model_routing import pick_model as _stage_pick_model
+except ImportError:  # pragma: no cover
+    _stage_pick_model = None
 from prompts import discourse as discourse_prompt
 from prompts import populism as populism_prompt
 from prompts import postprocess as postprocess_prompt
@@ -37,8 +42,8 @@ from prompts import topic_background as tb
 from run_config import RunConfig, get_run
 
 logger = logging.getLogger("laclaugpt")
-SUMMARY_PROMPT_VERSION = "summary-v2.1"
-POSTPROCESS_PROMPT_VERSION = "postprocess-v2.1"   # v2.1: spaCy NER types
+SUMMARY_PROMPT_VERSION = summary_prompt.PROMPT_VERSION
+POSTPROCESS_PROMPT_VERSION = postprocess_prompt.PROMPT_VERSION
 SOURCE_TEXT_FIELDS = (
     "text", "body", "content", "transcript", "caption", "description",
     "ocr", "ocr_text", "ethnography_notes", "researcher_notes",
@@ -80,6 +85,121 @@ def _cleanup_staged(paths: list[Path]) -> None:
             logger.warning("could not remove staged artifact %s", path, exc_info=True)
 
 
+MACHINE_CSV_COLUMNS = (
+    # Legacy-dashboard parity subset: one flat row per document so the EP24
+    # review workflow (and pandas) can load results without JSONL parsing.
+    "document_id", "relevance", "relevance_reason", "review_status",
+    "populist", "language", "source_platform", "source_country",
+    "summary", "evidence_quotes", "signifiers", "nodal_points",
+    "uncertainties", "run_id", "schema_version",
+)
+
+
+def export_machine_csv(annotations: list[DocumentAnnotation],
+                       path: str) -> str:
+    """Flat machine-readable CSV (one row per annotated document)."""
+    import csv as _csv
+    with open(path, "w", encoding="utf-8", newline="") as fh:
+        writer = _csv.writer(fh)
+        writer.writerow(MACHINE_CSV_COLUMNS)
+        for ann in annotations:
+            writer.writerow([
+                ann.document_id,
+                ann.relevance or "",
+                ann.relevance_reason,
+                ann.review_status,
+                "" if ann.populist is None else str(ann.populist).lower(),
+                ann.language, ann.source_platform, ann.source_country,
+                ann.summary,
+                " | ".join(ann.evidence_quotes),
+                "; ".join(s.label for s in ann.signifiers),
+                "; ".join(s.label for s in ann.nodal_points),
+                " | ".join(ann.uncertainties),
+                ann.run_id, ann.schema_version,
+            ])
+    return path
+
+
+def export_discourse_graph(annotations: list[DocumentAnnotation],
+                           path: str, *, run: RunConfig | None = None) -> str:
+    """Canonical discourse-graph projection (docs/DISCOURSE_GRAPH_SCHEMA.md).
+
+    Deterministic evidence-linked projection over the run's annotations:
+    documents, signifiers, role assignments, Palonen Us/Frontier/affect
+    nodes and SUPPORTED_BY evidence edges. Written for Gephi/GraphML-style
+    downstream tooling; carries provenance per the schema contract.
+    """
+    from laclaugpt.graph import build_discourse_graph
+    graph = build_discourse_graph(annotations)
+    if run is not None:
+        graph.metadata.setdefault("run_id", run.run_id)
+        graph.metadata.setdefault("project", getattr(run, "project", ""))
+        graph.metadata.setdefault("arena", getattr(run, "arena", ""))
+    payload = graph.to_dict()
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False, indent=2)
+    return path
+
+
+def write_human_report(annotations: list[DocumentAnnotation],
+                       synthesis: dict, path: str) -> str:
+    """Human-readable run report (markdown), legacy-summary parity.
+
+    One section per document: summary, populism verdict, key codings and
+    uncertainties — plus the run-level relevance/review bookkeeping.
+    """
+    relevant = [a for a in annotations if a.relevance != "irrelevant"]
+    irrelevant = [a for a in annotations if a.relevance == "irrelevant"]
+    lines: list[str] = [
+        "# EP24 analysis report",
+        "",
+        f"Documents: {len(annotations)} "
+        f"({len(relevant)} relevant, {len(irrelevant)} marked irrelevant)",
+        f"Review queue: {sum(1 for a in annotations if a.requires_human_review)} "
+        "provisional annotations need human review",
+        "",
+        "## Corpus synthesis (descriptive only)",
+        "",
+        f"- documents in synthesis: {synthesis.get('documents')}",
+        f"- signifier families: {len(synthesis.get('signifier_frequency', {}))}",
+        f"- floating candidates: {len(synthesis.get('floating_candidates', []))}",
+        f"- empty candidates: {len(synthesis.get('empty_candidates', []))}",
+        f"- nodal candidates: {len(synthesis.get('nodal_candidates', []))}",
+        "",
+        "> Frequency is not hegemony; candidate rows need human adjudication.",
+        "",
+    ]
+    for ann in annotations:
+        lines += [
+            f"## {ann.document_id}",
+            "",
+            f"- relevance: **{ann.relevance or 'not judged'}**"
+            + (f" — {ann.relevance_reason}" if ann.relevance_reason else ""),
+            f"- review: {ann.review_status}"
+            + (" (needs human review)" if ann.requires_human_review else ""),
+            f"- populist: {ann.populist}",
+            f"- language: {ann.language or '?'} | platform: {ann.source_platform or '?'}",
+            "",
+            "### Summary",
+            "",
+            ann.summary or "(no summary)",
+            "",
+        ]
+        if ann.populism_analysis:
+            lines += ["### Populism analysis", "", ann.populism_analysis, ""]
+        if ann.evidence_quotes:
+            lines += ["### Evidence quotes", ""]
+            lines += [f"- \"{q}\"" for q in ann.evidence_quotes[:5]]
+            lines += [""]
+        if ann.uncertainties:
+            lines += ["### Uncertainties", ""]
+            lines += [f"- {u}" for u in ann.uncertainties[:5]]
+            lines += [""]
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines))
+    return path
+
+
 def _prepare_success_artifacts(
     annotations: list[DocumentAnnotation], destination: Path,
     run: RunConfig, memory: Memory,
@@ -95,15 +215,30 @@ def _prepare_success_artifacts(
     """
     corpus_destination = destination.with_suffix(".corpus.json")
     review_destination = run.log_dir / "glossary_review.csv"
+    # Legacy parity (issue #73): the old dashboard consumed one wide CSV and
+    # one human-readable summary per run. Machine CSV = one row per document
+    # (flat subset of the JSONL); human report = readable markdown digest.
+    machine_csv_destination = destination.with_suffix(".csv")
+    report_destination = destination.with_suffix(".report.md")
+    # Canonical discourse graph projection (docs/DISCOURSE_GRAPH_SCHEMA.md):
+    # evidence-linked graph over the run's annotations for vis/Gephi tooling.
+    graph_destination = destination.with_suffix(".graph.json")
     run.log_dir.mkdir(parents=True, exist_ok=True)
 
     staged_output = _staging_path(destination)
     staged_corpus = _staging_path(corpus_destination)
     staged_review = _staging_path(review_destination)
-    staged = [staged_output, staged_corpus, staged_review]
+    staged_machine_csv = _staging_path(machine_csv_destination)
+    staged_report = _staging_path(report_destination)
+    staged_graph = _staging_path(graph_destination)
+    staged = [staged_output, staged_corpus, staged_review,
+              staged_machine_csv, staged_report, staged_graph]
     try:
         to_jsonl(annotations, str(staged_output))
         synthesis = corpus_synthesis(annotations, staged_corpus)
+        export_machine_csv(annotations, str(staged_machine_csv))
+        write_human_report(annotations, synthesis, str(staged_report))
+        export_discourse_graph(annotations, str(staged_graph), run=run)
         memory.export_review_csv(str(staged_review))
         memory.record_analysis(
             "run", "pipeline-run-prepared",
@@ -115,11 +250,12 @@ def _prepare_success_artifacts(
                 "artifact_state": "ready_to_publish",
             },
         )
-        # Publish ancillary files first and the annotation JSONL last. The
-        # annotation path is therefore the authoritative completion boundary.
         return synthesis, [
             (staged_corpus, corpus_destination),
             (staged_review, review_destination),
+            (staged_machine_csv, machine_csv_destination),
+            (staged_report, report_destination),
+            (staged_graph, graph_destination),
             (staged_output, destination),
         ]
     except Exception:
@@ -172,7 +308,6 @@ def document_key(row: Any) -> str:
     return "document::" + hashlib.sha256(payload.encode("utf-8")).hexdigest()[:20]
 
 
-# Backward-compatible name used by older utilities.
 video_key = document_key
 
 
@@ -187,9 +322,14 @@ def source_text(row: Any) -> str:
     return "\n\n".join(chunks)
 
 
+def _normalise_quote(value: str) -> str:
+    """Shared quote normalisation for the mechanical evidence gates."""
+    return " ".join((value or "").casefold().split()).strip(' "“”')
+
+
 def evidence_source(quote: str, row: Any) -> str:
     """Locate a verbatim model quote in the original source column."""
-    needle = " ".join((quote or "").casefold().split()).strip(' "“”')
+    needle = _normalise_quote(quote)
     if not needle:
         return ""
     data = _row_dict(row)
@@ -238,12 +378,13 @@ def analytic_hints_text(run: RunConfig) -> str:
 
 
 def evidence_is_in_source(quote: str, text: str) -> bool:
-    """Mechanical hallucination gate for verbatim evidence spans."""
-    def normalise(value: str) -> str:
-        return " ".join((value or "").casefold().split()).strip(' "“”')
+    """Mechanical hallucination gate for verbatim evidence spans.
 
-    needle = normalise(quote)
-    return bool(needle) and needle in normalise(text)
+    Delegates to the shared normalisation so this gate and
+    ``evidence_source()`` can never drift apart (issue #60).
+    """
+    needle = _normalise_quote(quote)
+    return bool(needle) and needle in _normalise_quote(text)
 
 
 def source_description(run: RunConfig, row: Any) -> sm.SourceMetadata:
@@ -265,6 +406,15 @@ def source_description(run: RunConfig, row: Any) -> sm.SourceMetadata:
     )
 
 
+def _is_local_gemma4(model: str | None) -> bool:
+    """True when the configured model is a local gemma4 tag (not *-cloud/:cloud)."""
+    if not model:
+        return False
+    lowered = model.casefold()
+    return lowered.startswith("gemma4:") and not (
+        lowered.endswith("-cloud") or lowered.endswith(":cloud"))
+
+
 class Stage:
     """Versioned SQLite cache with actual-model provenance per stage call."""
 
@@ -278,7 +428,6 @@ class Stage:
         run.database_dir.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(run.database_dir / f"{stage_name}.db")
         try:
-            # v3 records the model/mode that actually produced the cached result.
             self.table = f"{stage_name}_v3"
             conn.execute(f"""CREATE TABLE IF NOT EXISTS {self.table} (
                 cache_key TEXT PRIMARY KEY,
@@ -299,6 +448,11 @@ class Stage:
             raise
         self.conn: sqlite3.Connection | None = conn
 
+    def memory_context(self, text: str, kinds: Iterable[str] = tuple(KINDS)) -> str:
+        if not self.run.enabled("context_memory"):
+            return "(context memory disabled for this analysis profile)"
+        return self.memory.context_prompt_block(text, kinds=kinds)
+
     def fingerprint(self, key: str, system: str, user: str, *,
                     model: str | None = None, digest: str | None = None,
                     mode: str | None = None) -> str:
@@ -311,8 +465,6 @@ class Stage:
             "run": self.run.fingerprint_payload(),
             "stage": self.stage_name,
             "prompt_version": self.prompt_version,
-            # The cache identity follows the model that actually produced the
-            # result. A cloud fallback is therefore never cached as local.
             "model": selected_model,
             "model_mode": selected_mode,
             "model_digest": selected_digest,
@@ -357,7 +509,20 @@ class Stage:
     def call(self, key: str, system: str, user: str, model_cls: type):
         if self.conn is None:
             raise RuntimeError(f"stage {self.stage_name} is closed")
-        requested_mode, requested_model = resolve_endpoint(self.run.model_text)
+        requested_model = self.run.model_text
+        # Stage-aware local routing (Tomi's 2026-09-08 rule): resolve the
+        # gemma4 tier per pipeline stage when the configured model is a local
+        # gemma4 tag. Non-gemma4 (synthetic mocks, cloud tags) stay untouched;
+        # resolve_endpoint handles mode/host resolution below either way.
+        if _stage_pick_model is not None and _is_local_gemma4(requested_model):
+            try:
+                requested_model = _stage_pick_model(
+                    self.stage_name, len(user) - len(system))
+            except Exception as exc:  # pragma: no cover - routing is best-effort
+                logger.warning(
+                    "stage model routing failed for %s; using %s: %s",
+                    self.stage_name, requested_model, exc)
+        requested_mode, requested_model = resolve_endpoint(requested_model)
         requested_digest = model_digest(requested_model)
         requested_key = self.fingerprint(
             key, system, user, model=requested_model,
@@ -368,7 +533,7 @@ class Stage:
             return model_cls.model_validate_json(cached)
 
         result, provenance = chat_structured(
-            self.run.model_text, system, user, model_cls,
+            requested_model, system, user, model_cls,
             {
                 "temperature": self.run.temperature,
                 "num_ctx": self.run.num_ctx,
@@ -412,7 +577,7 @@ class SummaryStage(Stage):
     def run_row(self, row: Any, text: str, metadata: sm.SourceMetadata):
         topic = tb.topic_background(self.run.topic_key)
         system = summary_prompt.build_system_prompt(
-            topic, metadata.prompt_text(), self.memory.context_prompt_block(text),
+            topic, metadata.prompt_text(), self.memory_context(text),
         )
         data = _row_dict(row)
         user = summary_prompt.build_user_prompt(
@@ -433,7 +598,7 @@ class DiscourseStage(Stage):
         key = document_key(row)
         system = discourse_prompt.build_system_prompt(
             tb.topic_background(self.run.topic_key), metadata.prompt_text(),
-            analytic_hints_text(self.run), self.memory.context_prompt_block(text),
+            analytic_hints_text(self.run), self.memory_context(text),
         )
         user = discourse_prompt.build_user_prompt(
             text, json.dumps(_row_dict(row), ensure_ascii=False, default=str), summary_json,
@@ -475,10 +640,11 @@ class DiscourseStage(Stage):
                     }
                     by_raw[raw.casefold()] = existing
                 refs.append(existing)
-            self.memory.record_relation(
-                refs[0]["obj_id"], refs[1]["obj_id"], coding.relation,
-                source_ref=key,
-            )
+            if self.run.enabled("temporal"):
+                self.memory.record_relation(
+                    refs[0]["obj_id"], refs[1]["obj_id"], coding.relation,
+                    source_ref=key,
+                )
             articulations.append({
                 "source": refs[0], "target": refs[1], "relation": coding.relation,
                 "rationale": coding.rationale, "evidence": coding.evidence_quote,
@@ -515,7 +681,15 @@ class DiscourseStage(Stage):
                 for x in result.imaginaries
             ],
             "formation_candidates": formations,
-            "hegemonic_evidence": result.hegemonic_evidence,
+            "hegemonic_evidence": [
+                # INV_HEGEMONY_CORPUS (issue #60): hegemonic evidence passes
+                # through the same mechanical verbatim gate as every other
+                # coding family instead of riding in as unchecked prose.
+                {"quote": quote,
+                 "evidence_source": evidence_source(quote, row),
+                 "evidence_verified": bool(evidence_source(quote, row))}
+                for quote in result.hegemonic_evidence if (quote or "").strip()
+            ],
             "uncertainties": result.uncertainties,
         }
 
@@ -526,23 +700,26 @@ class PostprocessStage(Stage):
 
     def run_row(self, row: Any, text: str, summary_json: str) -> dict:
         key = document_key(row)
+        include_topics = self.run.enabled("topics")
+        include_entities = self.run.enabled("entities")
+        include_sentiment = self.run.enabled("sentiment")
         system = postprocess_prompt.build_system_prompt(
-            self.memory.context_prompt_block(text, kinds=("topic", "entity", "target"))
+            self.memory_context(text, kinds=("topic", "entity", "target")),
+            include_topics=include_topics,
+            include_entities=include_entities,
+            include_sentiment=include_sentiment,
         )
         Extraction = postprocess_prompt.pydantic_models()
         result = self.call(
             key, system, f"Source material:\n{text}\n\nAnalysis:\n{summary_json}", Extraction,
         )
-        out = {}
-        groups = {
-            "topics": (list(result.topics) + list(result.new_topics), "topic"),
-            "entities": (list(result.entities) + list(result.new_entities), "entity"),
-            "positive": (list(result.positive), "target"),
-            "neutral": (list(result.neutral), "target"),
-            "negative": (list(result.negative), "target"),
-        }
-        # entity_types[i] classifies result.entities[i]; new_entities have no
-        # LLM-assigned type (empty kind_type until human review assigns one)
+        out: dict[str, Any] = {}
+        groups: dict[str, tuple[list[str], str]] = {}
+        if include_topics:
+            groups["topics"] = (list(result.topics) + list(result.new_topics), "topic")
+        if include_entities:
+            groups["entities"] = (list(result.entities) + list(result.new_entities), "entity")
+
         ner_by_index = list(result.entity_types or [])
         n_matched = len(result.entities)
         for name, (values, kind) in groups.items():
@@ -567,6 +744,57 @@ class PostprocessStage(Stage):
                     "ner_type": type_,
                 })
             out[name] = refs
+
+        out.setdefault("topics", [])
+        out.setdefault("entities", [])
+        out["sentiment"] = []
+        if include_sentiment:
+            readings = list(result.sentiments or [])
+            if readings:
+                for reading in readings:
+                    resolved = self.memory.resolve(
+                        reading.target, "target", stage="postprocess", video_key=key,
+                        evidence=reading.evidence_quote, model=self.actual_model,
+                    )
+                    source = evidence_source(reading.evidence_quote, row)
+                    out["sentiment"].append({
+                        "target": {
+                            "obj_id": resolved.obj_id,
+                            "label": resolved.label,
+                            "kind": "target",
+                            "raw": reading.target,
+                            "decision": resolved.decision,
+                            "ner_type": "",
+                        },
+                        "polarity": reading.polarity,
+                        "evidence_source": source,
+                        "uncertainty": reading.uncertainty,
+                    })
+            else:
+                # Compatibility fallback for a model response using only the
+                # historical polarity target lists. These observations are kept
+                # maximally uncertain because no evidence quote was supplied.
+                for polarity in ("positive", "neutral", "negative"):
+                    for raw in dict.fromkeys(
+                        v for v in getattr(result, polarity, []) if v and v.strip()
+                    ):
+                        resolved = self.memory.resolve(
+                            raw, "target", stage="postprocess", video_key=key,
+                            evidence=text[:500], model=self.actual_model,
+                        )
+                        out["sentiment"].append({
+                            "target": {
+                                "obj_id": resolved.obj_id,
+                                "label": resolved.label,
+                                "kind": "target",
+                                "raw": raw,
+                                "decision": resolved.decision,
+                                "ner_type": "",
+                            },
+                            "polarity": polarity,
+                            "evidence_source": "postprocess-legacy-list",
+                            "uncertainty": 1.0,
+                        })
         return out
 
 
@@ -579,7 +807,7 @@ class PopulismStage(Stage):
         key = document_key(row)
         system = populism_prompt.build_system_prompt(
             tb.topic_background(self.run.topic_key), metadata.prompt_text(),
-            self.memory.context_prompt_block(text, kinds=("signifier", "target")),
+            self.memory_context(text, kinds=("signifier", "target")),
         )
         user = (
             f"SOURCE MATERIAL:\n{text}\n\nPRELIMINARY SUMMARY:\n{summary_json}"
@@ -587,14 +815,6 @@ class PopulismStage(Stage):
         )
         _, Formula = populism_prompt.pydantic_models()
         result = self.call(key, system, user, Formula)
-        if not result.populist:
-            return {
-                "populist": False, "non_populist_reason": result.non_populist_reason,
-                "populism_analysis": result.populism_analysis,
-                "populism_us": [], "populism_frontier": [],
-                "counter_evidence": result.counter_evidence,
-                "uncertainties": result.uncertainties,
-            }
 
         def resolve_side(items):
             out = []
@@ -610,12 +830,26 @@ class PopulismStage(Stage):
                     "affect": item.populism_affect,
                     "evidence": item.evidence_quote,
                     "confidence": item.confidence,
+                    "claim_status": item.claim_status,
                     "nodal": item.nodal_candidate,
                     "empty_candidate": item.empty_candidate,
                     "evidence_verified": bool(evidence_source(item.evidence_quote, row)),
                     "evidence_source": evidence_source(item.evidence_quote, row),
                 })
             return out
+
+        if not result.populist:
+            # Issue #59: an abstention may retain ONE evidenced side as
+            # structured document-level candidates instead of discarding
+            # partial evidence; the prompt validator forbids both sides here.
+            return {
+                "populist": False, "non_populist_reason": result.non_populist_reason,
+                "populism_analysis": result.populism_analysis,
+                "populism_us": resolve_side(result.populism_us),
+                "populism_frontier": resolve_side(result.populism_frontier),
+                "counter_evidence": result.counter_evidence,
+                "uncertainties": result.uncertainties,
+            }
 
         return {
             "populist": True, "non_populist_reason": "",
@@ -656,6 +890,11 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
     modalities, transformations = source_provenance(row)
     stage_provenance = stage_provenance or {}
     annotation_model, annotation_digest = _annotation_model(stage_provenance, run.model_text)
+    # Us/Frontier refs are computed before construction so the interchange
+    # INV_POPULISM validator (populist=true requires both sides) sees the
+    # final state, not an empty intermediate one.
+    us_items = populism.get("populism_us", [])
+    frontier_items = populism.get("populism_frontier", [])
     ann = DocumentAnnotation(
         document_id=document_key(row),
         source_platform=str(data.get("platform") or data.get("source_platform") or ""),
@@ -668,6 +907,10 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
         populist=populism.get("populist"),
         populism_analysis=populism.get("populism_analysis", ""),
         non_populist_reason=populism.get("non_populist_reason", ""),
+        us=[_ref(x) for x in us_items],
+        frontier=[_ref(x) for x in frontier_items],
+        discourse_applicable=discourse.get("applicable"),
+        discourse_applicability_reason=str(discourse.get("applicability_reason", "")),
         uncertainties=list(discourse.get("uncertainties", [])) + list(populism.get("uncertainties", [])),
         hegemonic_evidence=discourse.get("hegemonic_evidence", []),
         prompt_versions={
@@ -719,7 +962,7 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
             relation=x["relation"], evidence=x["evidence"],
             evidence_source=x.get("evidence_source", ""),
             evidence_verified=x.get("evidence_verified", False),
-            claim_status=x.get("claim_status", "asserted"),
+            claim_status=x.get("claim_status", "uncertain"),
             confidence=x.get("confidence", 0.0), rationale=x.get("rationale", ""),
         ) for x in discourse.get("articulations", [])
     ]
@@ -729,7 +972,7 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
             present_diagnosis=x["present_diagnosis"], technology_role=x["technology_role"],
             human_agency=x["human_agency"], evidence=x["evidence_quote"],
             evidence_source=x.get("evidence_source", ""),
-            confidence=x["confidence"], claim_status=x.get("claim_status", "asserted"),
+            confidence=x["confidence"], claim_status=x.get("claim_status", "uncertain"),
             evidence_verified=x.get("evidence_verified", False),
         ) for x in discourse.get("imaginaries", [])
     ]
@@ -746,14 +989,30 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
         ann.counter_evidence
         + [item for formation in ann.formation_candidates for item in formation.counter_evidence]
     ))
+    postprocess_model = str(
+        stage_provenance.get("postprocess", {}).get("actual_model") or annotation_model
+    )
+    ann.sentiment_observations = [
+        SentimentObservation(
+            target=_ref(x["target"]),
+            polarity=x["polarity"],
+            evidence_source=x.get("evidence_source", ""),
+            uncertainty=x.get("uncertainty", 0.0),
+            model=postprocess_model,
+            prompt_version=POSTPROCESS_PROMPT_VERSION,
+            review_status="PROVISIONAL",
+        )
+        for x in extracted.get("sentiment", [])
+    ]
+    # Discourse membership is a human/corpus adjudication (THEORY.md §13.2):
+    # a formation candidate is published as a label with confidence and its
+    # own evidence; signifier membership is not fabricated here by assigning
+    # every coded signifier to every candidate discourse.
     ann.discourses = [
-        Discourse(label=x["label"], confidence=x["confidence"], elements=ann.signifiers)
+        Discourse(label=x["label"], confidence=x["confidence"],
+                  evidence=x.get("evidence", ""), elements=[])
         for x in discourse.get("formation_candidates", [])
     ]
-    us_items = populism.get("populism_us", [])
-    frontier_items = populism.get("populism_frontier", [])
-    ann.us = [_ref(x) for x in us_items]
-    ann.frontier = [_ref(x) for x in frontier_items]
     ann.nodal_points.extend(_ref(x) for x in us_items + frontier_items if x.get("nodal"))
     ann.populism_elements = [
         PopulismElementAssessment(
@@ -762,6 +1021,7 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
             evidence_source=x.get("evidence_source", ""),
             evidence_verified=x.get("evidence_verified", False),
             confidence=x.get("confidence", 0.0),
+            claim_status=x.get("claim_status", "uncertain"),
             nodal_candidate=x.get("nodal", False),
             empty_candidate=x.get("empty_candidate", False),
         )
@@ -792,11 +1052,57 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
     invalid_count += sum(not x.evidence_verified for x in ann.imaginaries)
     invalid_count += sum(not x.evidence_verified for x in ann.formation_candidates)
     invalid_count += sum(not x.evidence_verified for x in ann.populism_elements)
+    # INV_HEGEMONY_CORPUS (issue #60): hegemonic evidence participates in the
+    # unverified-evidence tally like every other coding family.
+    invalid_count += sum(not x.evidence_verified for x in ann.hegemonic_evidence)
     if invalid_count:
         ann.uncertainties.append(
             f"{invalid_count} discourse evidence quote(s) were not found verbatim in the source"
         )
+    _apply_relevance(ann, summary_json, discourse)
     return ann
+
+
+def _apply_relevance(ann: DocumentAnnotation, summary_json: str,
+                     discourse: dict) -> None:
+    """Mark-don't-drop relevance gate (issue #73 legacy parity).
+
+    The old EP24 dashboard silently dropped rows its operator judged
+    non-political. The new pipeline MARKS them instead: an irrelevant
+    document keeps its annotation (queryable, auditable) but is excluded
+    from corpus synthesis and human-review priority. Signals, in order:
+    1. the discourse stage already abstained as non-applicable;
+    2. the summary shows no political/electoral content (keyword gate on
+       EP24 scope: parties, candidates, elections, EU institutions).
+    The mark is PROVISIONAL by definition — human review can flip it.
+    """
+    if ann.discourse_applicable is False:
+        ann.relevance = "irrelevant"
+        ann.relevance_reason = (
+            "discourse stage judged the Laclaudian analysis non-applicable: "
+            + ann.discourse_applicability_reason)[:500]
+        return
+    summary_text = ann.summary or summary_json or ""
+    low = summary_text.lower()
+    scope_hits = any(token in low for token in (
+        "puolue", "vaali", "europaanse", "eu-parlament", "eduskunta", "euroryhmä",
+        "party", "election", "european parliament", "mep", "candidate",
+        "partia", "wybory", "parlament europejski", "kandydat",
+        "kokoomus", "perussuomalaiset", "sdp", "vasemmistoliitto", "keskusta",
+        "pis", "konfederacja", "kaczyński", "tusk", "sikorski",
+        "politiikka", "poliittinen", "politics", "political",
+    ))
+    has_coded_content = bool(
+        ann.signifier_roles or ann.articulations or ann.populism_elements
+        or ann.us or ann.frontier)
+    if scope_hits or has_coded_content:
+        ann.relevance = "relevant"
+        ann.relevance_reason = ""
+    else:
+        ann.relevance = "irrelevant"
+        ann.relevance_reason = (
+            "summary shows no political/electoral content and no coding "
+            "family produced evidence (EP24 scope gate)")
 
 
 def run_pipeline(run_id: str, csv_path: str, dry_run: bool = False,
@@ -805,8 +1111,6 @@ def run_pipeline(run_id: str, csv_path: str, dry_run: bool = False,
 
     run = get_run(run_id)
     setup_logging(run.log_dir)
-    # machine-tier routing: YAML/env decides local vs cloud Ollama.
-    # YAML values are applied as env defaults (explicit env still wins).
     if run.ollama_mode in ("local", "cloud", "external", "auto"):
         os.environ.setdefault("LLM_MODE", run.ollama_mode)
     if run.ollama_host:
@@ -900,8 +1204,6 @@ def run_pipeline(run_id: str, csv_path: str, dry_run: bool = False,
             annotations, destination, run, memory,
         )
 
-    # Resource cleanup is part of the success boundary: only publish the final
-    # output after every stage database and Context Memory have closed cleanly.
     _publish_success_artifacts(staged_artifacts)
     print(f"wrote {len(annotations)} provisional annotations to {destination}")
     return annotations
@@ -911,16 +1213,13 @@ def corpus_synthesis(annotations: list[DocumentAnnotation],
                      output_path: Path | None = None) -> dict:
     """Workflow stage 6 (paper §3.3): corpus-level descriptive synthesis.
 
-    Produces ONLY descriptive counts and candidate flags — never corpus-level
-    theoretical claims. Floating/empty signifier status and hegemony remain
-    human judgements; this module only assembles the comparable evidence:
-    - signifier frequency and arena spread (how many documents per arena
-      nominate the signifier, and in which roles)
-    - floating-signifier candidates with their per-arena role distribution
-      (comparative evidence a human needs to adjudicate floating status)
-    - nodal/empty candidates and their evidence counts
-    - articulation relation frequencies (equivalence/difference/antagonism)
+    Produces ONLY descriptive counts and candidate flags, never corpus-level
+    theoretical claims. Candidate rows preserve document-level evidence so a
+    human can inspect the basis for later corpus adjudication.
+    Irrelevant documents (relevance gate) are excluded from the analytic
+    counts but reported by count (mark-don't-drop, issue #73).
     """
+    annotations = [a for a in annotations if a.relevance != "irrelevant"] or annotations
     signifier_docs: dict[str, set] = {}
     signifier_roles: dict[str, dict[str, int]] = {}
     for ann in annotations:
@@ -939,26 +1238,26 @@ def corpus_synthesis(annotations: list[DocumentAnnotation],
                 continue
             relation_counts[art.relation] = relation_counts.get(art.relation, 0) + 1
 
-    floating_candidates = []
-    for ann in annotations:
-        for role in ann.signifier_roles:
-            if role.role == "floating_candidate" and role.evidence_verified:
-                key = role.signifier.obj_id or role.signifier.label
-                floating_candidates.append({
+    def candidate_rows(role_name: str) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for ann in annotations:
+            for role in ann.signifier_roles:
+                if role.role != role_name or not role.evidence_verified:
+                    continue
+                rows.append({
                     "obj_id": role.signifier.obj_id,
                     "label": role.signifier.label,
                     "document_id": ann.document_id,
                     "evidence": role.evidence,
+                    "evidence_source": role.evidence_source,
+                    "confidence": role.confidence,
                     "needs_corpus_validation": role.needs_corpus_validation,
                 })
+        return rows
 
-    empty_candidates = []
-    nodal_candidates = []
-    for key, roles in signifier_roles.items():
-        if roles.get("empty_candidate"):
-            empty_candidates.append(key)
-        if roles.get("nodal_candidate"):
-            nodal_candidates.append(key)
+    floating_candidates = candidate_rows("floating_candidate")
+    empty_candidates = candidate_rows("empty_candidate")
+    nodal_candidates = candidate_rows("nodal_candidate")
 
     synthesis = {
         "documents": len(annotations),
@@ -970,9 +1269,13 @@ def corpus_synthesis(annotations: list[DocumentAnnotation],
         "floating_candidates": floating_candidates,
         "empty_candidates": empty_candidates,
         "nodal_candidates": nodal_candidates,
-        "note": ("Descriptive corpus synthesis only. Floating/empty status and "
-                 "hegemony are human adjudications over this evidence, never "
-                 "automated findings (paper §3.3 stage 6)."),
+        "note": (
+            "Descriptive corpus synthesis only. Candidate rows preserve verified "
+            "document-level evidence for human adjudication. Floating/empty status "
+            "and hegemony are never automated findings. Signifier frequency is "
+            "descriptive only and must not be interpreted as hegemony "
+            "(THEORY.md INV_HEGEMONY_CORPUS; paper §3.3 stage 6)."
+        ),
     }
     if output_path is not None:
         output_path.parent.mkdir(parents=True, exist_ok=True)

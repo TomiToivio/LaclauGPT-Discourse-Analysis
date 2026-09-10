@@ -7,6 +7,21 @@ instance drive the canonical pipeline as its analysis workhorse. Nothing here
 is required for human use; the same CLI commands work with or without an
 agent.
 
+## Theory contract
+
+Before any theory-facing work, Hermes must read [`THEORY.md`](../THEORY.md) in
+full. It is the framework-independent semantic contract for prompts, schemas,
+discourse-analysis logic, Context Memory/codebook behaviour, corpus synthesis,
+visualisations and methodology documentation. The original Laclau, Laclau &
+Mouffe, and Palonen sources remain authoritative if a theoretical definition is
+changed. `HERMES.md` repeats the operational rule so that it reaches the agent
+system context.
+
+Hermes may orchestrate preliminary analysis, but it may not weaken the
+human-in-the-loop boundary. LaclauGPT outputs remain preliminary,
+human-reviewable research proposals until a human researcher verifies the
+source evidence and interpretation.
+
 ## Design principle
 
 Hermes participates as an ordinary **caller of the canonical CLI**, never as a
@@ -80,14 +95,32 @@ Such operations require a separate human-authorised interface.
 
 Hermes reads a project-context file from the repository and injects it into
 its system prompt. This repository ships
-[`HERMES.md`](../HERMES.md) for that purpose: it pins the memory boundary
-(Hermes memory = individual cognition; the interchange/Context Memory stores
-= shared social memory), names the canonical entry points above, and sets the
-agent's personality boundary for conversational use.
+[`HERMES.md`](../HERMES.md) for that purpose: it requires `THEORY.md` before
+theory-facing work, pins the memory boundary (Hermes memory = individual
+cognition; the interchange/Context Memory stores = shared social memory), names
+the canonical entry points above, and sets the agent's personality boundary for
+conversational use.
 
 Optional, not installed by any default: a user who wants this integration
 installs [Hermes](https://hermes-agent.nousresearch.com/docs/) and points a
 profile at this checkout; the repo itself still needs no Hermes dependency.
+
+## Model routing boundary: local Ollama open-source models only
+
+Both agent integrations — **Hermes and Claude Code** — are restricted to
+**local Ollama open-source models**. This is enforced in the shared tool
+surface ([`laclaugpt/integrations/agent_policy.py`](../laclaugpt/integrations/agent_policy.py)):
+
+- agent-triggered runs require `LLM_MODE=local` in the environment;
+- `auto`, `cloud` and `external` routing are refused, because they can send
+  research data to Ollama cloud or an off-machine endpoint;
+- `LLM_ALLOW_CLOUD_FALLBACK=1` is refused, so a local run can never silently
+  fall back to a cloud model mid-run;
+- agent tool calls accept no model-routing flags or credentials.
+
+Human CLI invocations keep the full machine-tier routing described in
+`llm.py`; this restriction applies to the agent tool surface and to the
+instructions in `HERMES.md` / `CLAUDE.md`.
 
 ## Scheduling pattern
 
@@ -107,11 +140,16 @@ can call; the scheduler choice is left to the operator.
 Hermes must not:
 
 - change `LLM_MODE`, `OLLAMA_HOST`, cloud-fallback permission or credentials;
+- run analysis on anything but local Ollama open-source models (`LLM_MODE=local`
+  is required for agent-triggered runs, with no cloud fallback) — the same rule
+  binds the Claude Code integration;
 - send research data to a model endpoint outside the configured dataset policy;
 - bypass LaclauGPT configuration validation;
 - write to GitHub, publish outputs or delete research data through this tool
   surface;
-- present Hermes's private/session memory as LaclauGPT research memory.
+- present Hermes's private/session memory as LaclauGPT research memory;
+- bypass `THEORY.md` invariants or human review in order to make analysis more
+  autonomous.
 
 The agent may inspect, propose and orchestrate. Canonical LaclauGPT code owns
 analysis semantics, provenance, routing, storage and research-state changes.

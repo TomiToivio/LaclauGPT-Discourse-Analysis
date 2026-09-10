@@ -92,9 +92,13 @@ python -m pip install pytest
 python -m pytest -q tests/collectors
 ```
 
+The public offline tests use `tests/fixtures/synthetic-collector-study.yaml`.
+Every person, group and handle in that fixture is fictional; tests do not depend
+on live research subjects or real social-media accounts.
+
 ## Configure accounts
 
-`config/brazil-election-2026.yaml` is the single source of truth for the study
+`config/study.private.yaml` is the single source of truth for the study
 window, timezone, enabled platforms, target accounts and page URL templates.
 Handles are kept exactly as configured. The file currently flags that seven
 main candidates were expected while six are configured; the collector reports
@@ -106,7 +110,7 @@ Start the local backend:
 
 ```bash
 python -m collector.firefox.firefox_backend \
-    --config collector/config/brazil-election-2026.yaml \
+    --config collector/config/study.private.yaml \
     --data-root ~/laclaugpt-brasil-data
 ```
 
@@ -130,7 +134,7 @@ Plan without browsing:
 
 ```bash
 python -m collector.run \
-    --config collector/config/brazil-election-2026.yaml \
+    --config collector/config/study.private.yaml \
     --data-root ~/laclaugpt-brasil-data \
     --dry-run
 ```
@@ -139,7 +143,7 @@ One Chromium/CDP pass:
 
 ```bash
 python -m collector.run \
-    --config collector/config/brazil-election-2026.yaml \
+    --config collector/config/study.private.yaml \
     --data-root ~/laclaugpt-brasil-data
 ```
 
@@ -147,7 +151,7 @@ HAR fallback:
 
 ```bash
 python -m collector.run \
-    --config collector/config/brazil-election-2026.yaml \
+    --config collector/config/study.private.yaml \
     --data-root ~/laclaugpt-brasil-data \
     --driver har
 ```
@@ -156,7 +160,7 @@ With media:
 
 ```bash
 python -m collector.run \
-    --config collector/config/brazil-election-2026.yaml \
+    --config collector/config/study.private.yaml \
     --data-root ~/laclaugpt-brasil-data \
     --download-media
 ```
@@ -176,33 +180,35 @@ prevents repeated normalized rows across passes.
   state.sqlite3
 ```
 
-A normalized record contains fields such as:
+A normalized record contains fields such as the following purpose-built
+synthetic example. The identifiers below do not refer to a real account or
+research participant:
 
 ```json
 {
   "document_id": "7400000000000000001",
   "platform": "tiktok",
-  "author": "lulaoficial",
+  "author": "synthetic_user",
   "timestamp": "2026-09-07T12:00:00Z",
-  "source_url": "https://www.tiktok.com/@lulaoficial/video/...",
-  "text": "caption…",
+  "source_url": "https://www.tiktok.com/@synthetic_user/video/7400000000000000001",
+  "text": "Synthetic caption for collector documentation.",
   "parent_document_id": null,
-  "hashtags": ["..."],
-  "mentions": ["..."],
+  "hashtags": ["synthetic"],
+  "mentions": [],
   "engagement": {"likes": 1234, "comments": 56, "plays": 90000},
   "media_references": [
-    {"kind": "video", "url": "...", "media_index": 0}
+    {"kind": "video", "url": "https://example.org/media/video.mp4", "media_index": 0}
   ],
   "raw_ref": "raw/tiktok/20260907/capture-....ndjson",
   "collection_provenance": {
-    "captured_at": "...",
+    "captured_at": "2026-09-07T12:00:00Z",
     "collector_version": "0.1.0",
     "module": "zeeschuimer-tiktok-2026-09",
     "git_commit": "abc1234",
-    "visited_url": "https://www.tiktok.com/@lulaoficial",
+    "visited_url": "https://www.tiktok.com/@synthetic_user",
     "api_url": "https://www.tiktok.com/api/post/item_list/...",
-    "run_id": "...",
-    "account": "Lula:lulaoficial",
+    "run_id": "synthetic-run-001",
+    "account": "Synthetic Candidate:synthetic_user",
     "transformations": ["laclaugpt-network-capture", "map_item-normalise"],
     "media_downloaded": null
   }

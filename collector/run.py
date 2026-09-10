@@ -1,6 +1,6 @@
 """Collection runner: systematic, resumable, observable.
 
-    python -m collector.run --config collector/config/brazil-election-2026.yaml \
+    python -m collector.run --config collector/config/study.private.yaml \
         --data-root ~/laclaugpt-brasil-data
 
 One run iterates every configured account on every enabled platform:
@@ -46,7 +46,8 @@ def _load_normalized_records(store: Store) -> list[dict]:
 
 def collect_account(store: Store, cfg: StudyConfig, row: dict,
                     driver: Any, run_id: str,
-                    scrolls: int | None = None) -> dict:
+                    scrolls: int | None = None,
+                    download_media: bool = False) -> dict:
     """Collect one account on one platform. Returns a per-account result."""
     platform = row["platform"]
     module = PLATFORM_MODULES[platform]
@@ -98,8 +99,26 @@ def collect_account(store: Store, cfg: StudyConfig, row: dict,
                     mapped = module.map_item(item, meta)
                     record = normalize.normalise(platform, mapped, item, meta)
                     record["raw_ref"] = raw_ref
-                    if store.upsert_post(record, raw_ref):
+                    is_new = store.upsert_post(record, raw_ref)
+                    if is_new:
                         result["posts"] += 1
+                    # Media download while the CDN signatures from THIS browsing
+                    # session are still fresh. TikTok signs video URLs per
+                    # session: a signature that fails with 403 in a later
+                    # hourly pass may be valid RIGHT NOW in this capture.
+                    # Fires for NEW posts AND for already-seen posts whose
+                    # media previously failed (retroactive recovery: the fresh
+                    # capture carries a fresh signed URL for the same post).
+                    if download_media and record.get("media_references"):
+                        downloader = MediaDownloader(store, workers=1)
+                        m_jobs = downloader.enqueue_from_records([record])
+                        if m_jobs:
+                            m_results = downloader.run_queue(m_jobs)
+                            stats = result.setdefault("media_inline", {
+                                "ok": 0, "failed": 0})
+                            for r in m_results:
+                                key = "ok" if r.get("status") == "ok" else "failed"
+                                stats[key] += 1
 
         store.checkpoint(account, platform, status="ok")
         result["new_posts"] = store.seen_count(platform) - seen_now
@@ -178,7 +197,8 @@ def run_collection(config_path: str, data_root: str, driver=None,
         total_new = 0
         for row in cfg.accounts():
             result = collect_account(
-                store, cfg, row, driver, run_id=run_id, scrolls=scrolls)
+                store, cfg, row, driver, run_id=run_id, scrolls=scrolls,
+                download_media=download_media)
             manifest["accounts"].append(result)
             if result["status"] != "ok":
                 manifest["errors"].append(result)

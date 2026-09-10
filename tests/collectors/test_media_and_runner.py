@@ -1,6 +1,7 @@
 """Media downloader, runner, config and resume tests (mocked HTTP/offline).
 
-Issue #20 required cases 7-12 plus config/provenance coverage.
+Issue #20 required cases 7-12 plus config/provenance coverage. Public tests use
+only the purpose-built synthetic collector study fixture.
 """
 from __future__ import annotations
 
@@ -14,6 +15,9 @@ import yaml
 from collector.config import load_config
 from collector.media import MediaDownloader
 from collector.store import Store
+
+
+SYNTHETIC_CONFIG = Path("tests/fixtures/synthetic-collector-study.yaml")
 
 
 # --- 7/8/9. media download (mocked HTTP) ---------------------------------------
@@ -51,10 +55,9 @@ def test_media_download_success(store):
     results = dl.run_queue(jobs)
     assert all(r["status"] == "ok" for r in results)
     for r in results:
-        assert r["sha256"]  # checksum recorded
+        assert r["sha256"]
         assert r["byte_size"] == len(b"synthetic-bytes")
         assert r["local_path"].startswith("media/")
-    # deterministic collision-resistant filenames platform_postID_mediaIndex
     names = sorted(r["media_key"] for r in results)
     assert names == ["tiktok_doc1_0", "tiktok_doc1_1"]
 
@@ -65,7 +68,6 @@ def test_media_failure_recorded_post_intact(store):
     results = dl.run_queue(dl.enqueue_from_records([rec]))
     assert all(r["status"] == "failed" for r in results)
     assert "expired" in results[0]["failure_reason"]
-    # the post metadata is unaffected — media_index just records failure
     known = store.media_known("tiktok_doc1_0")
     assert known["status"] == "failed"
 
@@ -74,10 +76,8 @@ def test_media_retry_no_duplicate(store):
     dl = MediaDownloader(store, fetcher=_fake_fetch_ok)
     rec = _record_with_media(store)
     dl.run_queue(dl.enqueue_from_records([rec]))
-    # second enqueue: verified copies exist -> nothing queued
     jobs2 = dl.enqueue_from_records([rec])
     assert jobs2 == []
-    # direct forced re-run also dedups by checksum
     results = dl.run_queue([{"media_key": "tiktok_doc1_0", "platform": "tiktok",
                              "document_id": "doc1", "media_index": 0,
                              "kind": "video", "url": "https://cdn.example/v.mp4"}])
@@ -87,10 +87,9 @@ def test_media_retry_no_duplicate(store):
 def test_media_failed_then_retry_downloads(store):
     dl = MediaDownloader(store, fetcher=_fake_fetch_expired)
     dl.run_queue(dl.enqueue_from_records([_record_with_media(store)]))
-    # retry with a working fetcher: failures are retried, not blacklisted
     dl2 = MediaDownloader(store, fetcher=_fake_fetch_ok)
     jobs = dl2.enqueue_from_records([_record_with_media(store)])
-    assert len(jobs) == 2  # failed entries stay queued
+    assert len(jobs) == 2
     results = dl2.run_queue(jobs)
     assert all(r["status"] == "ok" for r in results)
 
@@ -98,20 +97,20 @@ def test_media_failed_then_retry_downloads(store):
 # --- 10. resume after interruption ----------------------------------------------
 
 def test_checkpoints_resume(store):
-    store.checkpoint("Lula:lulaoficial", "tiktok", status="ok")
-    store.checkpoint("Lula:lulaoficial", "x", status="error: boom")
-    assert store.get_cursor("Lula:lulaoficial", "tiktok") is None
+    account = "Candidate Alpha:candidate_alpha"
+    store.checkpoint(account, "tiktok", status="ok")
+    store.checkpoint(account, "x", status="error: boom")
+    assert store.get_cursor(account, "tiktok") is None
     failing = store.failing_accounts()
-    assert ("Lula:lulaoficial", "x") == (failing[0][0], failing[0][1])
-    # a later successful run clears to ok
-    store.checkpoint("Lula:lulaoficial", "x", status="ok")
+    assert (account, "x") == (failing[0][0], failing[0][1])
+    store.checkpoint(account, "x", status="ok")
     assert store.failing_accounts() == []
 
 
 # --- 11. window filter -----------------------------------------------------------
 
 def test_study_window_filter(tmp_path):
-    cfg = load_config("collector/config/brazil-election-2026.yaml")
+    cfg = load_config(SYNTHETIC_CONFIG)
     assert cfg.in_window(date(2026, 9, 7)) is True
     assert cfg.in_window(date(2026, 10, 10)) is True
     assert cfg.in_window(date(2026, 10, 11)) is False
@@ -121,32 +120,29 @@ def test_study_window_filter(tmp_path):
 # --- 12. config: multiple accounts per candidate ---------------------------------
 
 def test_config_multiple_accounts_and_parties():
-    cfg = load_config("collector/config/brazil-election-2026.yaml")
+    cfg = load_config(SYNTHETIC_CONFIG)
     rows = cfg.accounts()
-    lula = [r for r in rows if r["name"] == "Lula"]
-    # two handles per platform for Lula
-    assert len(lula) >= 6
-    assert {r["handle"] for r in lula if r["platform"] == "x"} == {
-        "LulaOficial", "OBrasilComLula"}
-    assert {r["handle"] for r in lula if r["platform"] == "instagram"} == {
-        "lulaoficial", "brasilcomlula"}
-    assert {r["handle"] for r in lula if r["platform"] == "tiktok"} == {
-        "lulaoficial", "brasilcomlula_"}
-    # party accounts present as kind=party
-    pt = [r for r in rows if r["name"] == "PT"]
-    assert len(pt) == 3 and all(r["kind"] == "party" for r in pt)
-    pl = [r for r in rows if r["name"] == "PL"]
-    assert {r["handle"] for r in pl} == {"plnacional22", "plnacional_"}
-    # handles stored exactly as supplied (no silent correction)
-    zema = [r for r in rows if r["name"] == "Romeu Zema"]
-    assert {r["handle"] for r in zema if r["platform"] == "x"} == {"RomeuZema"}
+    alpha = [r for r in rows if r["name"] == "Candidate Alpha"]
+    assert len(alpha) >= 6
+    assert {r["handle"] for r in alpha if r["platform"] == "x"} == {
+        "CandidateAlpha", "AlphaCampaign"}
+    assert {r["handle"] for r in alpha if r["platform"] == "instagram"} == {
+        "candidate_alpha", "alpha_campaign"}
+    assert {r["handle"] for r in alpha if r["platform"] == "tiktok"} == {
+        "candidate_alpha", "alpha_campaign_"}
+    party_alpha = [r for r in rows if r["name"] == "Party Alpha"]
+    assert len(party_alpha) == 3 and all(r["kind"] == "party" for r in party_alpha)
+    party_beta = [r for r in rows if r["name"] == "Party Beta"]
+    assert {r["handle"] for r in party_beta} == {"party_beta", "party_beta_", "PartyBeta"}
+    gamma = [r for r in rows if r["name"] == "Candidate Gamma"]
+    assert {r["handle"] for r in gamma if r["platform"] == "x"} == {"CandidateGamma"}
 
 
 def test_config_missing_seventh_candidate_flagged():
-    cfg = load_config("collector/config/brazil-election-2026.yaml")
+    cfg = load_config(SYNTHETIC_CONFIG)
     assert cfg.expected_candidates == 7
     flag = cfg.missing_candidates()
-    assert flag, "gap must be flagged while only six candidates are configured"
+    assert flag, "gap must be flagged while only six synthetic candidates are configured"
     assert "7" in flag[0] and "6" in flag[0]
 
 
@@ -155,9 +151,9 @@ def test_config_missing_seventh_candidate_flagged():
 def test_run_dry_run_manifest(tmp_path):
     from collector import run as runner
 
-    repo_cfg = str(Path("collector/config/brazil-election-2026.yaml").resolve())
+    repo_cfg = str(SYNTHETIC_CONFIG.resolve())
     manifest = runner.run_collection(repo_cfg, str(tmp_path / "data"), dry_run=True)
-    assert manifest["study"] == "brazil-presidential-2026"
+    assert manifest["study"] == "synthetic-election-study"
     assert manifest["dry_run"] is True
     assert manifest["missing_candidates"]
     kinds = {a["kind"] for a in manifest["accounts"]}
@@ -169,8 +165,7 @@ def test_run_dry_run_manifest(tmp_path):
 def test_run_window_skip(tmp_path, monkeypatch):
     from collector import run as runner
 
-    cfg_path = str(Path("collector/config/brazil-election-2026.yaml").resolve())
-    # freeze the config loader to a window that excludes today
+    cfg_path = str(SYNTHETIC_CONFIG.resolve())
     real = load_config
 
     def fake_load(path):
@@ -187,13 +182,12 @@ def test_run_window_skip(tmp_path, monkeypatch):
 def test_manifest_written_and_provenance_fields(tmp_path, monkeypatch):
     """A (captured-free) live runner pass writes a manifest with provenance."""
     from collector import run as runner
-    from collector.browser import AgentBrowserDriver
 
     class FakeDriver:
         def capture_account(self, platform, url, scrolls, har_path=None):
-            return []  # simulate platforms serving nothing (offline)
+            return []
 
-    cfg_path = "collector/config/brazil-election-2026.yaml"
+    cfg_path = str(SYNTHETIC_CONFIG)
     real = load_config
 
     def fake_load(path):
@@ -217,9 +211,8 @@ def test_manifest_written_and_provenance_fields(tmp_path, monkeypatch):
 
 # --- config file validity ---------------------------------------------------------
 
-def test_brazil_config_yaml_shape():
-    data = yaml.safe_load(
-        open("collector/config/brazil-election-2026.yaml", encoding="utf-8"))
+def test_synthetic_config_yaml_shape():
+    data = yaml.safe_load(open(SYNTHETIC_CONFIG, encoding="utf-8"))
     assert data["timezone"] == "America/Sao_Paulo"
     assert data["window"]["start"] == "2026-09-07"
     assert data["window"]["end"] == "2026-10-10"

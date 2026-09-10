@@ -188,16 +188,16 @@ def test_normalise_record_provenance(tiktok_item):
     rec = normalize.normalise(
         "tiktok", mapped, tiktok_item,
         {"captured_at": "2026-09-07T10:00:00Z", "collector_version": "0.1.0",
-         "git_commit": "abc1234", "source_platform_url": "https://www.tiktok.com/@u",
+         "git_commit": "abc1234", "source_platform_url": "https://www.tiktok.com/@synthetic_user",
          "source_url": "https://api.example/item_list", "capture_id": "cap-1",
-         "account": "Lula:lulaoficial"})
+         "account": "Synthetic Candidate:synthetic_user"})
     assert rec["document_id"] == tiktok_item["id"]
     assert rec["platform"] == "tiktok"
     assert rec["source_url"] == f"https://www.tiktok.com/@synthetic_user/video/{tiktok_item['id']}"
     prov = rec["collection_provenance"]
     assert prov["collector_version"] == "0.1.0"
     assert prov["git_commit"] == "abc1234"
-    assert prov["visited_url"] == "https://www.tiktok.com/@u"
+    assert prov["visited_url"] == "https://www.tiktok.com/@synthetic_user"
     assert prov["api_url"] == "https://api.example/item_list"
     assert prov["capture_id"] == "cap-1"
     assert "laclaugpt-network-capture" in prov["transformations"]

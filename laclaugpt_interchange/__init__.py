@@ -18,9 +18,20 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
-SCHEMA_VERSION = "1.3"   # 1.3: MemoryRef.ner_type (spaCy NER classes)
+SCHEMA_VERSION = "1.7"   # 1.7: DocumentAnnotation.relevance / relevance_reason
+                         #       (mark-don't-drop legacy parity, issue #73)
+                         # 1.6: claim_status defaults to "uncertain" (INV_CONTEXT:
+                         #       omitting the field no longer silently asserts
+                         #       authorship); Discourse.evidence for candidate
+                         #       discourse labels
+                         # 1.5: PopulismElementAssessment.claim_status (INV_CONTEXT);
+                         #       DocumentAnnotation.discourse_applicable /
+                         #       discourse_applicability_reason (INV_ABSTAIN);
+                         #       populist=true requires non-empty us AND frontier
+                         # 1.4: DocumentAnnotation.sentiment_observations (descriptive)
+                         # 1.3: MemoryRef.ner_type (spaCy NER classes)
 
 
 class MemoryRef(BaseModel):
@@ -42,7 +53,8 @@ class Articulation(BaseModel):
     evidence: str = ""              # quote from the document
     evidence_source: str = ""       # source column/modal transformation
     evidence_verified: bool = False
-    claim_status: str = "asserted"
+    claim_status: str = "uncertain" # asserted|quoted|reported|rejected|parodied|uncertain;
+                                    # default uncertain so omission never asserts authorship
     confidence: float = 0.0
     rationale: str = ""
 
@@ -71,6 +83,7 @@ class UsFrontier(BaseModel):
 class Discourse(BaseModel):
     label: str = ""                 # free label (candidate discourse)
     confidence: float = 0.0
+    evidence: str = ""              # evidence quote for the label itself
     elements: list[MemoryRef] = []
 
 
@@ -94,7 +107,7 @@ class SociotechnicalImaginary(BaseModel):
     evidence: str = ""
     evidence_source: str = ""
     confidence: float = 0.0
-    claim_status: str = "asserted"
+    claim_status: str = "uncertain" # asserted|quoted|reported|rejected|parodied|uncertain
     evidence_verified: bool = False
 
 
@@ -117,8 +130,42 @@ class PopulismElementAssessment(BaseModel):
     evidence_source: str = ""
     evidence_verified: bool = False
     confidence: float = 0.0
+    claim_status: str = "uncertain"   # asserted|quoted|reported|rejected|parodied|uncertain
     nodal_candidate: bool = False
     empty_candidate: bool = False
+
+
+class HegemonicEvidenceSpan(BaseModel):
+    """One verified-or-flagged hegemonic evidence quote (schema 1.4).
+
+    Hegemony is the most theory-sensitive claim family (INV_HEGEMONY_CORPUS):
+    its evidence quotes now pass through the same mechanical verbatim gate and
+    carry the same evidence_source provenance as every other coding family.
+    Legacy bare-string entries (schema ≤1.3) are upgraded with verified=False,
+    so an unverified legacy quote can never silently pass as verified.
+    """
+    quote: str = Field(min_length=1)
+    evidence_source: str = ""         # source column/modal transformation
+    evidence_verified: bool = False
+
+
+class SentimentObservation(BaseModel):
+    """Descriptive sentiment observation (schema 1.4).
+
+    Deliberately distinct from Laclaudian affective investment (Affect):
+    this is the coarse positive/neutral/negative polarity assigned by the
+    descriptive post-processing stage, with the target resolved to a
+    stable codebook ID. Affect MUST NOT be reduced to this polarity
+    (paper §3.1, INTEROPERABILITY_SPEC §8); the two record families
+    coexist on one annotation but never substitute for each other.
+    """
+    target: MemoryRef                 # stable ID from laclaugpt_memory (C-kind)
+    polarity: str                     # positive | neutral | negative
+    evidence_source: str = ""         # stage/source field the reading came from
+    uncertainty: float = 0.0          # 0..1; 0 = no uncertainty recorded
+    model: str = ""                   # actual model that produced the reading
+    prompt_version: str = ""          # postprocess prompt version
+    review_status: str = "PROVISIONAL"
 
 
 class DocumentAnnotation(BaseModel):
@@ -152,7 +199,7 @@ class DocumentAnnotation(BaseModel):
     populism_analysis: str = ""
     non_populist_reason: str = ""
     uncertainties: list[str] = []
-    hegemonic_evidence: list[str] = []
+    hegemonic_evidence: list[HegemonicEvidenceSpan] = []
     requires_human_review: bool = True
     review_status: str = "PROVISIONAL"
     prompt_versions: dict[str, str] = {}
@@ -166,9 +213,86 @@ class DocumentAnnotation(BaseModel):
     collection_provenance: dict[str, Any] = {}
     populism_elements: list[PopulismElementAssessment] = []
     counter_evidence: list[str] = []
+    sentiment_observations: list[SentimentObservation] = []
+
+    # Discourse-stage applicability (INV_ABSTAIN): the model may judge the
+    # Laclaudian analysis non-applicable to a document. That signal is
+    # published instead of being discarded, so an "not applicable" document is
+    # distinguishable from one with legitimately empty codings.
+    discourse_applicable: bool | None = None
+    discourse_applicability_reason: str = ""
+
+    # Relevance (issue #73 legacy-parity): the old dashboard dropped rows it
+    # judged non-political silently. The new pipeline instead MARKS them:
+    # relevance="irrelevant" keeps the annotation queryable but excludes it
+    # from human-review queues and corpus synthesis. "relevant" is the
+    # normal analytic case; None = not yet judged (legacy rows).
+    relevance: str | None = None              # relevant | irrelevant
+    relevance_reason: str = ""
 
     summary: str = ""
     evidence_quotes: list[str] = []
+
+    @model_validator(mode="after")
+    def populist_requires_both_sides(self):
+        # INV_POPULISM (THEORY.md §15): populist=true requires an evidenced
+        # Us and Frontier construction. Enforcement lives at the prompt stage
+        # and here, at the schema every downstream consumer reads. Since
+        # issue #59, populist=false may carry evidenced sides (one side from
+        # the model's partial abstention; both sides after human review that
+        # rejects the formula while retaining the codings), so only the
+        # populist=true direction is schema-enforced here.
+        if self.populist and not (self.us and self.frontier):
+            raise ValueError(
+                "populist=true requires non-empty us and frontier lists "
+                "(INV_POPULISM: evidenced Us + Frontier construction)")
+        return self
+
+    @model_validator(mode="before")
+    @classmethod
+    def upgrade_legacy_hegemonic_evidence(cls, data):
+        # Schema-1.3 compatibility (INV_EVIDENCE / INV_HEGEMONY_CORPUS): the
+        # hegemonic evidence family used to be bare strings. Upgrade them to
+        # verified=False spans so an unverified legacy quote can never pass
+        # as verified, and older JSONL files stay readable.
+        if not isinstance(data, dict):
+            return data
+        legacy = data.get("hegemonic_evidence")
+        if isinstance(legacy, list):
+            data["hegemonic_evidence"] = [
+                item if isinstance(item, (dict, HegemonicEvidenceSpan))
+                else {"quote": str(item), "evidence_source": "",
+                      "evidence_verified": False}
+                for item in legacy if str(item).strip()
+            ]
+        return data
+
+    @model_validator(mode="after")
+    def substantive_codings_require_evidence(self):
+        # INV_EVIDENCE at schema level (issue #60): substantive theoretical
+        # codings must carry evidence. Older JSONL (schema ≤1.3) legitimately
+        # lacks verified fields, so legacy rows degrade to an explicit
+        # uncertainty instead of failing the whole file. New pipeline output
+        # fills these fields; a coding with no evidence text at all is a
+        # contract violation.
+        missing = []
+        for art in self.articulations:
+            if not (art.evidence or "").strip():
+                missing.append(f"articulation {art.signifier.obj_id}")
+        for role in self.signifier_roles:
+            if not (role.evidence or "").strip():
+                missing.append(f"signifier_role {role.signifier.obj_id}")
+        for element in self.populism_elements:
+            if not (element.evidence or "").strip():
+                missing.append(f"populism_element {element.element.obj_id}")
+        for span in self.hegemonic_evidence:
+            if not (span.quote or "").strip():
+                missing.append("hegemonic_evidence span")
+        if missing:
+            self.uncertainties.append(
+                "evidence-optional legacy coding(s) without evidence text: "
+                + "; ".join(missing[:5]))
+        return self
 
 
 def _as_iref(ref) -> MemoryRef:
@@ -205,7 +329,8 @@ def from_memory_results(document_id: str, *, platform: str = "", country: str = 
     ann.topics = [_as_iref(r) for r in (topic_refs or [])]
     if populism:
         def refs(items):
-            return [MemoryRef(obj_id=r["obj_id"], label=r["label"], kind="signifier",
+            return [MemoryRef(obj_id=r["obj_id"], label=r["label"],
+                              kind=r.get("kind", "signifier"),
                               raw=r.get("raw", ""))
                     for r in items if isinstance(r, dict) and r.get("obj_id")]
         ann.us = refs(populism.get("populism_us", []))
@@ -222,6 +347,7 @@ def from_memory_results(document_id: str, *, platform: str = "", country: str = 
                 evidence_source=r.get("evidence_source", ""),
                 evidence_verified=r.get("evidence_verified", False),
                 confidence=r.get("confidence", 0.0),
+                claim_status=r.get("claim_status", "uncertain"),
                 nodal_candidate=r.get("nodal", False),
                 empty_candidate=r.get("empty_candidate", False),
             )

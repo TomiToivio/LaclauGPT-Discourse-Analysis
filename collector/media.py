@@ -46,7 +46,7 @@ class FilesystemBackend(MediaBackend):
         tmp.write_bytes(data)
         tmp.replace(path)
         try:
-            return str(path.relative_to(self.reference_root))
+            return path.relative_to(self.reference_root).as_posix()
         except ValueError:
             return str(path)
 

@@ -12,6 +12,7 @@ import pytest
 from collector.firefox.firefox_backend import CaptureServer
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+SYNTHETIC_CONFIG = REPO_ROOT / "tests" / "fixtures" / "synthetic-collector-study.yaml"
 
 
 def _backend_url(server: CaptureServer, path: str) -> str:
@@ -30,8 +31,7 @@ def _post_json(server: CaptureServer, path: str, payload: dict):
 
 @pytest.fixture
 def server(tmp_path):
-    cfg = str(REPO_ROOT / "collector" / "config" / "brazil-election-2026.yaml")
-    s = CaptureServer(cfg, str(tmp_path / "data"), port=0)
+    s = CaptureServer(str(SYNTHETIC_CONFIG), str(tmp_path / "data"), port=0)
     # Keep pipeline tests independent of the real calendar. Window behaviour
     # has its own explicit regression test below.
     s.cfg.start, s.cfg.end = date(2000, 1, 1), date(2099, 12, 31)
@@ -47,7 +47,7 @@ def _tiktok_capture(tiktok_item, body_prefix="") -> dict:
     return {
         "platform": "tiktok",
         "api_url": "https://www.tiktok.com/api/post/item_list/?count=24",
-        "platform_url": "https://www.tiktok.com/@lulaoficial",
+        "platform_url": "https://www.tiktok.com/@candidate_alpha",
         "captured_at": "2026-09-07T10:00:00Z",
         "body": body_prefix + json.dumps({"itemList": [tiktok_item]}),
     }
@@ -68,7 +68,7 @@ def test_backend_roundtrip(server, tiktok_item):
     assert rec["document_id"] == tiktok_item["id"]
     assert rec["collection_provenance"]["collector_version"]
     # @handle URL attribution was previously broken and became "unattributed".
-    assert rec["collection_provenance"]["account"] == "Lula:lulaoficial"
+    assert rec["collection_provenance"]["account"] == "Candidate Alpha:candidate_alpha"
 
 
 def test_backend_accepts_instagram_anti_json_prefix(server, instagram_itemlist_item):
@@ -77,7 +77,7 @@ def test_backend_accepts_instagram_anti_json_prefix(server, instagram_itemlist_i
     capture = {
         "platform": "instagram",
         "api_url": "https://www.instagram.com/api/v1/feed/user/123/",
-        "platform_url": "https://www.instagram.com/lulaoficial/",
+        "platform_url": "https://www.instagram.com/candidate_alpha/",
         "captured_at": "2026-09-07T10:00:00Z",
         "body": "for (;;);" + json.dumps(envelope),
     }
@@ -92,17 +92,17 @@ def test_tour_endpoint_expands_all_configured_urls(server):
     assert tour["active"] is True
     assert tour["timezone"] == "America/Sao_Paulo"
     handles = {a["handle"] for a in tour["accounts"]}
-    assert "lulaoficial" in handles and "ptbrasil" in handles
+    assert "candidate_alpha" in handles and "party_alpha" in handles
 
-    lula_x = [a["url"] for a in tour["accounts"]
-              if a["platform"] == "x" and a["handle"] == "LulaOficial"]
-    assert "https://x.com/LulaOficial" in lula_x
-    assert "https://x.com/LulaOficial/with_replies" in lula_x
+    alpha_x = [a["url"] for a in tour["accounts"]
+               if a["platform"] == "x" and a["handle"] == "CandidateAlpha"]
+    assert "https://x.com/CandidateAlpha" in alpha_x
+    assert "https://x.com/CandidateAlpha/with_replies" in alpha_x
 
-    lula_ig = [a["url"] for a in tour["accounts"]
-               if a["platform"] == "instagram" and a["handle"] == "lulaoficial"]
-    assert "https://www.instagram.com/lulaoficial/" in lula_ig
-    assert "https://www.instagram.com/lulaoficial/reels/" in lula_ig
+    alpha_ig = [a["url"] for a in tour["accounts"]
+                if a["platform"] == "instagram" and a["handle"] == "candidate_alpha"]
+    assert "https://www.instagram.com/candidate_alpha/" in alpha_ig
+    assert "https://www.instagram.com/candidate_alpha/reels/" in alpha_ig
 
 
 def test_tour_and_capture_stop_outside_window(server, tiktok_item):
