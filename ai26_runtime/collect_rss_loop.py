@@ -1,24 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""AI26 RSS collection loop: feeds.txt -> laclaugpt collect -> mongo_writer.
-
-One process per timer tick; idempotent thanks to CollectionStore dedup
-ledger + unique Mongo indexes. Arena comes from feeds.txt col 1.
-"""
+"""AI26 RSS collection loop: feeds.txt -> laclaugpt collect -> Mongo writer."""
 from __future__ import annotations
 
 import os
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 
-sys.path.insert(0, "/mnt/workspace/LaclauGPT-Discourse-Analysis")
+REPO = Path(os.environ.get("LACLAUGPT_ROOT", str(Path(__file__).resolve().parents[1]))).expanduser().resolve()
+sys.path.insert(0, str(REPO))
 from ai26_runtime.mongo_writer import ingest_jsonl, get_db  # noqa: E402
 
-FEEDS = Path(os.environ.get("AI26_FEEDS",
-        "~/.config/laclaugpt/ai26/feeds.txt"))
-REPO = Path("/mnt/workspace/LaclauGPT-Discourse-Analysis")
+FEEDS = Path(os.environ.get("AI26_FEEDS", "~/.config/laclaugpt/ai26/feeds.txt")).expanduser()
 STORE = REPO / "collection-data"
 
 
@@ -26,9 +20,8 @@ def collect_feed(arena: str, url: str, label: str) -> int:
     """Run laclaugpt collect rss for one feed; ingest result into Mongo."""
     before = STORE.glob("normalized/rss.jsonl")
     count_before = sum(1 for _ in open(next(before), encoding="utf-8")) if any(STORE.glob("normalized/rss.jsonl")) else 0
-    result = subprocess.run(
-        ["python3", "-m", "laclaugpt.cli", "collect", "rss", url,
-         "--fetch-article"],
+    subprocess.run(
+        ["python3", "-m", "laclaugpt.cli", "collect", "rss", url, "--fetch-article"],
         cwd=REPO, capture_output=True, text=True, timeout=600)
     rss_file = STORE / "normalized" / "rss.jsonl"
     if not rss_file.exists():
@@ -36,9 +29,6 @@ def collect_feed(arena: str, url: str, label: str) -> int:
     count_after = sum(1 for _ in open(rss_file, encoding="utf-8"))
     if count_after <= count_before:
         return 0
-    # read only the NEW lines and ingest with arena tag
-    import json
-    stats = {"saved": 0, "skipped": 0}
     with open(rss_file, encoding="utf-8") as fh:
         lines = fh.readlines()[count_before:]
     import tempfile
@@ -53,7 +43,7 @@ def collect_feed(arena: str, url: str, label: str) -> int:
 
 
 def main() -> None:
-    db = get_db()
+    get_db()
     total = 0
     for line in FEEDS.read_text(encoding="utf-8").splitlines():
         line = line.strip()
