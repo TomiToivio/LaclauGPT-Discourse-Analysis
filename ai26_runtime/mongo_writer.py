@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-"""AI26 canonical writer: CollectRecord-shaped dicts -> MongoDB (vasama_ai.ai26_*).
+"""AI26 canonical writer: CollectRecord-shaped dicts -> MongoDB.
 
 Reads the JSONL produced by `laclaugpt collect ...` (source+ingestion pairs)
-and upserts into the prefixed collections. Provenance preserved; dedup via
-native id / normalized url handled upstream by CollectionStore AND here by
-the unique indexes.
+and upserts into prefixed collections. Concrete database names, endpoints and
+credentials are runtime configuration and must not be committed.
 """
 from __future__ import annotations
 
@@ -15,20 +14,25 @@ from pathlib import Path
 
 from pymongo import MongoClient
 
-CONFIG = Path(os.environ.get("AI26_CONFIG",
-    "~/.config/laclaugpt/ai26/ai26.yaml")).expanduser()
+CONFIG = Path(os.environ.get(
+    "AI26_CONFIG", "~/.config/laclaugpt/ai26/ai26.yaml"
+)).expanduser()
+DATABASE = os.environ.get("AI26_MONGO_DATABASE", "laclaugpt")
 P = "ai26_"
 
 
 def _mongo_uri() -> str:
     # private config holds the full MongoDB URI (credentials live outside the repo)
     text = CONFIG.read_text(encoding="utf-8")
-    return re.search(r'uri: "(mongodb://[^"]+)"', text).group(1)
+    match = re.search(r'uri: "(mongodb://[^"]+)"', text)
+    if not match:
+        raise RuntimeError(f"MongoDB URI missing from private config: {CONFIG}")
+    return match.group(1)
 
 
 def get_db():
     client = MongoClient(_mongo_uri(), serverSelectionTimeoutMS=5000)
-    return client["vasama_ai"]
+    return client[DATABASE]
 
 
 def ingest_jsonl(path: str, arena: str | None = None) -> dict:
@@ -44,9 +48,6 @@ def ingest_jsonl(path: str, arena: str | None = None) -> dict:
             ingestion = payload["ingestion"]
             source["metadata"]["arena"] = arena or source.get("metadata", {}).get("arena")
             source["metadata"]["ingestion_id"] = ingestion["ingestion_id"]
-            # dedup: match on native_id OR normalized url, but never let a
-            # missing native_id (None) match documents that also lack it —
-            # two distinct manual papers would otherwise dedup into one.
             native_id = source.get("native_id")
             url = source.get("normalized_source_url")
             conds = []
