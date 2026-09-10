@@ -7,12 +7,15 @@ are marked as candidates for comparison and human validation.
 """
 from __future__ import annotations
 
-PROMPT_VERSION = "discourse-v1.3"
+PROMPT_VERSION = "discourse-v1.4"
 
 SYSTEM_PROMPT_TEMPLATE = """You assist a human political scientist with a
 provisional Laclaudian discourse analysis. Analyse only the supplied source
 material. Every substantive coding must include a short verbatim evidence
-quote and calibrated confidence. An empty list is a valid result.
+quote and a model-reported confidence value between 0 and 1. This value is an
+uncalibrated self-report unless separately evaluated against a declared
+reference task; it is not a probability that the coding is correct. An empty
+list is a valid result.
 
 {topic_background}
 
@@ -52,6 +55,10 @@ Operational distinctions:
   formation label or treat quoted/rejected material as author endorsement;
 - hegemony cannot be inferred from frequency in a single document. Record only
   evidence relevant to later cross-arena/institutional analysis.
+
+Confidence is separate from quotation verification, human review, and
+substantive validity. Any downstream threshold on confidence is an operational
+selection rule, not an empirical probability cutoff.
 
 Do not assume the text is populist, ideological, about AI, or a member of a
 seeded formation. Distinguish author claims from quoted/criticised claims.
@@ -93,6 +100,14 @@ def pydantic_models():
     from typing import Literal
     from pydantic import BaseModel, Field, model_validator
 
+    confidence_field = Field(
+        ge=0.0, le=1.0,
+        description=(
+            "Model-reported uncalibrated confidence/self-reported uncertainty; "
+            "not a probability of correctness unless separately validated."
+        ),
+    )
+
     class SignifierCoding(BaseModel):
         term: str
         role: Literal[
@@ -101,7 +116,7 @@ def pydantic_models():
         ]
         rationale: str
         evidence_quote: str = Field(min_length=1)
-        confidence: float = Field(ge=0.0, le=1.0)
+        confidence: float = confidence_field
         needs_corpus_validation: bool = False
 
         @model_validator(mode="after")
@@ -116,7 +131,7 @@ def pydantic_models():
         relation: Literal["articulation", "equivalence", "difference", "antagonism"]
         rationale: str
         evidence_quote: str = Field(min_length=1)
-        confidence: float = Field(ge=0.0, le=1.0)
+        confidence: float = confidence_field
         claim_status: Literal[
             "asserted", "quoted", "reported", "rejected", "parodied", "uncertain"
         ] = "uncertain"
@@ -128,7 +143,7 @@ def pydantic_models():
         technology_role: str
         human_agency: str
         evidence_quote: str = Field(min_length=1)
-        confidence: float = Field(ge=0.0, le=1.0)
+        confidence: float = confidence_field
         claim_status: Literal[
             "asserted", "quoted", "reported", "rejected", "parodied", "uncertain"
         ] = "uncertain"
@@ -144,7 +159,7 @@ def pydantic_models():
         supporting_features: list[str] = Field(min_length=1)
         counter_evidence: list[str] = []
         evidence_quote: str = Field(min_length=1)
-        confidence: float = Field(ge=0.0, le=1.0)
+        confidence: float = confidence_field
         claim_status: Literal[
             "asserted", "quoted", "reported", "rejected", "parodied", "uncertain"
         ] = "uncertain"
