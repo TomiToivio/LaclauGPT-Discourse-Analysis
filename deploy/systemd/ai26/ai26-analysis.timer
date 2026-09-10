@@ -1,6 +1,6 @@
-# Example systemd user unit (DEPLOYMENT_HOST deployment; paths/host are environment-specific).
+# Generic systemd user-timer example. Tune cadence in private deployment config.
 [Unit]
-Description=AI26 incremental analysis every 10 min
+Description=LaclauGPT incremental analysis schedule
 
 [Timer]
 OnCalendar=*:0/10
