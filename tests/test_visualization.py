@@ -15,7 +15,9 @@ from laclaugpt_interchange import (
     Affect,
     Articulation,
     DocumentAnnotation,
+    HegemonicEvidenceSpan,
     MemoryRef,
+    SentimentObservation,
     SociotechnicalImaginary,
 )
 
@@ -29,6 +31,7 @@ def _annotation(document_id: str, *, profile: str, topic: str) -> DocumentAnnota
     abundance = _ref("S002", "abundance")
     public = _ref("E001", "Public", "entity")
     policy = _ref("T001", topic, "topic")
+    sentiment_target = _ref("C001", "AI policy", "target")
     return DocumentAnnotation(
         document_id=document_id,
         source_platform="web",
@@ -37,6 +40,7 @@ def _annotation(document_id: str, *, profile: str, topic: str) -> DocumentAnnota
         source_author="Researcher",
         source_timestamp="2026-09-07T12:00:00Z",
         source_url=f"https://example.test/{document_id}",
+        source_modalities=["text"],
         run_id=f"run-{document_id}",
         summary=f"{topic} summary with AI and abundance",
         entities=[public],
@@ -56,6 +60,23 @@ def _annotation(document_id: str, *, profile: str, topic: str) -> DocumentAnnota
         us=[ai],
         frontier=[abundance],
         populist=False,
+        relevance="relevant",
+        relevance_reason="In-scope public AI discourse",
+        discourse_applicable=True,
+        discourse_applicability_reason="Contains an articulated signifying relation",
+        hegemonic_evidence=[HegemonicEvidenceSpan(
+            quote="AI means abundance",
+            evidence_source="text",
+            evidence_verified=True,
+        )],
+        sentiment_observations=[SentimentObservation(
+            target=sentiment_target,
+            polarity="positive",
+            evidence_source="summary",
+            uncertainty=0.2,
+            model="test-model",
+            prompt_version="sentiment-test",
+        )],
         collection_provenance={
             "project": "ai26",
             "analysis_profile": profile,
@@ -80,6 +101,52 @@ def test_flatten_filter_and_top_values_are_profile_aware() -> None:
     assert top_values(filtered, "topics").to_dict("records") == [
         {"label": "AI policy", "count": 1}
     ]
+
+
+def test_dashboard_flattens_current_schema_fields() -> None:
+    frame = flatten_annotations([
+        _annotation("a", profile="ai26:elites", topic="AI policy")
+    ])
+    row = frame.iloc[0]
+    assert row["schema_version"] == "1.7"
+    assert row["relevance_state"] == "relevant"
+    assert row["discourse_applicability"] == "applicable"
+    assert row["source_modalities"] == ["text"]
+    assert row["sentiment_polarities"] == ["positive"]
+    assert row["sentiment_targets"] == ["AI policy"]
+    assert row["sentiments"][0]["target_id"] == "C001"
+    assert row["evidence_count"] == 1
+    assert "AI means abundance" in row["searchable_text"]
+
+
+def test_dashboard_filters_current_schema_states() -> None:
+    relevant = _annotation("a", profile="ai26:elites", topic="AI policy")
+    irrelevant = _annotation("b", profile="ai26:elites", topic="jobs")
+    irrelevant.relevance = "irrelevant"
+    irrelevant.discourse_applicable = False
+    irrelevant.discourse_applicability_reason = "No discourse-level material"
+    irrelevant.sentiment_observations = []
+
+    frame = flatten_annotations([relevant, irrelevant])
+    filtered = filter_frame(
+        frame,
+        relevance_states=["relevant"],
+        discourse_applicabilities=["applicable"],
+        sentiment_polarities=["positive"],
+        sentiment_targets=["AI policy"],
+    )
+    assert filtered["document_id"].tolist() == ["a"]
+
+
+def test_dashboard_accepts_arena_compatibility_key() -> None:
+    annotation = _annotation("a", profile="ai26:elites", topic="AI policy")
+    annotation.collection_provenance = {
+        "project": "ai26",
+        "analysis_profile": "ai26:elites",
+        "arena": "elites",
+    }
+    frame = flatten_annotations([annotation])
+    assert frame.iloc[0]["arena_id"] == "elites"
 
 
 def test_articulation_edges_are_aggregated() -> None:
