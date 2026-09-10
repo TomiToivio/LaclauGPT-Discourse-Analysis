@@ -114,6 +114,22 @@ def ai26_config(tmp_path) -> Path:
     return path
 
 
+def test_empty_or_invalid_handles_fail_visibly(tmp_path):
+    """AC #12: empty/whitespace handles fail loudly; never silently corrected."""
+    for bad in ("", "   ", None, 42):
+        cfg = {
+            "study": "broken", "window": {"start": "2026-01-01",
+                                          "end": "2026-12-31"},
+            "platforms": {"x": {"enabled": True}},
+            "groups": [{"id": "g", "name": "G",
+                        "accounts": {"x": ["good_handle", bad]}}],
+        }
+        path = tmp_path / "bad.yaml"
+        path.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+        with pytest.raises(ValueError, match="never silently corrected"):
+            load_config(path)
+
+
 def test_generic_groups_load(ai26_config):
     cfg = load_config(ai26_config)
     assert cfg.study == "ai26"
