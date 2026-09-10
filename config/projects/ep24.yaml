@@ -2,6 +2,38 @@ project: ep24
 dataset:
   title: European Parliament election 2024 social-media corpus
   languages: []
+  relevance:
+    mode: keyword_scope
+    scope: political/electoral
+    terms:
+      - puolue
+      - vaali
+      - eu-parlament
+      - eduskunta
+      - euroryhmä
+      - party
+      - election
+      - european parliament
+      - mep
+      - candidate
+      - partia
+      - wybory
+      - parlament europejski
+      - kandydat
+      - kokoomus
+      - perussuomalaiset
+      - sdp
+      - vasemmistoliitto
+      - keskusta
+      - pis
+      - konfederacja
+      - kaczyński
+      - tusk
+      - sikorski
+      - politiikka
+      - poliittinen
+      - politics
+      - political
 analysis:
   laclau: true
   palonen: true
