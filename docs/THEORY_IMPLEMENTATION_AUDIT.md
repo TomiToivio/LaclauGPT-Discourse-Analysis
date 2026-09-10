@@ -109,6 +109,12 @@ The project `analysis` map is authoritative beyond provenance labels:
 
 These semantics are covered by `tests/test_module_switches.py` and documented in `docs/CANONICAL_CONFIGURATION.md`.
 
+## Project-specific relevance policy
+
+Relevance filtering is no longer hard-wired to the EP24 election vocabulary in the generic analysis implementation. Project profiles may opt into `dataset.relevance.mode: keyword_scope` with their own scope label and terms. EP24 uses that compatibility policy. General projects, including AI26, use `retain_unjudged`: explicit discourse non-applicability may still mark a document irrelevant and substantive evidence marks a document relevant, but zero-code and borderline documents remain unjudged instead of being silently excluded from corpus synthesis.
+
+This boundary is important for validation because uncertain, abstained and zero-code cases are part of the error surface rather than disposable noise. The active relevance policy is included in the run fingerprint and is covered by `tests/test_relevance_policy.py`.
+
 ## Component audit
 
 ### `prompts/summary.py`
@@ -129,7 +135,7 @@ Descriptive only. Topics/entities/sentiment are requested only when their projec
 
 ### `pipeline.py`
 
-Strong alignment. Quote/source verification, provenance, Context Memory resolution and descriptive corpus synthesis preserve the theory boundary. Floating/empty/hegemony outputs remain candidates/evidence for later human adjudication. Project switches control Context Memory injection and temporal side effects. Summary prompt provenance is taken from the summary module's explicit version.
+Strong alignment. Quote/source verification, provenance, Context Memory resolution and descriptive corpus synthesis preserve the theory boundary. Floating/empty/hegemony outputs remain candidates/evidence for later human adjudication. Project switches control Context Memory injection and temporal side effects. Project-specific relevance configuration prevents an EP24-specific content gate from becoming a general corpus-selection rule. Summary prompt provenance is taken from the summary module's explicit version.
 
 ### Interchange and canonical model
 
@@ -157,9 +163,7 @@ The repository has theory-contract instructions for Hermes and Claude, plus fram
 
 ## Machine-checkable safeguards
 
-## Machine-checkable safeguards
-
-`tests/test_theory_invariants.py` checks machine-verifiable parts of the theory contract. `tests/test_module_switches.py` checks configuration semantics from issue #48. `tests/test_evidence_gates.py` (issue #60) checks the hardened evidence surface: hegemonic-evidence verbatim gating and legacy-string upgrade, schema-level evidence requirements with legacy-JSONL compatibility, and full interchange_to_v2 lifting coverage. `tests/test_summary_theory_boundary.py` protects the issue-51 descriptive boundary by checking that the summary schema no longer exposes `populist_elements`, that `present` requires both observed sides plus evidence, that `absent`/`uncertain` are valid, and that prompt/provenance versioning is explicit. `tests/test_context_memory_review.py` (issue #62) checks Context Memory reviewability: explicit EXISTING decisions without a chosen ID resolve to UNCERTAIN instead of a 0.60-similarity re-point, human-rejected merge pairs are excluded from candidate retrieval in both resolution layers, only exact-class matches auto-reuse, the fallback context preview is alphabetically ordered, and the prompt framing is neutral.
+`tests/test_theory_invariants.py` checks machine-verifiable parts of the theory contract. `tests/test_module_switches.py` checks configuration semantics from issue #48. `tests/test_evidence_gates.py` (issue #60) checks the hardened evidence surface: hegemonic-evidence verbatim gating and legacy-string upgrade, schema-level evidence requirements with legacy-JSONL compatibility, and full interchange_to_v2 lifting coverage. `tests/test_summary_theory_boundary.py` protects the issue-51 descriptive boundary by checking that the summary schema no longer exposes `populist_elements`, that `present` requires both observed sides plus evidence, that `absent`/`uncertain` are valid, and that prompt/provenance versioning is explicit. `tests/test_context_memory_review.py` (issue #62) checks Context Memory reviewability: explicit EXISTING decisions without a chosen ID resolve to UNCERTAIN instead of a 0.60-similarity re-point, human-rejected merge pairs are excluded from candidate retrieval in both resolution layers, only exact-class matches auto-reuse, the fallback context preview is alphabetically ordered, and the prompt framing is neutral. `tests/test_relevance_policy.py` checks the project-specific relevance boundary and the safe retention of unjudged zero-code documents.
 
 These tests are guardrails, not a validity test for discourse analysis.
 

@@ -2,6 +2,8 @@ project: ai26
 dataset:
   title: Ideological contestation over AI
   languages: [en, fi]
+  relevance:
+    mode: retain_unjudged
 analysis:
   laclau: true
   palonen: true

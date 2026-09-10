@@ -12,7 +12,7 @@ second arena YAML to decide what analysis to perform.
 
 | Layer | Location | Owns | Must not own |
 |---|---|---|---|
-| Project | `config/projects/*.yaml` | research identity, theory/codebook, authoritative `analysis` module switches | machine/service settings |
+| Project | `config/projects/*.yaml` | research identity, theory/codebook, authoritative `analysis` module switches, optional project relevance policy | machine/service settings |
 | Arena / dataset | `config/arenas/*.yaml` | arena identity, source metadata, language/country filters, analytic hints, model options, data-boundary policy, stable work-directory defaults | theory/module switches |
 | Machine | `config/machines/*.yaml` | backend/service/runtime infrastructure | research theory or arena selection |
 | Execution | `config/execution/*.yaml` | scheduler mode, recurrence, retry/checkpoint/resume policy | research, dataset or backend settings |
@@ -76,6 +76,43 @@ Some historical LLM prompts return more than one coding family in a single call.
 a disabled family cannot leak into canonical JSONL even when it shared a model
 call with an enabled family.
 
+## Project relevance policy
+
+Relevance is a project-level research decision, not a generic election heuristic.
+A project may define `dataset.relevance` in its project profile. The adapter carries
+that policy into `RunConfig` and includes it in the run fingerprint.
+
+The safe default is:
+
+```yaml
+dataset:
+  relevance:
+    mode: retain_unjudged
+```
+
+With `retain_unjudged`, explicit discourse non-applicability can still mark a
+document irrelevant and substantive discourse coding marks it relevant, but a
+zero-code or borderline document remains unjudged. It therefore stays available
+for corpus synthesis and human review. AI26 uses this mode so abstentions and
+negative cases remain part of the validation surface.
+
+Projects that need a reproducible legacy-style content screen may opt in to a
+project-owned keyword policy:
+
+```yaml
+dataset:
+  relevance:
+    mode: keyword_scope
+    scope: political/electoral
+    terms: [party, election, parliament]
+```
+
+EP24 uses this mode. The vocabulary lives in `config/projects/ep24.yaml`, not in
+the generic `pipeline.py`. An empty keyword list fails open by retaining the
+row as unjudged rather than silently excluding it. Explicitly irrelevant rows
+remain queryable in annotations but are excluded from normal corpus-synthesis
+counts; the synthesis also reports total and excluded-document counts.
+
 ## CLI
 
 List the four configuration layers:
@@ -133,5 +170,5 @@ pipeline_config = run_config_from_effective(config, run_id="the-execution-run-id
 ```
 
 `pipeline_config` is an adapter, not another configuration authority. Its stage
-list, hints, languages, model options, fallback policy, arena identity and
-analysis profile all derive from `config`.
+list, hints, languages, model options, fallback policy, relevance policy, arena
+identity and analysis profile all derive from `config`.
