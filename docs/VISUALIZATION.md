@@ -127,7 +127,8 @@ The flattened UI surface includes, when present:
 - summary and provenance;
 - entities and topics;
 - signifiers and nodal-point candidates;
-- signifier-role candidate confidence plus `needs_corpus_validation`;
+- signifier-role candidate model-reported confidence plus
+  `needs_corpus_validation`;
 - articulations and an aggregated articulation graph, including `claim_status`
   so quoted/reported/rejected/parodied material is visually distinguishable from
   asserted authorial speech;
@@ -138,6 +139,13 @@ The flattened UI surface includes, when present:
 - affects;
 - counter-evidence, evidence, uncertainty, prompt/model provenance and review
   status.
+
+For theory-facing LLM codings, dashboard confidence is explicitly labelled as
+**model-reported and uncalibrated**. It is a self-reported uncertainty signal, not
+a probability that the coding is correct. It remains distinct from mechanical
+quotation verification (`evidence_verified`), human review/adjudication and
+substantive theoretical validity. Aggregate `mean_confidence` is only the mean of
+those model self-reports. See [`CONFIDENCE_AND_UNCERTAINTY.md`](CONFIDENCE_AND_UNCERTAINTY.md).
 
 All aggregate frequency displays are descriptive. Frequency does **not** by
 itself establish theoretical importance, nodal status, floating/empty status,
