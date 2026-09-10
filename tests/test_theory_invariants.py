@@ -385,7 +385,7 @@ class AttributionDefaultsAndCanonicalGatesInvariant(unittest.TestCase):
             populism_element="us", evidence_quote="q", confidence=0.5,
         ).claim_status, "uncertain")
         self.assertEqual(
-            populism_prompt.PROMPT_VERSION, "populism-v3.3")
+            populism_prompt.PROMPT_VERSION, "populism-v3.4")
         DiscourseAnalysis = discourse_prompt.pydantic_models()
         analysis = DiscourseAnalysis(
             applicable=True, applicability_reason="political",
@@ -404,7 +404,7 @@ class AttributionDefaultsAndCanonicalGatesInvariant(unittest.TestCase):
         )
         self.assertEqual(analysis.articulations[0].claim_status, "uncertain")
         self.assertEqual(analysis.imaginaries[0].claim_status, "uncertain")
-        self.assertEqual(discourse_prompt.PROMPT_VERSION, "discourse-v1.2")
+        self.assertEqual(discourse_prompt.PROMPT_VERSION, "discourse-v1.4")
         from laclaugpt_interchange import (
             Articulation, MemoryRef, PopulismElementAssessment,
             SociotechnicalImaginary)

@@ -1,0 +1,11 @@
+# Example systemd user unit (Laskin01 deployment; paths/host are environment-specific).
+[Unit]
+Description=AI26 dashboard JSONL export (after each analysis tick)
+
+[Service]
+Type=oneshot
+WorkingDirectory=/mnt/workspace/LaclauGPT-Discourse-Analysis
+ExecStartPre=/bin/sh -c 'for f in /mnt/workspace/LaclauGPT-Discourse-Analysis/collection-data/dashboard/*.jsonl; do : > "$f"; done 2>/dev/null || true'
+ExecStart=/usr/bin/python3 /mnt/workspace/LaclauGPT-Discourse-Analysis/ai26_runtime/export_dashboard_jsonl.py
+StandardOutput=append:%h/.config/laclaugpt/ai26/export.log
+StandardError=append:%h/.config/laclaugpt/ai26/export.log

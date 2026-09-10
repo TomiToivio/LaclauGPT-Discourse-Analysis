@@ -1,0 +1,11 @@
+# Example systemd user unit (Laskin01 deployment; paths/host are environment-specific).
+[Unit]
+Description=AI26 YouTube collection hourly
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=60min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
