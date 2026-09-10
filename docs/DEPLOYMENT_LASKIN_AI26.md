@@ -85,7 +85,7 @@ field is `content`) → Mongo. Only explicitly selected URLs; no crawlers, no
 X/Instagram/TikTok collectors (researcher adds the browser collector later).
 
 ### MongoDB
-`mongod.conf`: `bindIp: 127.0.0.1,100.115.95.109` (Tailscale), `authorization:
+`mongod.conf`: `bindIp: 127.0.0.1,<TAILSCALE-IP>` (Tailscale; see private config), `authorization:
 enabled`. Accounts: `vasama` (app/admin), `ai26_backup` (backup@admin —
 mongodump/restore + read access, interim Vasama-OSINT read role), and
 `vasama_osint` (created on admin, roles PENDING — granting `read@vasama_ai`
