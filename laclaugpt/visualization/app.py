@@ -150,7 +150,6 @@ def _review_panel(
         viewer_reviewer_id=reviewer_id or None,
         blind=blind,
     )
-    own_history = [row for row in history if row["reviewer_id"] == reviewer_id]
     record_types = ["assessment"]
     if current["id"] is not None:
         record_types.append("revision")
@@ -208,8 +207,6 @@ def _review_panel(
             "note", "tags", "supersedes_id", "linked_assessment_ids", "blind_initial", "created_at",
         ]
         st.dataframe(pd.DataFrame(history)[display_columns], use_container_width=True, hide_index=True)
-    elif own_history:
-        st.dataframe(pd.DataFrame(own_history), use_container_width=True, hide_index=True)
     else:
         st.caption("No assessment history for this exact run/artifact/target yet.")
 
@@ -427,11 +424,31 @@ def main(argv: list[str] | None = None) -> None:
         st.warning("The selected output contains no annotations.")
         return
 
+    # Blind coding must also protect the aggregate dashboard, not only the
+    # document detail panel. Keep source metadata and the original annotation
+    # object for later explicit reveal, but redact model-derived aggregate fields.
+    if blind_initial:
+        frame = frame.copy()
+        for column in ("summary", "review_status"):
+            if column in frame:
+                frame[column] = ""
+        if "populist" in frame:
+            frame["populist"] = None
+        for column in ("entities", "topics", "signifiers", "nodal_points", "us", "frontier", "imaginaries", "affects"):
+            if column in frame:
+                frame[column] = [[] for _ in range(len(frame))]
+        analysis = {}
+
     review_path = Path(args.review_db).expanduser() if args.review_db else path.with_suffix(path.suffix + ".reviews.sqlite3")
     review_store = ReviewStore(review_path)
 
     st.header(title)
     st.caption(f"{len(frame)} annotations loaded • review sidecar: {review_path}")
+    if blind_initial:
+        st.info(
+            "Blind initial coding is active across the dashboard. Model-derived aggregate fields are redacted; "
+            "each document can be explicitly revealed for comparison/adjudication after initial coding."
+        )
 
     search = st.sidebar.text_input("Free search")
     platform_values = _unique(frame, "source_platform")
