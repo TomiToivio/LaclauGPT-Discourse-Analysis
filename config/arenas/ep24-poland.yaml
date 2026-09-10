@@ -11,8 +11,8 @@ dataset:
     Polish social-media material collected for the 2024 European Parliament
     election study. Machine annotations are provisional and require human review.
   model:
-    text: gemma4:e4b
-    vision: gemma4:e4b
+    text: gemma4:26b
+    vision: gemma4:26b
     ollama_mode: local
     temperature: 0.0
     num_ctx: 24576
