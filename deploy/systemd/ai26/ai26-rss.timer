@@ -1,6 +1,6 @@
-# Example systemd user unit (Laskin01 deployment; paths/host are environment-specific).
+# Generic systemd user-timer example. Tune cadence in private deployment config.
 [Unit]
-Description=AI26 RSS collection every 30 min
+Description=LaclauGPT RSS collection schedule
 
 [Timer]
 OnBootSec=10min
