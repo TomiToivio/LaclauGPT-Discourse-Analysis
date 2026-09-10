@@ -34,6 +34,11 @@ def _apply_analysis_switches(annotation, analysis: dict[str, bool]) -> None:
         annotation.topics = []
     if not analysis.get("entities", False):
         annotation.entities = []
+    if not analysis.get("sentiment", False):
+        # Descriptive sentiment observations (schema 1.4) follow the same
+        # authoritative-strip rule as every other coding family (issue #48):
+        # sentiment: false publishes no sentiment output.
+        annotation.sentiment_observations = []
     if not analysis.get("palonen", False):
         annotation.populist = None
         annotation.populism_analysis = ""
@@ -74,6 +79,7 @@ def run_canonical_pipeline(config: EffectiveRunConfig, run: Run, store: RunStore
         )
 
     import pandas as pd
+    from laclaugpt.graph_export import write_graph_bundle
     from laclaugpt_interchange import to_jsonl
     from pipeline import document_key, run_pipeline
     from run_config import load_run_config, run_config_from_effective
@@ -144,6 +150,7 @@ def run_canonical_pipeline(config: EffectiveRunConfig, run: Run, store: RunStore
         if temporary_directory and "$" not in temporary_directory else None
     )
 
+    graph_outputs: dict[str, str] = {}
     try:
         with tempfile.TemporaryDirectory(dir=temp_root) as directory:
             filtered = Path(directory) / "unprocessed.csv"
@@ -177,6 +184,12 @@ def run_canonical_pipeline(config: EffectiveRunConfig, run: Run, store: RunStore
                     legacy_config_path
                 )
         to_jsonl(annotations, str(output))
+        graph_outputs = write_graph_bundle(
+            annotations,
+            output,
+            project=config.project if canonical_mode else None,
+            arena=arena_id or None,
+        )
         for source_id, claim_token in claimed.items():
             store.checkpoint(
                 config, run.run_id, source_id, claim_token=claim_token
@@ -196,5 +209,6 @@ def run_canonical_pipeline(config: EffectiveRunConfig, run: Run, store: RunStore
         "processed": len(claimed),
         "skipped": len(frame) - len(claimed),
         "output": str(output),
+        "graph_outputs": graph_outputs,
         "annotations": annotations,
     }

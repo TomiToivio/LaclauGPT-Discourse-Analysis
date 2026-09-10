@@ -1,0 +1,26 @@
+machine: laptop-cloud
+backends:
+  source: filesystem
+  analysis: filesystem
+  graph: none
+  vector: none
+  cache: none
+  analytics: duckdb_local
+  blob: filesystem
+services:
+  collector:
+    enabled: false
+  analysis:
+    enabled: true
+  dashboard:
+    enabled: false
+  llm:
+    mode: cloud
+    provider: ollama-cloud
+    model: gemma4:31b-cloud
+  context_memory:
+    enabled: true
+runtime:
+  topology: analysis-only
+  resource_class: laptop-cloud-assisted
+  temporary_directory: ${TMPDIR:-./tmp}

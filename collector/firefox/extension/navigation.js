@@ -12,7 +12,17 @@
 (() => {
   "use strict";
 
-  const BACKEND_URL = "http://127.0.0.1:8765";
+  // Backend address is study-profile specific (Brazil26 :8765, AI26 :8766).
+  // Stored in extension local storage as `backend_url`; the default keeps the
+  // historical Brazil26 endpoint. Set per Firefox profile (see README.md).
+  const DEFAULT_BACKEND_URL = "http://127.0.0.1:8765";
+  let backendUrl = DEFAULT_BACKEND_URL;
+  let backendReady = browser.storage.local.get({ backend_url: DEFAULT_BACKEND_URL })
+    .then(item => {
+      const stored = (item.backend_url || "").toString().trim();
+      backendUrl = stored.startsWith("http") ? stored : DEFAULT_BACKEND_URL;
+    })
+    .catch(() => {});
   const VISIT_INTERVAL_MS = 300000;
   const SCROLL_INTERVAL_MS = 3000;
   const SCROLLS_PER_VISIT = 10;
@@ -23,7 +33,8 @@
 
   async function fetchTour() {
     try {
-      const response = await fetch(`${BACKEND_URL}/tour`, { cache: "no-store" });
+      await backendReady; // storage may resolve slower than the first tick
+      const response = await fetch(`${backendUrl}/tour`, { cache: "no-store" });
       if (!response.ok) return null;
       return await response.json();
     } catch {

@@ -7,7 +7,7 @@ representations through the shared collector Store.
 
 Run:
     python -m collector.firefox.firefox_backend \
-        --config collector/config/brazil-election-2026.yaml \
+        --config collector/config/study.private.yaml \
         --data-root ~/laclaugpt-brasil-data
 """
 from __future__ import annotations
@@ -179,6 +179,7 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {
                 "active": self.server.active(),
                 "date": str(self.server.local_today()),
+                "study": cfg.study,
                 "accounts": self.server.tour_accounts(),
                 "window": {"start": str(cfg.start), "end": str(cfg.end)},
                 "timezone": cfg.timezone,
@@ -188,6 +189,7 @@ class Handler(BaseHTTPRequestHandler):
                 "collector": COLLECTOR_VERSION,
                 "git_commit": git_commit(self.server.repo),
                 "run_id": self.server.run_id,
+                "study": self.server.cfg.study,
                 "active": self.server.active(),
                 "date": str(self.server.local_today()),
                 "stats": dict(self.server.stats),
@@ -232,6 +234,7 @@ class Handler(BaseHTTPRequestHandler):
             "source_platform_url": platform_url,
             "source_url": api_url,
             "run_id": self.server.run_id,
+            "study": self.server.cfg.study,
             "account": self._account_for(platform, platform_url),
         }
 

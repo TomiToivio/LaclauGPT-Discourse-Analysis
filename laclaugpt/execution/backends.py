@@ -71,10 +71,14 @@ def _command(coordinator: ExecutionCoordinator, execution: str) -> str:
     parts = ["laclaugpt", "run",
              "--project", c.project, "--machine", c.machine,
              "--execution", execution, "--inside-scheduler"]
+    if c.arena:
+        parts.extend(["--arena", c.arena])
     if coordinator.parent_run_id:
         parts.extend(["--parent-run-id", coordinator.parent_run_id])
     if c.dataset.get("input"):
         parts.extend(["--dataset", c.dataset["input"]])
+    if c.dataset.get("output"):
+        parts.extend(["--output", c.dataset["output"]])
     if c.dataset.get("run_config"):
         parts.extend(["--pipeline-config", c.dataset["run_config"]])
     return " ".join(shlex.quote(str(part)) for part in parts)

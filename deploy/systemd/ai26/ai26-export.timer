@@ -1,0 +1,10 @@
+# Generic systemd user-timer example. Tune cadence in private deployment config.
+[Unit]
+Description=LaclauGPT dashboard export schedule
+
+[Timer]
+OnCalendar=*:*:0/10
+Persistent=true
+
+[Install]
+WantedBy=timers.target

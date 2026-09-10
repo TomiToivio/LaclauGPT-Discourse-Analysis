@@ -1,24 +1,71 @@
-# LaclauGPT-Discourse-Analysis: AI26 minimal public core
+# LaclauGPT: LLM-assisted discourse analysis for political research
 
-**LaclauGPT** is an LLM-assisted discourse-analysis pipeline that applies
-Ernesto Laclau and Chantal Mouffe's discourse theory (articulation,
-nodal/floating/empty signifiers, equivalence/difference/antagonism,
-Palonen's Formula of Populism) to large text corpora, with every
-interpretation traceable to source evidence and open to human rejection.
+[![Tests](https://img.shields.io/github/actions/workflow/status/TomiToivio/LaclauGPT-Discourse-Analysis/ci.yml?branch=main&label=tests)](https://github.com/TomiToivio/LaclauGPT-Discourse-Analysis/actions/workflows/ci.yml)
 
-This repository is the **sanitized, AI-project-only public core**.
-It contains the minimum needed to understand and reproduce the
-methodological design of the evolving manuscript *LaclauGPT: Ideological
-contestation over AI*. The current manuscript is [`paper/PAPER.md`](paper/PAPER.md).
-This public checkout deliberately contains:
+> **There is no AI but a CYBORG = HUMAN + LLM + LANGUAGE + INTERNET**
 
-- **no research data**: raw captures, exports and run outputs stay out;
-- **collection software, not deployed collection infrastructure**: the reusable
-  collector under `collector/` is public, while deployed services, credentials
-  and private operations remain external;
-- **portable profiles, no secrets**: the public `roihu` machine profile is
-  shipped, but endpoints, hosts and credentials come from environment variables
-  rather than committed files.
+**LaclauGPT** is a political-science data collection and discourse-analysis pipeline for studying large textual and multimodal corpora with LLM assistance, while keeping interpretation traceable to source evidence and subject to human review.
+
+The current version is being developed primarily for my research plan and paper, **[LaclauGPT: Ideological contestation over AI](paper/PAPER.md)**. That study uses Ernesto Laclau and Chantal Mouffe's discourse theory, Emilia Palonen's Formula of Populism, Critical AI Studies and sociotechnical imaginaries to analyse competing ideological articulations of artificial intelligence.
+
+The repository is not, however, an AI-ideology application hard-wired into code. The current research paper is the main development case for a **new general version of LaclauGPT**: a reusable framework in which theory, datasets, arenas, machine profiles and execution profiles can be changed without rebuilding the whole pipeline. The same infrastructure is also used, or intended to be used, in other political and social-science projects such as election research, populism and grievance politics, social-media research, and future comparative discourse-analysis projects.
+
+In short:
+
+- **Current research focus:** ideological contestation over AI and the development of the methodology described in `paper/PAPER.md`.
+- **General software goal:** a reusable LLM-assisted computational discourse-analysis framework rather than a single-purpose AI classifier.
+- **Theoretical core:** Laclau and Mouffe, with Palonen's Formula of Populism and project-specific theoretical extensions.
+- **Methodological principle:** models propose interpretations; evidence, uncertainty, provenance and human review remain visible.
+- **Data principle:** open code and methods, but no publication of restricted research corpora or identifiable row-level research data.
+
+> [!WARNING]
+> **Human-in-the-loop research only.** LaclauGPT's machine-generated summaries,
+> classifications, discourse-theoretical codes, populism analyses, signifier roles,
+> ideological formations, affects, and other interpretations are **preliminary
+> analysis to be verified by a human researcher**. They must not be treated as
+> final research findings, ground truth, or autonomous scholarly judgement.
+> Human verification of the source evidence and interpretation is required before
+> results are used, reported, published, or cited as research conclusions.
+
+## Current research programme: Ideological contestation over AI
+
+The current manuscript, [`paper/PAPER.md`](paper/PAPER.md), is the main theoretical and methodological driver of this version of LaclauGPT. It asks how competing political projects articulate AI, how those formations construct collective subjects and frontiers, and under what conditions AI functions as a nodal, floating or tendentially empty signifier.
+
+The paper treats accelerationism, existential-risk discourse, critical AI perspectives, opposition to AI and left-wing techno-optimism as starting points for inquiry rather than fixed ideological labels. The corresponding software therefore tries to identify and compare **claims, articulations, signifier roles, collective subjects, antagonisms, affects and candidate ideological formations**, rather than simply sorting documents into predefined political boxes.
+
+The AI project is also a test case for a broader methodological question: how far can computational and LLM-assisted methods extend interpretive discourse analysis without pretending that political meaning is self-evident, fully automatable or reducible to sentiment/topic labels?
+
+## A reusable platform for other research projects
+
+LaclauGPT predates the current AI paper and remains multi-project by design. The canonical configuration chain separates:
+
+`project -> arena/dataset -> machine -> execution -> effective run config -> run`
+
+That separation is deliberate. A project can define its theoretical modules and codebooks, an arena can define a dataset or source environment, a machine profile can define infrastructure, and an execution profile can define how the run is scheduled. The AI-ideology project is therefore the **current flagship research case**, not the only permissible use of the software.
+
+Other current or historical uses include:
+
+- multimodal political social-media analysis for the 2024 European Parliament elections;
+- CO3 research on the social contract;
+- ENDURE research on the post-pandemic world;
+- PLEDGE research on grievance politics;
+- election and campaign data collection;
+- reusable adapters and interoperability with other discourse-analysis, annotation and social-data tools.
+
+Project-specific theories and codebooks can be added on top of the same evidence-linked analytical core. The repository should therefore evolve in two directions at once: **deeper theoretical fidelity for the current paper, and cleaner modularity for other research projects**.
+
+## Public repository and research-data boundary
+
+This repository is the **sanitized public development version** of LaclauGPT. It contains the software, methodological documentation, theory contracts, public codebooks, schemas, synthetic fixtures and reproducible configuration needed to understand and reuse the framework.
+
+It deliberately contains:
+
+- **no restricted research corpus**: raw captures, row-level derived research data and run outputs remain outside Git;
+- **collection software, not deployed collection infrastructure**: the reusable collector under `collector/` is public, while credentials and private operations remain external;
+- **portable profiles, no secrets**: public machine/configuration templates are shipped, while endpoints, hosts and credentials come from environment variables or controlled infrastructure;
+- **synthetic examples for tests and documentation** instead of copied research records.
+
+See [`docs/DATA_PUBLICATION_POLICY.md`](docs/DATA_PUBLICATION_POLICY.md) for the publication boundary and [`docs/DATA_LIFECYCLE.md`](docs/DATA_LIFECYCLE.md) for the research-data lifecycle.
 
 ## Predecessor repositories
 
@@ -31,47 +78,33 @@ This repository continues the work of two earlier LaclauGPT repositories:
   — the 2024 EP-election TikTok scraper (research documentation, not
   maintained); its collector ideas are carried forward under `collector/`.
 
-Both remain historical/archival; all active development happens here.
+Both remain historical/archival; active development happens here.
 
 ### History
 
-LaclauGPT is a political science multimodal data collection and analysis
-pipeline. It is called LaclauGPT as a tribute to
-[Ernesto Laclau](https://en.wikipedia.org/wiki/Ernesto_Laclau).
-
-LaclauGPT is developed by Tomi Toivio for three
-[Helsinki Hub on Emotions, Populism and Polarisation](https://www.helsinki.fi/en/researchgroups/emotions-populism-and-polarisation)
-research projects funded by the European Union and the Research Council of
-Finland:
+LaclauGPT is named as a tribute to [Ernesto Laclau](https://en.wikipedia.org/wiki/Ernesto_Laclau). The original pipeline was developed by Tomi Toivio in connection with the [Helsinki Hub on Emotions, Populism and Polarisation](https://www.helsinki.fi/en/researchgroups/emotions-populism-and-polarisation) and research projects funded by the European Union and the Research Council of Finland:
 
 - [CO3](https://www.co3socialcontract.eu/) researches the social contract.
-- [ENDURE](https://www.endure-project.org/) researches the world after the
-  pandemic.
+- [ENDURE](https://www.endure-project.org/) researches the world after the pandemic.
 - [PLEDGE](https://www.pledgeproject.eu/) researches grievance politics.
 
-The pipeline was used to collect and analyze multimodal social media data
-related to the 2024 European parliament elections. Data was collected from
-TikTok and Instagram. Data collection started on 1 May 2024 and continued
-until the election day on 9 June 2024. Collection was based on usernames of
-official election candidates as well as hashtags and search queries related
-to the elections. Election data was collected for Bulgaria, Croatia, Finland,
-France, Germany, Hungary, Portugal, Spain and Sweden. Collected and analyzed
-data cannot be released yet due to GDPR; this open source version uses dummy
-data.
+The predecessor pipeline was used to collect and analyse multimodal social-media data related to the 2024 European Parliament elections. TikTok and Instagram material was collected from 1 May 2024 until election day, 9 June 2024, using official candidate usernames, hashtags and search queries. The work covered Bulgaria, Croatia, Finland, France, Germany, Hungary, Portugal, Spain and Sweden. The collected and analysed research data is not released openly; the public repository uses synthetic fixtures and safe documentation instead.
 
-The predecessor work splits into two halves:
+The predecessor work split into two halves:
 
 - **Collection** ([LaclauGPT-TikTok-Scraper](https://github.com/TomiToivio/LaclauGPT-TikTok-Scraper)):
   a Firefox extension + Node.js REST backend, functional in 2024, released
-  for research purposes only. Its architecture — network-layer response
-  capture in a Firefox extension, a local backend that parses and stores —
+  for research purposes only. Its architecture, network-layer response
+  capture in a Firefox extension and a local backend that parses and stores,
   is carried forward in `collector/`.
 - **Analysis** ([LaclauGPT-Multimodal-Analysis](https://github.com/TomiToivio/LaclauGPT-Multimodal-Analysis)):
   [Ollama](https://ollama.com/)-driven batch jobs on the
   [CSC Puhti](https://docs.csc.fi/computing/systems-puhti/) supercomputer:
-  OpenCV frame extraction + EasyOCR + Whisper transcripts → Llama multimodal
-  frame analysis → summary → structured post-processing → populism analysis
+  OpenCV frame extraction + EasyOCR + Whisper transcripts -> Llama multimodal
+  frame analysis -> summary -> structured post-processing -> populism analysis
   with the theories of Laclau and Palonen.
+
+The current repository is a substantial redesign of that earlier architecture rather than a frozen reproduction of it.
 
 ## Architecture and canonical APIs
 
@@ -92,25 +125,23 @@ therefore do not need to choose between memory generations.
 | Concern | Current path | Status |
 |---|---|---|
 | Public CLI | `python -m laclaugpt.cli` / `laclaugpt` | **Canonical entry point** |
-| Configuration chain | `config/projects/` → `config/arenas/` → `config/machines/` → `config/execution/` | **Single runtime configuration chain** |
+| Configuration chain | `config/projects/` -> `config/arenas/` -> `config/machines/` -> `config/execution/` | **Single runtime configuration chain** |
 | Execution/orchestration | `laclaugpt/canonical_pipeline.py`, `laclaugpt/execution/` | **Canonical orchestration layer** |
 | Evidence-linked paper analysis | root `pipeline.py` | **Current analysis implementation**, called by the canonical dispatcher |
 | Domain model | `laclaugpt/model/` | **Canonical storage-neutral domain model for new code** |
 | Context Memory public API | `laclaugpt/memory/` | **Canonical memory/entity-resolution facade** |
 | Persistent Context Memory implementation | `laclaugpt_memory/` | **Supported implementation/compatibility layer**, used by the paper pipeline |
-| Batch interchange | `laclaugpt_interchange/` | **Current JSONL/Pydantic interchange, schema 1.3** |
+| Batch interchange | `laclaugpt_interchange/` | **Current JSONL/Pydantic interchange**; version lives in `laclaugpt_interchange.SCHEMA_VERSION` and should not be hard-coded in docs |
 | Visualization | `laclaugpt/visualization/` | **Optional project/profile-aware Streamlit dashboard**, local/Pouta only; not Roihu |
 | Collection | `collector/` | **Current collector subsystem**; preferred path is Firefox extension + Python backend |
 | Hermes Agent integration | [`HERMES.md`](HERMES.md), [`docs/HERMES_INTEGRATION.md`](docs/HERMES_INTEGRATION.md) | **Optional agent-caller conventions**, zero runtime dependency |
+| Claude Code integration | [`CLAUDE.md`](CLAUDE.md), [`docs/CLAUDE_INTEGRATION.md`](docs/CLAUDE_INTEGRATION.md) | **Optional agent-caller conventions**, zero runtime dependency; both agents route analysis to local Ollama open-source models only |
+| Theory contract | [`THEORY.md`](THEORY.md) | **Canonical theory/methodology contract for humans and agents**; required reading before theory-facing changes |
 | Format adapters | `dna_adapter/`, `dats_adapter/`, `inception_adapter/`, `minet_adapter/` | **Shipped implementations** |
 | Package adapters/integrations | `laclaugpt/adapters/`, `laclaugpt/integrations/` | **Shipped implementations**, using `laclaugpt.model` for canonical package objects |
 | Older model package | `laclaugpt_model/` | **Frozen compatibility model**; emits a deprecation warning and is not extended |
 | Root memory shim | `memory.py` | **Legacy compatibility only**; replacement is `laclaugpt.memory` |
 | Root run-config adapter | `run_config.py` | **Pipeline adapter + legacy YAML compatibility**, not a second configuration authority |
-
-The canonical analysis chain is:
-
-`project -> arena/dataset -> machine -> execution -> effective run config -> run`
 
 Project profiles own the authoritative analysis-module switches. Arena profiles
 own dataset/source metadata, analytic hints, model options and data-boundary
@@ -121,10 +152,10 @@ retry and checkpoint policy. See
 The older `laclaugpt_model/` store/projection helpers remain because they do not
 yet have exact tested canonical replacements. Historical data and scripts stay
 readable, but new adapters must not add dependencies on that model generation.
-Current schema-1.3 interchange should be lifted into the canonical model through
+Current interchange should be lifted into the canonical model through
 `laclaugpt.adapters.interchange.interchange_to_v2()`.
 
-The root `laclaugpt_processor.py` is the shipped 4CAT processor and now delegates
+The root `laclaugpt_processor.py` is the shipped 4CAT processor and delegates
 analysis to the same canonical execution path as the CLI; 4CAT-specific code is
 limited to dataset/result adaptation.
 
@@ -147,7 +178,8 @@ projects.py             compatibility project-preset helper; canonical project
 llm.py                  machine-tier LLM routing (local / cloud / external)
 memory.py               legacy shim; replacement is laclaugpt.memory
 seed_codebook.py        AI-ideology codebook seeds
-laclaugpt_interchange/  interchange schema (JSONL, Pydantic), schema 1.3
+laclaugpt_interchange/  interchange schema (JSONL, Pydantic); version lives in
+                        laclaugpt_interchange.SCHEMA_VERSION
 laclaugpt_memory/       persistent Context Memory implementation
 laclaugpt_model/        frozen older model/store/projection compatibility package
 prompts/                theory-guided prompt modules
@@ -158,9 +190,9 @@ dats_adapter/
 dna_adapter/
 inception_adapter/
 minet_adapter/          shipped format-specific adapter modules
-tests/                  public offline regression tests + synthetic fixture
-docs/                   implementation audit, config/interop/visualization docs and design plans
-paper/PAPER.md          current manuscript
+tests/                  public offline regression tests + synthetic fixtures
+docs/                   implementation audit, data policy, config/interop/visualization docs and design plans
+paper/PAPER.md          current research manuscript and main development case
 LICENSE                 repository license
 README.md               this file
 ```
@@ -220,6 +252,20 @@ capture path is `collector/firefox/extension/` plus
 LaclauGPT-native browser extension remain alternative capture paths. See
 [`collector/README.md`](collector/README.md) for the current status and research
 constraints.
+
+For basic source ingestion (RSS feeds, plain web pages, Hermes Agent
+submissions, manual researcher submissions and Telegram via the
+Vasama-OSINT adapter), see [`docs/DATA_COLLECTION.md`](docs/DATA_COLLECTION.md)
+— all channels converge into the same canonical corpus, and collection
+settings stay in gitignored `collection-data/`.
+
+For **digital ethnography based on TikTok or Instagram feed screen recordings**,
+`laclaugpt-split` can split a continuous recording into inspectable post-level
+clips using visible identity/text changes and feed-scroll motion. This is
+**descriptive preprocessing, not discourse analysis**: researchers should inspect
+the proposed clips and provenance manifest before treating them as analytical
+documents. See [`docs/DIGITAL_ETHNOGRAPHY_SPLITTING.md`](docs/DIGITAL_ETHNOGRAPHY_SPLITTING.md)
+for installation, usage and validation guidance.
 
 ## Installation and running
 
@@ -312,13 +358,36 @@ install both collector and test extras to run the exact full suite used by CI:
 
 ```bash
 python -m pip install -e ".[collector,test]"
-python -m pytest -q tests
+LACLAUGPT_EMBED_BACKEND=none python -m pytest -q tests
+```
+
+The regression suite covers the main public contracts of the repository, including:
+
+- canonical API consolidation, configuration composition and execution profiles;
+- theory-contract validation, discourse roles, populism structures and corpus-level synthesis candidates;
+- Context Memory, review state, evidence/provenance handling and interchange round-trips;
+- LLM routing and agent integration policy without making live model calls;
+- discourse-graph construction and visualization-facing data contracts;
+- source collection, minet/Zeeschuimer ingestion, collector parsers, media handling and runner behaviour;
+- EP24 ASR/media compatibility and other historical/public regression paths;
+- failure cleanup, CLI smoke paths, deployment profiles and compatibility shims.
+
+Useful focused runs include:
+
+```bash
+python -m pytest -q tests/test_theory_contract.py
+python -m pytest -q tests/test_config_chain.py tests/test_canonical_config_execution.py
+python -m pytest -q tests/test_context_memory_review.py
+python -m pytest -q tests/test_discourse_graph.py
+python -m pytest -q tests/collectors
+python -m pytest -q tests/test_pipeline_failure_cleanup.py -k name
 ```
 
 `tests/fixtures/synthetic_ai.csv` is a small public synthetic corpus. The mocked
 end-to-end tests run the real pipeline I/O, canonical configuration adapter,
 Context Memory and success-artifact publication path while replacing only model
-calls, then round-trip the emitted current-schema annotation JSONL.
+calls, then round-trip the emitted current-schema annotation JSONL. Collector
+tests use synthetic fixtures under `tests/fixtures/` and `tests/collectors/`.
 
 `.github/workflows/ci.yml` runs on every pull request and every push to `main`.
 Its core job installs `.[collector,test]`, compiles the shipped Python surface,
@@ -330,7 +399,9 @@ Firefox/browser JavaScript surfaces and extension manifests.
 
 The consolidation is intentionally non-destructive:
 
-- schema-1.3 interchange files remain readable;
+- interchange JSONL files remain readable across schema versions
+  (`schema_version` is a plain field with defaults, so older files load and
+  keep their version);
 - existing `laclaugpt_memory` SQLite stores keep their on-disk schema;
 - existing RunStore databases are migrated in place with nullable
   `analysis_profile` and `arena_id` columns;
@@ -343,12 +414,16 @@ The consolidation is intentionally non-destructive:
 
 ## Documentation status
 
+- [`paper/PAPER.md`](paper/PAPER.md) is the current research manuscript and principal development case for this version of LaclauGPT.
 - [`docs/CANONICAL_CONFIGURATION.md`](docs/CANONICAL_CONFIGURATION.md) defines
   the project/arena/machine/execution ownership boundaries and migration policy.
 - [`docs/VISUALIZATION.md`](docs/VISUALIZATION.md) defines the project/profile
   dashboard data contract and local/Pouta deployment boundary.
 - [`docs/PAPER_IMPLEMENTATION_AUDIT.md`](docs/PAPER_IMPLEMENTATION_AUDIT.md)
   records what the current code actually implements and the commit audited.
+- [`THEORY.md`](THEORY.md) is the canonical theory/methodology contract
+  (concept registry and invariants) that agents must read before theory-facing
+  changes.
 - [`docs/INTEROPERABILITY_SPEC.md`](docs/INTEROPERABILITY_SPEC.md) is a design
   specification containing both shipped and future targets.
 - [`docs/DATA_MODEL_2_0_PLAN.md`](docs/DATA_MODEL_2_0_PLAN.md) is a dated design
@@ -358,6 +433,13 @@ The consolidation is intentionally non-destructive:
 - [`docs/HERMES_INTEGRATION.md`](docs/HERMES_INTEGRATION.md) documents the
   optional Hermes Agent caller conventions and the memory boundary (agent
   cognition stays separate from research data).
+- [`docs/CLAUDE_INTEGRATION.md`](docs/CLAUDE_INTEGRATION.md) documents the
+  equivalent optional Claude Code caller conventions. Both agent integrations
+  are restricted to local Ollama open-source models
+  (`laclaugpt.integrations.agent_policy` enforces `LLM_MODE=local`, no cloud
+  or external routing, no cloud fallback).
+- [`docs/DATA_PUBLICATION_POLICY.md`](docs/DATA_PUBLICATION_POLICY.md) defines what may be published openly and what remains restricted research data.
+- [`docs/DATA_LIFECYCLE.md`](docs/DATA_LIFECYCLE.md) maps LaclauGPT research data onto its lifecycle from collection through preservation/publication/disposal.
 
 ## Author
 

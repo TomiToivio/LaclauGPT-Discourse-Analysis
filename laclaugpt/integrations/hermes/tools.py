@@ -3,7 +3,11 @@
 No Hermes SDK is imported here.  The wrapper deliberately exposes only a
 small allowlist of canonical LaclauGPT operations and never accepts arbitrary
 CLI arguments, environment overrides, model-routing flags, repository writes,
-or shell commands.
+or shell commands.  Agent-triggered runs are additionally restricted to
+local Ollama open-source models (see
+``laclaugpt.integrations.agent_policy``); the Claude Code integration
+(``laclaugpt.integrations.claude``) reuses this wrapper with a different
+audit actor.
 """
 from __future__ import annotations
 
@@ -16,6 +20,7 @@ from typing import Any, Callable
 from laclaugpt.cli import main as cli_main
 from laclaugpt.config import compose_config, list_arenas, list_executions, list_machines, list_projects
 from laclaugpt.execution import EffectiveRunConfig
+from laclaugpt.integrations.agent_policy import enforce_local_ollama_policy
 
 
 def _utc_now() -> str:
@@ -27,12 +32,13 @@ class HermesAuditLog:
     """Append-only JSONL audit trail for agent-triggered actions."""
 
     path: Path
+    actor: str = "hermes-agent"
 
     def append(self, action: str, status: str, details: dict[str, Any] | None = None) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         record = {
             "timestamp": _utc_now(),
-            "actor": "hermes-agent",
+            "actor": self.actor,
             "action": action,
             "status": status,
             "details": details or {},
@@ -47,16 +53,19 @@ class HermesTools:
     The integration is intentionally narrower than the CLI.  It cannot mutate
     repository files, publish results, delete data, inject arbitrary env vars,
     or override LLM routing/data-governance policy.  Execution is always the
-    canonical ``agent`` backend so provenance identifies the caller.
+    canonical ``agent`` backend so provenance identifies the caller, and every
+    run is routed to local Ollama open-source models only (no Ollama cloud,
+    external endpoints or cloud fallback).
     """
 
     def __init__(
         self,
         audit_log: str | Path = "data/audit/hermes-actions.jsonl",
         *,
+        actor: str = "hermes-agent",
         cli: Callable[[list[str] | None], int] = cli_main,
     ) -> None:
-        self.audit = HermesAuditLog(Path(audit_log))
+        self.audit = HermesAuditLog(Path(audit_log), actor=actor)
         self._cli = cli
 
     def profiles(self) -> dict[str, list[str]]:
@@ -81,8 +90,14 @@ class HermesTools:
 
         Only dataset input may be overridden.  In particular, callers cannot
         use this API to change Ollama mode, endpoints, fallback permissions,
-        credentials, or other data-governance settings.
+        credentials, or other data-governance settings, and the run must be
+        routed to local Ollama open-source models only.
         """
+        try:
+            enforce_local_ollama_policy()
+        except PermissionError as exc:
+            self.audit.append("model_policy", "rejected", {"error": str(exc)})
+            raise
         overrides = {"dataset": {"input": dataset}} if dataset else None
         try:
             raw = compose_config(project, machine, "agent", overrides, arena=arena)

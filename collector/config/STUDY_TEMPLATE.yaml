@@ -4,7 +4,7 @@
 # pure data: accounts + window + platforms + media policy. The collector
 # code never hardcodes a study.
 #
-# First real deployment: brazil-election-2026.yaml (issue #20).
+# First real deployment: study.private.yaml (issue #20).
 
 study: my-study-id
 timezone: UTC                      # IANA tz of the study (e.g. America/Sao_Paulo)
