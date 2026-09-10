@@ -259,6 +259,14 @@ Vasama-OSINT adapter), see [`docs/DATA_COLLECTION.md`](docs/DATA_COLLECTION.md)
 — all channels converge into the same canonical corpus, and collection
 settings stay in gitignored `collection-data/`.
 
+For **digital ethnography based on TikTok or Instagram feed screen recordings**,
+`laclaugpt-split` can split a continuous recording into inspectable post-level
+clips using visible identity/text changes and feed-scroll motion. This is
+**descriptive preprocessing, not discourse analysis**: researchers should inspect
+the proposed clips and provenance manifest before treating them as analytical
+documents. See [`docs/DIGITAL_ETHNOGRAPHY_SPLITTING.md`](docs/DIGITAL_ETHNOGRAPHY_SPLITTING.md)
+for installation, usage and validation guidance.
+
 ## Installation and running
 
 Python 3.11+ is supported; CI uses Python 3.12. From a fresh checkout, install
@@ -441,4 +449,3 @@ Tomi Toivio, Helsinki Hub on Emotions, Populism and Polarisation
 ## License
 
 See [LICENSE](LICENSE).
-See [digital-ethnography feed splitting](docs/DIGITAL_ETHNOGRAPHY_SPLITTING.md).
