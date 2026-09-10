@@ -1,0 +1,20 @@
+[Unit]
+Description=AI26 Firefox capture backend (port 8766, separate dataset from Brazil26)
+
+[Service]
+Type=simple
+# AI26 deployment checkout + private AI26 study config (NOT committed).
+# Same collector implementation as Brazil26; different config/data/port.
+WorkingDirectory=%h/laclaugpt-ai26
+Environment=AI26_CONFIG=collector/config/ai26.private.yaml
+Environment=AI26_BIND_HOST=127.0.0.1
+Environment=AI26_PORT=8766
+Environment=AI26_DATA_ROOT=%h/laclaugpt-ai26-data
+ExecStart=/usr/bin/python3 -W ignore::RuntimeWarning -m collector.firefox.firefox_backend --config ${AI26_CONFIG} --host ${AI26_BIND_HOST} --port ${AI26_PORT} --data-root ${AI26_DATA_ROOT}
+Restart=on-failure
+RestartSec=15
+StandardOutput=append:%h/laclaugpt-ai26-data/backend.log
+StandardError=append:%h/laclaugpt-ai26-data/backend.log
+
+[Install]
+WantedBy=default.target
