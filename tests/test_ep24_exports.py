@@ -85,7 +85,8 @@ class HumanReportTests(unittest.TestCase):
                          "nodal_candidates": []}
             write_human_report(anns, synthesis, str(path))
             text = path.read_text(encoding="utf-8")
-            self.assertIn("1 relevant, 1 marked irrelevant", text)
+            self.assertIn("1 retained, 1 marked irrelevant", text)
+            self.assertIn("# LaclauGPT analysis report", text)
             self.assertIn("## D1", text)
             self.assertIn("## D2", text)
             self.assertIn("relevance: **irrelevant**", text)
@@ -114,6 +115,8 @@ class HumanReportTests(unittest.TestCase):
             synthesis = corpus_synthesis([relevant, irrelevant], out)
         self.assertNotIn("S9", json.dumps(synthesis["signifier_frequency"]))
         self.assertIn("S1", synthesis["signifier_frequency"])
+        self.assertEqual(synthesis["documents_total"], 2)
+        self.assertEqual(synthesis["documents_excluded_irrelevant"], 1)
 
 
 if __name__ == "__main__":
