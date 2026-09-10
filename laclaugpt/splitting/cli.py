@@ -17,7 +17,7 @@ def parser() -> argparse.ArgumentParser:
     command.add_argument("--platform", choices=("tiktok", "instagram"), default="tiktok")
     command.add_argument("--sample-fps", type=float, default=2.0)
     command.add_argument("--identity-threshold", type=float, default=0.18)
-    command.add_argument("--flow-threshold", type=float, default=0.01)
+    command.add_argument("--flow-threshold", type=float, default=0.005)
     command.add_argument("--minimum-gap", type=float, default=1.0)
     command.add_argument("--minimum-clip", type=float, default=3.0)
     command.add_argument("--transition-guard", type=float, default=0.25)

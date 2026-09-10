@@ -27,7 +27,7 @@ class SplitConfig:
     platform: str = "tiktok"
     sample_fps: float = 2.0
     identity_change_threshold: float = 0.18
-    vertical_flow_threshold: float = 0.01
+    vertical_flow_threshold: float = 0.005
     minimum_boundary_gap: float = 1.0
     minimum_clip_seconds: float = 3.0
     transition_guard_seconds: float = 0.25
@@ -46,7 +46,7 @@ class Boundary:
     timestamp: float
     identity_change: float
     vertical_flow: float
-    confidence: float
+    signal_strength: float
     method: str = "identity-change+vertical-flow"
 
 
@@ -90,7 +90,7 @@ def identity_change(before, after, roi) -> float:
 
 
 def vertical_flow(before, after) -> float:
-    """Return robust median absolute vertical flow, normalized by frame height."""
+    """Return upper-quartile absolute vertical flow, normalized by frame height."""
     cv2, np = _cv2_numpy()
     height = before.shape[0]
     scale = min(1.0, 480.0 / max(before.shape[:2]))
@@ -98,7 +98,7 @@ def vertical_flow(before, after) -> float:
     a = cv2.cvtColor(cv2.resize(before, size), cv2.COLOR_BGR2GRAY)
     b = cv2.cvtColor(cv2.resize(after, size), cv2.COLOR_BGR2GRAY)
     flow = cv2.calcOpticalFlowFarneback(a, b, None, 0.5, 3, 15, 3, 5, 1.2, 0)
-    return float(np.median(np.abs(flow[..., 1])) / max(1, size[1]))
+    return float(np.percentile(np.abs(flow[..., 1]), 75) / max(1, size[1]))
 
 
 def _sampled_frames(video: Path, sample_fps: float) -> tuple[float, Iterator[tuple[float, object]]]:
@@ -146,11 +146,12 @@ def detect_boundaries(video: str | Path, config: SplitConfig) -> tuple[float, li
         flow = vertical_flow(before, frame)
         if (identity >= config.identity_change_threshold
                 and flow >= config.vertical_flow_threshold):
-            confidence = min(1.0, 0.5 * identity / config.identity_change_threshold
-                             + 0.5 * flow / config.vertical_flow_threshold)
-            candidate = Boundary(timestamp, identity, flow, confidence)
+            identity_strength = min(1.0, identity / (2 * config.identity_change_threshold))
+            flow_strength = min(1.0, flow / (2 * config.vertical_flow_threshold))
+            signal_strength = 0.5 * (identity_strength + flow_strength)
+            candidate = Boundary(timestamp, identity, flow, signal_strength)
             if candidates and timestamp - candidates[-1].timestamp < config.minimum_boundary_gap:
-                if candidate.confidence > candidates[-1].confidence:
+                if candidate.signal_strength > candidates[-1].signal_strength:
                     candidates[-1] = candidate
             else:
                 candidates.append(candidate)
@@ -180,8 +181,10 @@ def _cut(source: Path, destination: Path, start: float, end: float) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run([
         "ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
-        "-ss", f"{start:.3f}", "-to", f"{end:.3f}", "-i", str(source),
-        "-map", "0", "-c", "copy", str(destination),
+        "-ss", f"{start:.3f}", "-i", str(source), "-t", f"{end - start:.3f}",
+        "-map", "0", "-c:v", "libx264", "-preset", "fast", "-crf", "20",
+        "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart",
+        str(destination),
     ], check=True)
 
 
