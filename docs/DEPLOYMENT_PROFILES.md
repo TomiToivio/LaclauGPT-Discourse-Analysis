@@ -78,6 +78,8 @@ The profile enables:
 
 Even on one host these remain separate services. They should communicate through canonical files, APIs, databases or queues rather than hidden in-process coupling. Process supervision is intentionally external so systemd, containers or another supervisor can restart components independently.
 
+Any concrete hostname, IP address, database account, filesystem path, service schedule, backup policy or other deployment-specific setting must remain in machine-local configuration outside the public repository.
+
 ## 5. CSC Roihu / Slurm: analysis only
 
 Use `roihu` + `slurm` for GPU batch analysis.
@@ -143,12 +145,3 @@ The tests do not launch real models, browsers, dashboards or Slurm jobs.
 **One LaclauGPT, many environments.**
 
 The runtime topology is replaceable infrastructure. The discourse-analysis semantics are not.
-
-## DEPLOYMENT_HOST AI26 realtime deployment (operational)
-
-The concrete `linux-gpu-realtime` + `realtime-fullstack` installation runs on
-`laskin01` (3x V100-32GB). Its machine-local, uncommitted configuration and
-the implementation status of every service (collection timers, incremental
-analysis with stage-aware local gemma4 routing, dashboard, minet batch chain,
-MongoDB roles, backups) are documented in
-[DEPLOYMENT_LASKIN_AI26.md](DEPLOYMENT_LASKIN_AI26.md).
