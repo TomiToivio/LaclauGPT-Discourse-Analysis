@@ -64,6 +64,9 @@ class RunConfig:
     multimodal: bool = False
     ablate_hints: bool = False
     languages: tuple[str, ...] = ()
+    relevance_mode: str = "retain_unjudged"
+    relevance_scope: str = ""
+    relevance_terms: tuple[str, ...] = ()
     config_path: Path | None = None
 
     def enabled(self, module: str) -> bool:
@@ -107,6 +110,11 @@ class RunConfig:
             "sources": [source.__dict__ for source in self.sources],
             "languages": list(self.languages),
             "multimodal": self.multimodal,
+            "relevance": {
+                "mode": self.relevance_mode,
+                "scope": self.relevance_scope,
+                "terms": list(self.relevance_terms),
+            },
         }
 
 
@@ -171,6 +179,7 @@ def run_config_from_effective(config: Any, run_id: str, *,
     model = dict(dataset.get("model") or {})
     policy = dict(dataset.get("data_policy") or {})
     storage = dict(dataset.get("storage") or {})
+    relevance = dict(dataset.get("relevance") or {})
     root = Path(repository_root or Path(__file__).resolve().parent).resolve()
     work_dir = Path(storage.get("work_dir") or f"data/{_get(config, 'analysis_profile', 'analysis')}")
     if not work_dir.is_absolute():
@@ -215,6 +224,9 @@ def run_config_from_effective(config: Any, run_id: str, *,
         multimodal=bool(analysis.get("multimodal", False)),
         ablate_hints=bool(dataset.get("ablate_hints", pipeline_options.get("ablate_hints", False))),
         languages=languages,
+        relevance_mode=str(relevance.get("mode") or "retain_unjudged").casefold(),
+        relevance_scope=str(relevance.get("scope") or ""),
+        relevance_terms=_as_tuple(relevance.get("terms")),
         config_path=None,
     )
 
@@ -255,6 +267,7 @@ def _load_legacy_yaml(config_path: Path) -> RunConfig:
     base = config_path.parent.parent
     data_dir = base / "data" / str(raw["name"])
     memory_dir = raw.get("memory_dir")
+    relevance = dict(raw.get("relevance") or {})
     analytic_hints = {
         "signifiers": list(raw.get("seed_signifiers") or []),
         "actors": list(raw.get("seed_actors") or []),
@@ -302,6 +315,9 @@ def _load_legacy_yaml(config_path: Path) -> RunConfig:
         multimodal=bool(raw.get("multimodal", False)),
         ablate_hints=bool(raw.get("ablate_hints", False)),
         languages=languages,
+        relevance_mode=str(relevance.get("mode") or "retain_unjudged").casefold(),
+        relevance_scope=str(relevance.get("scope") or ""),
+        relevance_terms=_as_tuple(relevance.get("terms")),
         config_path=config_path,
     )
 
