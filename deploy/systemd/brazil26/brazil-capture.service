@@ -1,15 +1,17 @@
-# Example systemd user unit (DEPLOYMENT_HOST deployment; paths/host are environment-specific).
+# Generic systemd user-unit example. Keep host-specific overrides outside Git.
 [Unit]
-Description=AI26/Brasil26 Firefox capture backend (port 8765)
+Description=LaclauGPT Firefox capture backend
+After=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=%h/laclaugpt-ai26
-ExecStart=/usr/bin/python3 -W ignore::RuntimeWarning -m collector.firefox.firefox_backend --config collector/config/study.private.yaml --host ${BRAZIL26_BIND_HOST:-127.0.0.1} --data-root ${BRAZIL26_DATA_ROOT:-$HOME/laclaugpt-brasil-data}
+WorkingDirectory=%h/src/LaclauGPT-Discourse-Analysis
+EnvironmentFile=-%h/.config/laclaugpt/brazil26.env
+ExecStart=/bin/sh -lc 'exec /usr/bin/python3 -W ignore::RuntimeWarning -m collector.firefox.firefox_backend --config "${BRAZIL26_CONFIG:-collector/config/study.private.yaml}" --host "${BRAZIL26_BIND_HOST:-127.0.0.1}" --data-root "${BRAZIL26_DATA_ROOT:-$HOME/laclaugpt-brasil-data}"'
 Restart=on-failure
 RestartSec=15
-StandardOutput=append:%h/laclaugpt-brasil-data/backend.log
-StandardError=append:%h/laclaugpt-brasil-data/backend.log
+StandardOutput=append:%h/.local/state/laclaugpt/brazil26-backend.log
+StandardError=append:%h/.local/state/laclaugpt/brazil26-backend.log
 
 [Install]
 WantedBy=default.target
