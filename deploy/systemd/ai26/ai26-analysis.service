@@ -1,13 +1,12 @@
-# Example systemd user unit (DEPLOYMENT_HOST deployment; paths/host are environment-specific).
+# Generic systemd user-unit example. Keep host-specific overrides outside Git.
 [Unit]
-Description=AI26 incremental analysis tick (local gemma4 via stage routing)
+Description=LaclauGPT incremental analysis tick
 
 [Service]
 Type=oneshot
-WorkingDirectory=LACLAUGPT_REPO_ROOT
-ExecStart=/usr/bin/python3 LACLAUGPT_REPO_ROOT/ai26_runtime/analysis_worker.py
-# keep all gemma4 tiers resident across stage rotation (3x V100 = 96 GB)
+WorkingDirectory=%h/src/LaclauGPT-Discourse-Analysis
+ExecStart=/usr/bin/python3 ai26_runtime/analysis_worker.py
 Environment=OLLAMA_KEEP_ALIVE=24h
 Environment=AI26_BATCH=6
-StandardOutput=append:%h/.config/laclaugpt/ai26/analysis.log
-StandardError=append:%h/.config/laclaugpt/ai26/analysis.log
+StandardOutput=append:%h/.local/state/laclaugpt/analysis.log
+StandardError=append:%h/.local/state/laclaugpt/analysis.log
