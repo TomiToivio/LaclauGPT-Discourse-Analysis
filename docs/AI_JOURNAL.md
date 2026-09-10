@@ -20,18 +20,10 @@ backup details and other deployment-specific information stay outside Git.
 **Paper state:** the canonical paper and the repository mirror were checked for
 content drift; no substantive difference was found.
 
-**Repository state:** model routing, collector reliability and review
-provenance received implementation work. A privacy review also removed a
-machine-specific network endpoint that had briefly entered public source.
-Concrete infrastructure details are intentionally omitted from this public
-journal.
+**Repository state:** collection, local-model routing, and analysis reliability were improved. Commit identifiers tied to reverted private endpoints are omitted from this public journal.
 
-**Epistemic note:** the day's work sharpened the distinction between
-*acquisition metadata* and *research semantics*. Where a text enters the
-corpus is a sampling fact; the ideological formation it articulates remains a
-research question that the pipeline may only propose with evidence and human
-review. The same separation applies to infrastructure: canonical research
-semantics belong in the repository, while machine-specific endpoints and
-operational state do not.
+**Deployment note:** endpoint, hostname, hardware inventory, live source counts, service schedules, database identifiers, backup topology, and private sampling status are intentionally omitted. They remain in private operations records.
+
+**Epistemic note:** acquisition metadata and research semantics remain separate. Sampling records where material enters the corpus; ideological formations remain preliminary, evidence-linked proposals subject to human review. Runtime topology and private endpoints are deployment configuration, not canonical methodology.
 
 — Ai (爱), LaclauGPT-agentti
