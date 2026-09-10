@@ -1,63 +1,99 @@
-# Firefox capture layer
+# Running two studies with the shared Firefox collector
 
-Firefox extension + local backend for the Brazil 2026 study. This is
-the **preferred capture path** for the collector.
+One collector codebase, two physically separated datasets. Brazil26 and
+AI26 never share a data root, SQLite state, dedup keys, checkpoints,
+raw captures, normalized output, media store, manifests, or run ids.
 
-## Why Firefox
-
-`browser.webRequest.filterResponseData` is a Firefox-only API that
-reliably delivers API response bodies. Chromium (CDP/HAR) returns
-empty bodies for TikTok's main `post/item_list` feed — verified
-2026-09-07 — because the page consumes the response stream itself.
-Zeeschuimer and the historical LaclauGPT TikTok Scraper are
-Firefox-based for exactly this reason.
-
-## Architecture
-
-```
-Firefox (your normal browser, logged in)
-  extension: capture.js     webRequest.filterResponseData -> POST /capture
-             navigation.js  tour loop: visits each account, scrolls
-             content.js     scroll helper on account pages
-        |  HTTP 127.0.0.1:8765
-        v
-  firefox_backend.py        SAME tested pipeline as the CDP driver:
-                            collector/modules parsers -> normalize ->
-                            store (raw/, normalized/, manifests/, SQLite)
+```text
+                    shared collector/firefox code
+                              |
+                  +-----------+-----------+
+                  |                       |
+             Brazil26                  AI26
+                  |                       |
+        private election config   private ai26 config
+                  |                       |
+          Firefox profile A        Firefox profile B
+                  |                       |
+            backend :8765           backend :8766
+                  |                       |
+ ~/laclaugpt-brasil-data      ~/laclaugpt-ai26-data
 ```
 
-The extension is a thin capture + navigation layer; all parsing and
-storage live in the Python backend, so every capture path (CDP, HAR,
-Firefox) converges on one tested pipeline and one data layout.
+Study identity is always explicit, never inferred from content:
 
-Attribution: adapted from the historical LaclauGPT TikTok Scraper
-Firefox extension (CC0) and Zeeschuimer's capture architecture
-(MPL-2.0). Academic research use only.
+- the config's `study:` field;
+- reported by `/status` and `/tour`;
+- recorded in every normalized record under `collection_provenance.study`.
 
-## Install (one-time, your Windows Firefox)
+## Backends
 
-1. Start the backend:
-   ```bash
-   python -m collector.firefox.firefox_backend \
-       --config collector/config/study.private.yaml \
-       --data-root ~/laclaugpt-brasil-data
-   ```
-2. Open Firefox -> `about:debugging#/runtime/this-firefox`
-3. "Load Temporary Add-on..." -> select `collector/firefox/extension/manifest.json`
-4. Keep the backend running while you browse. The extension captures
-   API responses from every TikTok/Instagram/X page you visit and the
-   tour loop visits the configured accounts automatically every 5 min.
+```bash
+# Brazil26 (existing deployment; keep host/port/data-root as configured)
+python -m collector.firefox.firefox_backend \
+    --config collector/config/brazil-election-2026.yaml \
+    --host 100.115.95.109 --port 8765 \
+    --data-root ~/laclaugpt-brasil-data
 
-## Notes
+# AI26 (separate checkout dir on the deployment host, private config)
+python -m collector.firefox.firefox_backend \
+    --config collector/config/ai26.private.yaml \
+    --host 127.0.0.1 --port 8766 \
+    --data-root ~/laclaugpt-ai26-data
+```
 
-- The tour loop asks the backend for the account list (`/tour`) built
-  from the study YAML — same single source of truth as the CLI runner.
-- `GET /status` on the backend shows live counters (captures, posts,
-  seen_total, git commit).
-- Captures from pages you browse personally are filtered by the same
-  view-allowlist logic as the CDP path (Instagram prefetch, X
-  non-post-bearing operations, TikTok preload) — your own feed is not
-  silently collected.
-- The extension is temporary (about:debugging): reload it after
-  Firefox restarts. For the study period that is the honest tradeoff
-  for no signed distribution.
+Systemd user services:
+
+```bash
+systemctl --user start brazil-capture.service   # :8765 (existing)
+systemctl --user start ai26-capture.service     # :8766 (new, deploy/systemd/ai26/)
+```
+
+`ai26-capture.service` reads `AI26_CONFIG`, `AI26_BIND_HOST`,
+`AI26_PORT`, `AI26_DATA_ROOT` from its environment block.
+
+## Firefox profiles
+
+The extension ships with `http://127.0.0.1:8765` as the
+backwards-compatible default. Each Firefox profile stores its own
+backend address in extension local storage under `backend_url`, so the
+SAME extension code runs against different backends without code
+duplication.
+
+Create one profile per study and set the backend once per profile:
+
+```bash
+# Brazil26 profile (default endpoint, nothing to set)
+firefox --createProfile laclaugpt-brazil26
+firefox --profile laclaugpt-brazil26 -url about:debugging # install the extension, done
+
+# AI26 profile: point the extension at :8766
+firefox --createProfile laclaugpt-ai26
+firefox --profile laclaugpt-ai26
+# then in the extension's background context (about:debugging -> Inspect):
+#   browser.storage.local.set({ backend_url: "http://127.0.0.1:8766" })
+```
+
+`navigation.js` awaits the stored value before its first tour tick;
+`capture.js` resolves it before the first capture POST. Invalid or
+absent values fall back to `127.0.0.1:8765`.
+
+## Data roots
+
+Each backend writes only inside its own data root:
+
+```text
+~/laclaugpt-brasil-data/    raw/ normalized/ media/ manifests/ state.sqlite3
+~/laclaugpt-ai26-data/      raw/ normalized/ media/ manifests/ state.sqlite3
+```
+
+The same platform document may exist once in EACH dataset when both
+sampling designs legitimately capture it; dedup is per study. Tests:
+`tests/collectors/test_dual_study_isolation.py`.
+
+## Privacy boundary
+
+Live account lists (`ai26.private.yaml`, the Brazil26 operational
+config) stay in the private deployment checkout and are never
+committed. The public repository carries only the schema, the
+synthetic test fixtures, and this documentation.

@@ -10,7 +10,7 @@ import yaml
 
 
 class StudyConfig:
-    """Parsed study config: window, platforms, candidates and parties."""
+    """Parsed study config: window, platforms, candidates, parties, groups."""
 
     def __init__(self, data: dict[str, Any], source: str) -> None:
         self.source = source
@@ -26,12 +26,24 @@ class StudyConfig:
                               if isinstance(cfg, dict)}
         self.candidates: list[dict] = list(data.get("candidates") or [])
         self.parties: list[dict] = list(data.get("parties") or [])
+        # Generic study groups (STUDY_TEMPLATE.yaml "groups"): free-form target
+        # sets for non-election studies (researchers, labs, movements,
+        # organisations). Election-specific groups ride as metadata.
+        self.groups: list[dict] = [
+            g for g in (data.get("groups") or []) if isinstance(g, dict)]
         self.expected_candidates = int(data.get("expected_candidates",
                                                 _infer_expected(data)))
         self.study = data.get("study", "unnamed")
 
     def accounts(self) -> list[dict]:
-        """All collection targets as flat (name, kind, platform, handle) rows."""
+        """All collection targets as flat (name, kind, platform, handle) rows.
+
+        Election studies keep their legacy candidate/party shape; generic
+        studies use `groups` entries. Every row carries `group_id` and
+        `formation_seed` as sampling provenance metadata (never used as an
+        automatic discourse label — a group's seed category is provenance,
+        not truth about any post).
+        """
         rows: list[dict] = []
         for kind, group in (("candidate", self.candidates), ("party", self.parties)):
             for entity in group:
@@ -39,7 +51,22 @@ class StudyConfig:
                 for platform in self.platforms:
                     for handle in handles.get(platform) or []:
                         rows.append({"name": entity["name"], "kind": kind,
-                                     "platform": platform, "handle": handle})
+                                     "platform": platform, "handle": handle,
+                                     "group_id": kind,
+                                     "formation_seed": entity.get("formation_seed", "")})
+        for group in self.groups:
+            handles = group.get("accounts") or group.get("handles") or {}
+            for platform in self.platforms:
+                for handle in handles.get(platform) or []:
+                    rows.append({
+                        "name": group.get("name") or group.get("id", ""),
+                        "kind": "group",
+                        "platform": platform, "handle": handle,
+                        "group_id": group.get("id", ""),
+                        "formation_seed": _formation_seed(group),
+                        "arena": group.get("arena", ""),
+                        "notes": group.get("notes", ""),
+                    })
         return rows
 
     def local_today(self) -> date:
@@ -66,6 +93,17 @@ def _date(value: Any) -> date:
     if isinstance(value, date):
         return value
     return date.fromisoformat(str(value))
+
+
+def _formation_seed(group: dict) -> str:
+    """Sampling-provenance seed of a generic group; empty string is allowed.
+
+    This is a SAMPLING label recorded for provenance. It must never be used
+    as an automatic discourse label for captured posts — documents keep
+    requiring discourse analysis regardless of the group that captured them.
+    """
+    seed = group.get("formation_seed")
+    return "" if seed is None else str(seed)
 
 
 def _infer_expected(data: dict) -> int:
