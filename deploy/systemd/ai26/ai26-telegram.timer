@@ -1,0 +1,11 @@
+# Example systemd user unit (DEPLOYMENT_HOST deployment; paths/host are environment-specific).
+[Unit]
+Description=AI26 Telegram bridge every 15 min
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
