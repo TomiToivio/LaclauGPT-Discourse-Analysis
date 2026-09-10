@@ -31,9 +31,37 @@ class StudyConfig:
         # organisations). Election-specific groups ride as metadata.
         self.groups: list[dict] = [
             g for g in (data.get("groups") or []) if isinstance(g, dict)]
+        # Handles are stored EXACTLY as supplied; empty or whitespace-only
+        # handles fail loudly here instead of being silently corrected later.
+        self._reject_invalid_handles()
         self.expected_candidates = int(data.get("expected_candidates",
                                                 _infer_expected(data)))
         self.study = data.get("study", "unnamed")
+
+    def _reject_invalid_handles(self) -> None:
+        """Fail visibly on empty/whitespace/non-string handles (no silent fixes).
+
+        Handles are research identifiers: they are stored exactly as supplied.
+        A typo must surface at config-load time, never as a silently repaired
+        tour URL pointing at the wrong account.
+        """
+        bad: list[str] = []
+        for entity in self.candidates + self.parties:
+            handles = entity.get("handles") or entity.get("accounts") or {}
+            for platform, values in handles.items():
+                for value in values or []:
+                    if not isinstance(value, str) or not value.strip():
+                        bad.append(f"{entity.get('name', '?')}/{platform}: {value!r}")
+        for group in self.groups:
+            handles = group.get("accounts") or group.get("handles") or {}
+            for platform, values in handles.items():
+                for value in values or []:
+                    if not isinstance(value, str) or not value.strip():
+                        bad.append(f"{group.get('id', '?')}/{platform}: {value!r}")
+        if bad:
+            raise ValueError(
+                "study config contains empty/whitespace/non-string handles "
+                "(handles are never silently corrected): " + "; ".join(bad))
 
     def accounts(self) -> list[dict]:
         """All collection targets as flat (name, kind, platform, handle) rows.
