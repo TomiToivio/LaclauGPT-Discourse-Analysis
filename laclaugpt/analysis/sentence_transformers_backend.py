@@ -12,7 +12,7 @@ Provenance for reproducibility (paper §3.3).
 """
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Any, Iterable
 
 from laclaugpt.analysis import BackendUnavailable, EmbeddingResult
 
