@@ -1,0 +1,17 @@
+project: ep24
+dataset:
+  title: European Parliament election 2024 social-media corpus
+  languages: []
+analysis:
+  laclau: true
+  palonen: true
+  sociotechnical_imaginaries: false
+  sentiment: true
+  topics: true
+  entities: true
+  context_memory: true
+  sna: false
+  ant: false
+  valueflows: false
+  temporal: true
+  multimodal: true
