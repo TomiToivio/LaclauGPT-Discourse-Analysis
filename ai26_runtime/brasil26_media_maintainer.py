@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""Brasil26 media maintainer: PyKTok recovery for TikTok + X/IG media pass.
+"""Brasil26 media maintainer: TikTok recovery plus X/Instagram media pass.
 
-Run periodically (or on demand) on Laskin. Idempotent:
-1. Regular media pass enqueues+downloads everything not yet ok
-   (X images/videos via public twimg CDN, IG images/videos via scontent).
-2. PyKTok recovery for TikTok videos whose CDN URLs died (page-URL route).
+The repository root and data root are runtime configuration. No concrete host,
+network endpoint or deployment path is embedded in this public module.
 """
 import glob
 import hashlib
@@ -13,12 +11,14 @@ import os
 import sqlite3
 import sys
 import time
+from pathlib import Path
 
-sys.path.insert(0, "/mnt/workspace/LaclauGPT-Discourse-Analysis")
+REPO = Path(os.environ.get("LACLAUGPT_ROOT", str(Path(__file__).resolve().parents[1]))).expanduser().resolve()
+sys.path.insert(0, str(REPO))
 from collector.store import Store  # noqa: E402
 from collector.media import MediaDownloader  # noqa: E402
 
-DATA_ROOT = os.environ.get("BRAZIL26_DATA_ROOT", "~/laclaugpt-brasil-data")
+DATA_ROOT = os.path.expanduser(os.environ.get("BRAZIL26_DATA_ROOT", "~/laclaugpt-brasil-data"))
 DB = os.path.join(DATA_ROOT, "state.sqlite3")
 MEDIA_DIR = os.path.join(DATA_ROOT, "media", "tiktok_pyktok")
 os.makedirs(MEDIA_DIR, exist_ok=True)
