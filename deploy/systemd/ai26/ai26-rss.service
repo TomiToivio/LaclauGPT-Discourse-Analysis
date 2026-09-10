@@ -1,11 +1,11 @@
-# Example systemd user unit (Laskin01 deployment; paths/host are environment-specific).
+# Generic systemd user-unit example. Keep host-specific overrides outside Git.
 [Unit]
-Description=AI26 RSS collection tick
-After=network-online.target mongodb.service
+Description=LaclauGPT RSS collection tick
+After=network-online.target
 
 [Service]
 Type=oneshot
-WorkingDirectory=/mnt/workspace/LaclauGPT-Discourse-Analysis/ai26_runtime
-ExecStart=/usr/bin/python3 /mnt/workspace/LaclauGPT-Discourse-Analysis/ai26_runtime/collect_rss_loop.py
-StandardOutput=append:%h/.config/laclaugpt/ai26/rss.log
-StandardError=append:%h/.config/laclaugpt/ai26/rss.log
+WorkingDirectory=%h/src/LaclauGPT-Discourse-Analysis/ai26_runtime
+ExecStart=/usr/bin/python3 collect_rss_loop.py
+StandardOutput=append:%h/.local/state/laclaugpt/rss.log
+StandardError=append:%h/.local/state/laclaugpt/rss.log
