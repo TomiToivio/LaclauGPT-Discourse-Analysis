@@ -14,14 +14,24 @@ from .data import (
     top_values,
 )
 from .graph import DASHBOARD_PROJECTIONS, graph_projection_data, graph_projection_options
-from .review import ReviewStore
+from .review import (
+    UNKNOWN,
+    ReviewStore,
+    artifact_fingerprint,
+    assessment_context,
+    canonical_review_targets,
+)
 from .runtime import dashboard_runtime_violation, require_dashboard_runtime
 
 __all__ = [
     "DASHBOARD_PROJECTIONS",
+    "UNKNOWN",
     "ReviewStore",
     "annotation_to_row",
+    "artifact_fingerprint",
     "articulation_edges",
+    "assessment_context",
+    "canonical_review_targets",
     "dashboard_runtime_violation",
     "filter_frame",
     "flatten_annotations",
