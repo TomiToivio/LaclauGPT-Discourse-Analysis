@@ -1,11 +1,11 @@
-# Example systemd user unit (DEPLOYMENT_HOST deployment; paths/host are environment-specific).
+# Generic systemd user-unit example. Keep host-specific overrides outside Git.
 [Unit]
-Description=AI26 dashboard JSONL export (after each analysis tick)
+Description=LaclauGPT dashboard JSONL export
 
 [Service]
 Type=oneshot
-WorkingDirectory=LACLAUGPT_REPO_ROOT
-ExecStartPre=/bin/sh -c 'for f in LACLAUGPT_REPO_ROOT/collection-data/dashboard/*.jsonl; do : > "$f"; done 2>/dev/null || true'
-ExecStart=/usr/bin/python3 LACLAUGPT_REPO_ROOT/ai26_runtime/export_dashboard_jsonl.py
-StandardOutput=append:%h/.config/laclaugpt/ai26/export.log
-StandardError=append:%h/.config/laclaugpt/ai26/export.log
+WorkingDirectory=%h/src/LaclauGPT-Discourse-Analysis
+ExecStartPre=/bin/sh -c 'for f in collection-data/dashboard/*.jsonl; do [ -e "$f" ] && : > "$f"; done; true'
+ExecStart=/usr/bin/python3 ai26_runtime/export_dashboard_jsonl.py
+StandardOutput=append:%h/.local/state/laclaugpt/export.log
+StandardError=append:%h/.local/state/laclaugpt/export.log
