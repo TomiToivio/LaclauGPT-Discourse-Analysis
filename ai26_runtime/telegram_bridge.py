@@ -1,36 +1,36 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""AI26 Telegram bridge: laclaugpt_ai26.events -> ai26_sources (adapter boundary).
+"""AI26 Telegram bridge: upstream event collection -> canonical sources.
 
-The existing vasama_collect_telegram.py keeps collecting into laclaugpt_ai26.events.
-This bridge converts new telegram-sourced events into canonical ai26 sources
-using the laclaugpt collect adapter. No second telethon client.
+The upstream collection name is deployment configuration. This public adapter
+contains no production database name, hostname or account information.
 """
 from __future__ import annotations
 
 import os
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
-sys.path.insert(0, "LACLAUGPT_REPO_ROOT")
-sys.path.insert(0, "LACLAUGPT_REPO_ROOT/ai26_runtime")
+REPO = Path(os.environ.get("LACLAUGPT_ROOT", str(Path(__file__).resolve().parents[1]))).expanduser().resolve()
+sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(REPO / "ai26_runtime"))
 
 from mongo_writer import get_db  # noqa: E402
 
 P = "ai26_"
 STATE_ID = "telegram_bridge_state"
+UPSTREAM_COLLECTION = os.environ.get("AI26_UPSTREAM_COLLECTION", "events")
 
 
 def main() -> int:
     db = get_db()
-    # resume from last processed event timestamp
     state = db[P + "runs"].find_one({"run_id": STATE_ID}) or {}
     last_ts = state.get("last_event_ts")
     query = {"source_kind": {"$in": ["telegram", "telegram-channel"]}}
     if last_ts:
         query["published_at"] = {"$gt": last_ts}
-    events = list(db[os.environ.get("AI26_UPSTREAM_DB", "laclaugpt_ai26")]
-        ["events"].find(query).sort(
+    events = list(db[UPSTREAM_COLLECTION].find(query).sort(
         "published_at", 1).limit(500))
     new = 0
     latest_ts = last_ts
@@ -51,9 +51,9 @@ def main() -> int:
             "raw_text": ev.get("text"),
             "language": ev.get("language"),
             "metadata": {
-                "arena": "grassroots",   # default; researcher re-tags freely
+                "arena": "grassroots",
                 "channel": ev.get("source"),
-                "upstream_db": os.environ.get("AI26_UPSTREAM_DB", "laclaugpt_ai26") + ".events",
+                "upstream_collection": UPSTREAM_COLLECTION,
                 "collection_provenance": ev.get("collection_provenance"),
             },
         }
