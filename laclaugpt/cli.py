@@ -43,6 +43,7 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--machine", required=True, choices=list_machines())
     run.add_argument("--execution", required=True, choices=list_executions())
     run.add_argument("--dataset")
+    run.add_argument("--output", help="canonical JSONL output path for the run")
     run.add_argument("--parent-run-id")
     run.add_argument(
         "--pipeline-config",
@@ -113,6 +114,9 @@ def main(argv: list[str] | None = None) -> int:
         dataset_overrides = {}
         if dataset:
             dataset_overrides["input"] = dataset
+        run_output = getattr(args, "output", None)
+        if run_output:
+            dataset_overrides["output"] = run_output
         overrides = {"dataset": dataset_overrides} if dataset_overrides else None
         effective = compose_config(
             args.project,
