@@ -39,7 +39,7 @@ Firefox extension (CC0) and Zeeschuimer's capture architecture
 1. Start the backend:
    ```bash
    python -m collector.firefox.firefox_backend \
-       --config collector/config/brazil-election-2026.yaml \
+       --config collector/config/study.private.yaml \
        --data-root ~/laclaugpt-brasil-data
    ```
 2. Open Firefox -> `about:debugging#/runtime/this-firefox`

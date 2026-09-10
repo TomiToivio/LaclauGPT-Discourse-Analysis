@@ -5,7 +5,7 @@ Description=AI26/Brasil26 Firefox capture backend (port 8765)
 [Service]
 Type=simple
 WorkingDirectory=%h/laclaugpt-ai26
-ExecStart=/usr/bin/python3 -W ignore::RuntimeWarning -m collector.firefox.firefox_backend --config collector/config/brazil-election-2026.yaml --host ${BRAZIL26_BIND_HOST:-127.0.0.1} --data-root ${BRAZIL26_DATA_ROOT:-$HOME/laclaugpt-brasil-data}
+ExecStart=/usr/bin/python3 -W ignore::RuntimeWarning -m collector.firefox.firefox_backend --config collector/config/study.private.yaml --host ${BRAZIL26_BIND_HOST:-127.0.0.1} --data-root ${BRAZIL26_DATA_ROOT:-$HOME/laclaugpt-brasil-data}
 Restart=on-failure
 RestartSec=15
 StandardOutput=append:%h/laclaugpt-brasil-data/backend.log

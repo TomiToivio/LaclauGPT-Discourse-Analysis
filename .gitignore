@@ -207,3 +207,6 @@ collection-data/
 data/csv/ep24_poland.csv
 data/csv/ep24_finland.csv
 /.venv-ep24
+
+# Agent-specific local permissions
+.claude/settings.local.json
