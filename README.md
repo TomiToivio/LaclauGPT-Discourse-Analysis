@@ -43,16 +43,9 @@ LaclauGPT predates the current AI paper and remains multi-project by design. The
 
 That separation is deliberate. A project can define its theoretical modules and codebooks, an arena can define a dataset or source environment, a machine profile can define infrastructure, and an execution profile can define how the run is scheduled. The AI-ideology project is therefore the **current flagship research case**, not the only permissible use of the software.
 
-Other current or historical uses include:
+Other current or historical uses include multimodal election research, CO3 social-contract research, ENDURE post-pandemic research, PLEDGE grievance-politics research, social-media collection and reusable interoperability with other discourse-analysis and annotation tools.
 
-- multimodal political social-media analysis for the 2024 European Parliament elections;
-- CO3 research on the social contract;
-- ENDURE research on the post-pandemic world;
-- PLEDGE research on grievance politics;
-- election and campaign data collection;
-- reusable adapters and interoperability with other discourse-analysis, annotation and social-data tools.
-
-Project-specific theories and codebooks can be added on top of the same evidence-linked analytical core. The repository should therefore evolve in two directions at once: **deeper theoretical fidelity for the current paper, and cleaner modularity for other research projects**.
+Project-specific theories, codebooks and relevance policies can be added on top of the same evidence-linked analytical core. The repository should therefore evolve in two directions at once: **deeper theoretical fidelity for the current paper, and cleaner modularity for other research projects**.
 
 ## Public repository and research-data boundary
 
@@ -67,44 +60,9 @@ It deliberately contains:
 
 See [`docs/DATA_PUBLICATION_POLICY.md`](docs/DATA_PUBLICATION_POLICY.md) for the publication boundary and [`docs/DATA_LIFECYCLE.md`](docs/DATA_LIFECYCLE.md) for the research-data lifecycle.
 
-## Predecessor repositories
+## History and predecessor repositories
 
-This repository continues the work of two earlier LaclauGPT repositories:
-
-- [LaclauGPT-Multimodal-Analysis](https://github.com/TomiToivio/LaclauGPT-Multimodal-Analysis)
-  — multimodal analysis of EP2024 social-media videos, run as batch jobs on
-  the CSC Puhti supercomputer (research documentation).
-- [LaclauGPT-TikTok-Scraper](https://github.com/TomiToivio/LaclauGPT-TikTok-Scraper)
-  — the 2024 EP-election TikTok scraper (research documentation, not
-  maintained); its collector ideas are carried forward under `collector/`.
-
-Both remain historical/archival; active development happens here.
-
-### History
-
-LaclauGPT is named as a tribute to [Ernesto Laclau](https://en.wikipedia.org/wiki/Ernesto_Laclau). The original pipeline was developed by Tomi Toivio in connection with the [Helsinki Hub on Emotions, Populism and Polarisation](https://www.helsinki.fi/en/researchgroups/emotions-populism-and-polarisation) and research projects funded by the European Union and the Research Council of Finland:
-
-- [CO3](https://www.co3socialcontract.eu/) researches the social contract.
-- [ENDURE](https://www.endure-project.org/) researches the world after the pandemic.
-- [PLEDGE](https://www.pledgeproject.eu/) researches grievance politics.
-
-The predecessor pipeline was used to collect and analyse multimodal social-media data related to the 2024 European Parliament elections. TikTok and Instagram material was collected from 1 May 2024 until election day, 9 June 2024, using official candidate usernames, hashtags and search queries. The work covered Bulgaria, Croatia, Finland, France, Germany, Hungary, Portugal, Spain and Sweden. The collected and analysed research data is not released openly; the public repository uses synthetic fixtures and safe documentation instead.
-
-The predecessor work split into two halves:
-
-- **Collection** ([LaclauGPT-TikTok-Scraper](https://github.com/TomiToivio/LaclauGPT-TikTok-Scraper)):
-  a Firefox extension + Node.js REST backend, functional in 2024, released
-  for research purposes only. Its architecture, network-layer response
-  capture in a Firefox extension and a local backend that parses and stores,
-  is carried forward in `collector/`.
-- **Analysis** ([LaclauGPT-Multimodal-Analysis](https://github.com/TomiToivio/LaclauGPT-Multimodal-Analysis)):
-  [Ollama](https://ollama.com/)-driven batch jobs on the
-  [CSC Puhti](https://docs.csc.fi/computing/systems-puhti/) supercomputer:
-  OpenCV frame extraction + EasyOCR + Whisper transcripts -> Llama multimodal
-  frame analysis -> summary -> structured post-processing -> populism analysis
-  with the theories of Laclau and Palonen.
-
-The current repository is a substantial redesign of that earlier architecture rather than a frozen reproduction of it.
+Active development happens in this repository. It supersedes the archival [LaclauGPT-Multimodal-Analysis](https://github.com/TomiToivio/LaclauGPT-Multimodal-Analysis) and [LaclauGPT-TikTok-Scraper](https://github.com/TomiToivio/LaclauGPT-TikTok-Scraper) repositories while preserving useful compatibility paths. The EP2024 development history, earlier research-project context and predecessor architecture are documented separately in [`docs/HISTORY.md`](docs/HISTORY.md).
 
 ## Architecture and canonical APIs
 
@@ -143,11 +101,9 @@ therefore do not need to choose between memory generations.
 | Root memory shim | `memory.py` | **Legacy compatibility only**; replacement is `laclaugpt.memory` |
 | Root run-config adapter | `run_config.py` | **Pipeline adapter + legacy YAML compatibility**, not a second configuration authority |
 
-Project profiles own the authoritative analysis-module switches. Arena profiles
-own dataset/source metadata, analytic hints, model options and data-boundary
-policy. Machine profiles own infrastructure and execution profiles own scheduler,
-retry and checkpoint policy. See
-[`docs/CANONICAL_CONFIGURATION.md`](docs/CANONICAL_CONFIGURATION.md).
+Project profiles own the authoritative analysis-module switches and any optional relevance policy. Arena profiles own dataset/source metadata, analytic hints, model options and data-boundary policy. Machine profiles own infrastructure and execution profiles own scheduler, retry and checkpoint policy. See [`docs/CANONICAL_CONFIGURATION.md`](docs/CANONICAL_CONFIGURATION.md).
+
+The default relevance policy is conservative: documents without substantive codes remain unjudged rather than being silently excluded. A project such as EP24 may explicitly opt into a project-owned keyword scope gate. This keeps election-specific vocabulary out of the generic analysis implementation and preserves zero-code/borderline documents for validation-oriented projects such as AI26.
 
 The older `laclaugpt_model/` store/projection helpers remain because they do not
 yet have exact tested canonical replacements. Historical data and scripts stay
@@ -269,9 +225,7 @@ for installation, usage and validation guidance.
 
 ## Installation and running
 
-Python 3.11+ is supported; CI uses Python 3.12. From a fresh checkout, install
-the repository itself rather than maintaining a separate manual dependency
-list:
+Python 3.11+ is supported; CI tests Python 3.11, 3.12 and 3.13. From a fresh checkout, install the repository itself rather than maintaining a separate manual dependency list:
 
 ```bash
 python -m pip install --upgrade pip
@@ -293,6 +247,7 @@ pipeline:
 ```bash
 python -m pip install -e ".[collector]"       # websocket capture + timezone data
 python -m pip install -e ".[test]"            # pytest and test-runner support
+python -m pip install -e ".[dev]"             # build tools + ruff static checks
 python -m pip install -e ".[nlp]"             # spaCy / sklearn / gensim / ST / statsmodels
 python -m pip install -e ".[services]"        # MongoDB / ArangoDB / Redis / DuckDB / Chroma
 python -m pip install -e ".[visualization]"   # Streamlit + Plotly dashboard
@@ -353,12 +308,12 @@ sidecar and never rewrite canonical model output. See
 ## Tests and CI
 
 The public test suite is offline: it makes no real LLM, GPU, browser-platform,
-or external-database calls. Because `tests/` includes collector regressions,
-install both collector and test extras to run the exact full suite used by CI:
+or external-database calls. To run the same core dependency surface used by CI:
 
 ```bash
-python -m pip install -e ".[collector,test]"
+python -m pip install -e ".[collector,collect,test,dev]"
 LACLAUGPT_EMBED_BACKEND=none python -m pytest -q tests
+ruff check --select E9,F63,F7,F82 .
 ```
 
 The regression suite covers the main public contracts of the repository, including:
@@ -378,6 +333,7 @@ Useful focused runs include:
 python -m pytest -q tests/test_theory_contract.py
 python -m pytest -q tests/test_config_chain.py tests/test_canonical_config_execution.py
 python -m pytest -q tests/test_context_memory_review.py
+python -m pytest -q tests/test_relevance_policy.py
 python -m pytest -q tests/test_discourse_graph.py
 python -m pytest -q tests/collectors
 python -m pytest -q tests/test_pipeline_failure_cleanup.py -k name
@@ -390,10 +346,11 @@ calls, then round-trip the emitted current-schema annotation JSONL. Collector
 tests use synthetic fixtures under `tests/fixtures/` and `tests/collectors/`.
 
 `.github/workflows/ci.yml` runs on every pull request and every push to `main`.
-Its core job installs `.[collector,test]`, compiles the shipped Python surface,
-runs CLI smoke tests and executes the full Python test suite. Its collector job
-installs the same runtime extras, runs collector tests and validates both
-Firefox/browser JavaScript surfaces and extension manifests.
+Its core job runs the full offline suite against Python 3.11, 3.12 and 3.13,
+checks publication safety, runs targeted Ruff hard-error checks, compiles the
+shipped Python surface and exercises CLI smoke paths. The collector job runs on
+Python 3.12 with Node 22, tests the collector and validates both browser-extension
+JavaScript surfaces and manifests.
 
 ## Compatibility policy
 
@@ -415,29 +372,15 @@ The consolidation is intentionally non-destructive:
 ## Documentation status
 
 - [`paper/PAPER.md`](paper/PAPER.md) is the current research manuscript and principal development case for this version of LaclauGPT.
-- [`docs/CANONICAL_CONFIGURATION.md`](docs/CANONICAL_CONFIGURATION.md) defines
-  the project/arena/machine/execution ownership boundaries and migration policy.
-- [`docs/VISUALIZATION.md`](docs/VISUALIZATION.md) defines the project/profile
-  dashboard data contract and local/Pouta deployment boundary.
-- [`docs/PAPER_IMPLEMENTATION_AUDIT.md`](docs/PAPER_IMPLEMENTATION_AUDIT.md)
-  records what the current code actually implements and the commit audited.
-- [`THEORY.md`](THEORY.md) is the canonical theory/methodology contract
-  (concept registry and invariants) that agents must read before theory-facing
-  changes.
-- [`docs/INTEROPERABILITY_SPEC.md`](docs/INTEROPERABILITY_SPEC.md) is a design
-  specification containing both shipped and future targets.
-- [`docs/DATA_MODEL_2_0_PLAN.md`](docs/DATA_MODEL_2_0_PLAN.md) is a dated design
-  plan. Historical version references inside that plan describe the state when
-  the plan was written; current canonical paths and schema versions are listed
-  in this README and the implementation audit.
-- [`docs/HERMES_INTEGRATION.md`](docs/HERMES_INTEGRATION.md) documents the
-  optional Hermes Agent caller conventions and the memory boundary (agent
-  cognition stays separate from research data).
-- [`docs/CLAUDE_INTEGRATION.md`](docs/CLAUDE_INTEGRATION.md) documents the
-  equivalent optional Claude Code caller conventions. Both agent integrations
-  are restricted to local Ollama open-source models
-  (`laclaugpt.integrations.agent_policy` enforces `LLM_MODE=local`, no cloud
-  or external routing, no cloud fallback).
+- [`THEORY.md`](THEORY.md) is the canonical theory/methodology contract (concept registry and invariants) that agents must read before theory-facing changes.
+- [`docs/VALIDATION_PROTOCOL.md`](docs/VALIDATION_PROTOCOL.md) defines the reviewable validation design; it does not claim completed empirical validation.
+- [`docs/CANONICAL_CONFIGURATION.md`](docs/CANONICAL_CONFIGURATION.md) defines the project/arena/machine/execution ownership boundaries and migration policy.
+- [`docs/HISTORY.md`](docs/HISTORY.md) contains predecessor-repository and EP2024 development history moved out of this README.
+- [`docs/VISUALIZATION.md`](docs/VISUALIZATION.md) defines the project/profile dashboard data contract and local/Pouta deployment boundary.
+- [`docs/PAPER_IMPLEMENTATION_AUDIT.md`](docs/PAPER_IMPLEMENTATION_AUDIT.md) records what the current code actually implements and the commit audited.
+- [`docs/INTEROPERABILITY_SPEC.md`](docs/INTEROPERABILITY_SPEC.md) is a design specification containing both shipped and future targets.
+- [`docs/DATA_MODEL_2_0_PLAN.md`](docs/DATA_MODEL_2_0_PLAN.md) is a dated design plan; historical version references describe the state when it was written.
+- [`docs/HERMES_INTEGRATION.md`](docs/HERMES_INTEGRATION.md) and [`docs/CLAUDE_INTEGRATION.md`](docs/CLAUDE_INTEGRATION.md) document optional agent-caller conventions. Both integrations are restricted to local Ollama open-source models by `laclaugpt.integrations.agent_policy`.
 - [`docs/DATA_PUBLICATION_POLICY.md`](docs/DATA_PUBLICATION_POLICY.md) defines what may be published openly and what remains restricted research data.
 - [`docs/DATA_LIFECYCLE.md`](docs/DATA_LIFECYCLE.md) maps LaclauGPT research data onto its lifecycle from collection through preservation/publication/disposal.
 

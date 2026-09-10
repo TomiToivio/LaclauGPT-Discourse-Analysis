@@ -39,6 +39,7 @@ test = [
 dev = [
   "pytest>=8.0",
   "build>=1.2",
+  "ruff>=0.11",
 ]
 nlp = [
   "spacy>=3.7",
@@ -105,3 +106,7 @@ collector = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100

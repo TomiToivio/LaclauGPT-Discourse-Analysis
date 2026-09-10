@@ -142,7 +142,8 @@ def export_discourse_graph(annotations: list[DocumentAnnotation],
 
 
 def write_human_report(annotations: list[DocumentAnnotation],
-                       synthesis: dict, path: str) -> str:
+                       synthesis: dict, path: str, *,
+                       run: RunConfig | None = None) -> str:
     """Human-readable run report (markdown), legacy-summary parity.
 
     One section per document: summary, populism verdict, key codings and
@@ -150,11 +151,16 @@ def write_human_report(annotations: list[DocumentAnnotation],
     """
     relevant = [a for a in annotations if a.relevance != "irrelevant"]
     irrelevant = [a for a in annotations if a.relevance == "irrelevant"]
+    project_label = (
+        (run.project or run.analysis_profile).upper()
+        if run is not None and (run.project or run.analysis_profile)
+        else "LaclauGPT"
+    )
     lines: list[str] = [
-        "# EP24 analysis report",
+        f"# {project_label} analysis report",
         "",
         f"Documents: {len(annotations)} "
-        f"({len(relevant)} relevant, {len(irrelevant)} marked irrelevant)",
+        f"({len(relevant)} retained, {len(irrelevant)} marked irrelevant)",
         f"Review queue: {sum(1 for a in annotations if a.requires_human_review)} "
         "provisional annotations need human review",
         "",
@@ -237,7 +243,7 @@ def _prepare_success_artifacts(
         to_jsonl(annotations, str(staged_output))
         synthesis = corpus_synthesis(annotations, staged_corpus)
         export_machine_csv(annotations, str(staged_machine_csv))
-        write_human_report(annotations, synthesis, str(staged_report))
+        write_human_report(annotations, synthesis, str(staged_report), run=run)
         export_discourse_graph(annotations, str(staged_graph), run=run)
         memory.export_review_csv(str(staged_review))
         memory.record_analysis(
@@ -1059,22 +1065,20 @@ def build_annotation(run: RunConfig, row: Any, summary_json: str,
         ann.uncertainties.append(
             f"{invalid_count} discourse evidence quote(s) were not found verbatim in the source"
         )
-    _apply_relevance(ann, summary_json, discourse)
+    _apply_relevance(ann, summary_json, discourse, run)
     return ann
 
 
 def _apply_relevance(ann: DocumentAnnotation, summary_json: str,
-                     discourse: dict) -> None:
-    """Mark-don't-drop relevance gate (issue #73 legacy parity).
+                     discourse: dict, run: RunConfig) -> None:
+    """Apply the project's explicit mark-don't-drop relevance policy.
 
-    The old EP24 dashboard silently dropped rows its operator judged
-    non-political. The new pipeline MARKS them instead: an irrelevant
-    document keeps its annotation (queryable, auditable) but is excluded
-    from corpus synthesis and human-review priority. Signals, in order:
-    1. the discourse stage already abstained as non-applicable;
-    2. the summary shows no political/electoral content (keyword gate on
-       EP24 scope: parties, candidates, elections, EU institutions).
-    The mark is PROVISIONAL by definition — human review can flip it.
+    ``retain_unjudged`` is the safe default for general research projects:
+    explicit discourse non-applicability may mark a row irrelevant and
+    substantive coded content marks it relevant, but zero-code/borderline rows
+    remain unjudged and therefore stay available to corpus synthesis and human
+    review. ``keyword_scope`` is an opt-in legacy-style screen whose vocabulary
+    comes from project configuration rather than this generic pipeline.
     """
     if ann.discourse_applicable is False:
         ann.relevance = "irrelevant"
@@ -1082,30 +1086,48 @@ def _apply_relevance(ann: DocumentAnnotation, summary_json: str,
             "discourse stage judged the Laclaudian analysis non-applicable: "
             + ann.discourse_applicability_reason)[:500]
         return
-    summary_text = ann.summary or summary_json or ""
-    low = summary_text.lower()
-    scope_hits = any(token in low for token in (
-        "puolue", "vaali", "europaanse", "eu-parlament", "eduskunta", "euroryhmä",
-        "party", "election", "european parliament", "mep", "candidate",
-        "partia", "wybory", "parlament europejski", "kandydat",
-        "kokoomus", "perussuomalaiset", "sdp", "vasemmistoliitto", "keskusta",
-        "pis", "konfederacja", "kaczyński", "tusk", "sikorski",
-        "politiikka", "poliittinen", "politics", "political",
-    ))
+
     has_coded_content = bool(
         ann.signifier_roles or ann.articulations or ann.populism_elements
         or ann.us or ann.frontier)
-    if scope_hits or has_coded_content:
+    if has_coded_content:
         ann.relevance = "relevant"
         ann.relevance_reason = ""
-    else:
-        ann.relevance = "irrelevant"
-        ann.relevance_reason = (
-            "summary shows no political/electoral content and no coding "
-            "family produced evidence (EP24 scope gate)")
+        return
+
+    mode = (run.relevance_mode or "retain_unjudged").casefold()
+    if mode == "retain_unjudged":
+        ann.relevance = None
+        ann.relevance_reason = ""
+        return
+    if mode != "keyword_scope":
+        raise ValueError(f"unknown relevance mode: {run.relevance_mode}")
+
+    terms = tuple(term.casefold().strip() for term in run.relevance_terms if term.strip())
+    if not terms:
+        # A keyword policy with no vocabulary must never silently discard data.
+        ann.relevance = None
+        ann.relevance_reason = ""
+        return
+
+    summary_text = ann.summary or summary_json or ""
+    low = summary_text.casefold()
+    if any(term in low for term in terms):
+        ann.relevance = "relevant"
+        ann.relevance_reason = ""
+        return
+
+    scope = run.relevance_scope or "configured project scope"
+    project = run.project or run.analysis_profile or "project"
+    ann.relevance = "irrelevant"
+    ann.relevance_reason = (
+        f"summary shows no {scope} content and no coding family produced "
+        f"evidence ({project} keyword scope gate)"
+    )
 
 
-def run_pipeline(run_id: str, csv_path: str, dry_run: bool = False,
+def run_pipeline(run_id: str | Path | RunConfig, csv_path: str,
+                 dry_run: bool = False,
                  output_path: str | None = None) -> list[DocumentAnnotation]:
     import pandas as pd
 
@@ -1216,10 +1238,13 @@ def corpus_synthesis(annotations: list[DocumentAnnotation],
     Produces ONLY descriptive counts and candidate flags, never corpus-level
     theoretical claims. Candidate rows preserve document-level evidence so a
     human can inspect the basis for later corpus adjudication.
-    Irrelevant documents (relevance gate) are excluded from the analytic
-    counts but reported by count (mark-don't-drop, issue #73).
+    Explicitly irrelevant documents are excluded from analytic counts, while
+    unjudged/zero-code documents remain in scope by default.
     """
-    annotations = [a for a in annotations if a.relevance != "irrelevant"] or annotations
+    all_annotations = list(annotations)
+    retained = [a for a in all_annotations if a.relevance != "irrelevant"]
+    annotations = retained or all_annotations
+    excluded_irrelevant = len(all_annotations) - len(retained)
     signifier_docs: dict[str, set] = {}
     signifier_roles: dict[str, dict[str, int]] = {}
     for ann in annotations:
@@ -1261,6 +1286,8 @@ def corpus_synthesis(annotations: list[DocumentAnnotation],
 
     synthesis = {
         "documents": len(annotations),
+        "documents_total": len(all_annotations),
+        "documents_excluded_irrelevant": excluded_irrelevant,
         "signifier_frequency": {
             key: len(docs) for key, docs in sorted(signifier_docs.items())
         },
