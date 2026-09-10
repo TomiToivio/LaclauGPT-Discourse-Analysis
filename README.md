@@ -441,3 +441,4 @@ Tomi Toivio, Helsinki Hub on Emotions, Populism and Polarisation
 ## License
 
 See [LICENSE](LICENSE).
+See [digital-ethnography feed splitting](docs/DIGITAL_ETHNOGRAPHY_SPLITTING.md).

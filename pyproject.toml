@@ -21,6 +21,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+splitting = [
+  "numpy>=1.26",
+  "opencv-python-headless>=4.8,<5",
+]
 collector = [
   "websocket-client>=1.8",
   "tzdata>=2024.1",
@@ -64,6 +68,7 @@ inception = [
 [project.scripts]
 laclaugpt = "laclaugpt.cli:main"
 laclaugpt-dashboard = "laclaugpt.visualization.launcher:main"
+laclaugpt-split = "laclaugpt.splitting.cli:main"
 
 [tool.setuptools]
 include-package-data = true
