@@ -21,8 +21,8 @@
   // deployment-specific GraphQL query IDs.
   const MATCHERS = {
     tiktok: /api\.tiktokv\.com|\/api\/post\/item_list|\/api\/search\/(?:item_list|general\/full)|\/api\/preload\/item_list/,
-    instagram: /\/api\/v1\/|\/graphql(?:\/query)?(?:[/?]|$)/,
     x: /\/i\/api\/graphql(?:\/|\?|$)/,
+    instagram: /\/api\/v1\/|\/graphql\/query(?:[/?]|$)/,
   };
 
   function platformFor(url) {
