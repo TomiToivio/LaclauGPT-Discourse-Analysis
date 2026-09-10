@@ -15,6 +15,12 @@ def parser() -> argparse.ArgumentParser:
     root.add_argument("--project", required=True, choices=list_projects())
     root.add_argument("--arena", required=True, choices=list_arenas())
     root.add_argument("--review-db", default="")
+    root.add_argument("--reviewer", default="", help="local reviewer ID/pseudonym")
+    root.add_argument(
+        "--blind-initial",
+        action="store_true",
+        help="hide model suggestions and peer assessments until explicit reveal",
+    )
     root.add_argument("--host", default="127.0.0.1")
     root.add_argument("--port", type=int, default=8501)
     return root
@@ -26,6 +32,8 @@ def launch(
     project: str,
     arena: str,
     review_db: str = "",
+    reviewer: str = "",
+    blind_initial: bool = False,
     host: str = "127.0.0.1",
     port: int = 8501,
 ) -> int:
@@ -62,6 +70,10 @@ def launch(
     ]
     if review_db:
         streamlit_args.extend(["--review-db", str(Path(review_db).expanduser())])
+    if reviewer:
+        streamlit_args.extend(["--reviewer", reviewer])
+    if blind_initial:
+        streamlit_args.append("--blind-initial")
     old_argv = sys.argv
     try:
         sys.argv = streamlit_args
@@ -77,6 +89,8 @@ def main(argv: list[str] | None = None) -> int:
         project=args.project,
         arena=args.arena,
         review_db=args.review_db,
+        reviewer=args.reviewer,
+        blind_initial=args.blind_initial,
         host=args.host,
         port=args.port,
     )

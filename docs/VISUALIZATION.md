@@ -51,6 +51,20 @@ laclaugpt-dashboard data/annotations.jsonl \
 
 The default bind address is `127.0.0.1:8501`.
 
+For researcher coding, use a stable local pseudonym rather than a personal name:
+
+```bash
+laclaugpt-dashboard data/annotations.jsonl \
+  --project ai26 \
+  --arena elites \
+  --reviewer reviewer-a \
+  --blind-initial
+```
+
+`--blind-initial` hides model-derived analytical output and other reviewers'
+assessment records until the researcher explicitly reveals the selected document
+for comparison/adjudication.
+
 ## Launch on a Pouta/Linux web server
 
 After copying the analysis output to the server:
@@ -167,26 +181,88 @@ nodal status, empty/floating status, antagonism or hegemony. Those remain
 specific evidence-backed analytical claims. See
 [`DISCOURSE_GRAPH_SCHEMA.md`](DISCOURSE_GRAPH_SCHEMA.md).
 
-## Researcher review notes
+## Researcher assessment history
 
-The old dashboard mixed visualization and study-specific correction state. The
-new dashboard keeps that useful human-review workflow but stores it separately in
-a local SQLite sidecar, by default next to the input file:
+Human assessment state is stored separately from canonical model output in a
+local SQLite sidecar, by default next to the input file:
 
 ```text
 annotations.jsonl.reviews.sqlite3
 ```
 
-Review records contain only:
+Canonical JSONL remains immutable. The assessment sidecar is append-only: saving
+a new decision does not overwrite an earlier decision.
 
-- canonical `document_id`;
-- researcher review status;
-- free-text note;
-- comma-separated tags;
-- update time.
+Each new assessment records:
 
-Saving a dashboard review **never rewrites the canonical JSONL**. This preserves
-the distinction between provisional model output and human review data.
+- project and corpus/profile identity;
+- canonical source `document_id`;
+- analysis `run_id`;
+- a SHA-256 fingerprint of the exact `DocumentAnnotation` artifact;
+- reviewer ID/pseudonym;
+- assessment target type (`document`, `code`, or `claim`) and target identifier;
+- status, note and tags;
+- record type (`assessment`, `revision`, or `adjudication`);
+- timestamp;
+- blind-initial-coding flag;
+- `supersedes_id` for revisions;
+- linked prior assessment IDs for adjudication.
+
+Canonical memory/codebook identifiers such as `E001`, `T001` and `S001` are
+reused for code-level targets. Relational claims receive deterministic target
+identifiers that include the participating canonical IDs (for example an
+articulation target).
+
+### Independent coding and disagreement
+
+Reviewers are separate dimensions of the assessment key. Two researchers may
+therefore assess the same document/run/code independently. Their records never
+replace each other. If they disagree, both original assessments remain in the
+history even after a revision or adjudication is added.
+
+A revision is a new record linked through `supersedes_id`; it does not edit the
+prior row. An adjudication is a separate record linked to the prior assessment
+IDs being compared. This keeps disagreement and decision history auditable.
+
+### Run safety
+
+The dashboard looks up an assessment using the exact project, corpus, document,
+run, artifact fingerprint, reviewer and target. A decision from another run or
+from a changed annotation artifact is therefore not silently applied to the
+current output, even when one SQLite sidecar is intentionally reused across
+runs.
+
+### Blind initial coding
+
+Blind initial coding is available from the sidebar or with `--blind-initial`.
+While active, aggregate model-derived analytical fields are redacted and the
+document detail view hides model summary, proposed discourse/populism codings,
+model provenance and other reviewers' decisions. The reviewer sees only their
+own assessment history.
+
+The selected document can later be explicitly revealed for comparison and
+adjudication. This is a UI/research-workflow boundary, not a claim that the
+SQLite file itself is access-controlled; filesystem and server permissions still
+matter.
+
+### Export
+
+The Review tab exposes the complete provenance fields and provides a CSV download.
+In normal/revealed mode the export contains the full append-only history. While
+blind mode is active, the table and download are restricted to the current
+reviewer's records so peer decisions are not leaked through export.
+
+### Legacy sidecars
+
+Older sidecars used a `dashboard_reviews` table keyed only by `document_id` and
+overwrote status/note/tags. On first open, those rows are copied into the new
+append-only `review_assessments` table without deleting or changing the legacy
+table.
+
+Historical metadata that did not exist in the old schema is recorded explicitly
+as `unknown`: project, corpus, run, artifact fingerprint and reviewer are never
+invented. The original status, note, tags and timestamp are preserved. Migration
+is idempotent, so reopening the same database does not duplicate migrated rows.
 
 ## What was intentionally not copied from EP2024
 
