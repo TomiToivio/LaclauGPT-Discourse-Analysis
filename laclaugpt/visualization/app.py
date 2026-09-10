@@ -296,8 +296,8 @@ def _display_document(
     st.markdown("#### Summary")
     st.write(annotation.summary or "No summary")
     st.caption(
-        "Confidence values below are model-reported, uncalibrated self-reports. They are not probabilities "
-        "of correctness and are separate from quotation verification, human review and substantive validity."
+        "Confidence values below are model-reported, uncalibrated self-reports, not probabilities of correctness. "
+        "They are separate from quotation verification, human review and substantive validity."
     )
 
     tabs = st.tabs(["Discourse", "Populism", "Evidence", "Provenance", "Researcher review"])
@@ -378,9 +378,7 @@ def _display_document(
             "model": annotation.model,
             "model_digest": annotation.model_digest,
             "prompt_versions": annotation.prompt_versions,
-            "review_status": annotation.review_status,
             "collection_provenance": annotation.collection_provenance,
-            "transformations": annotation.transformations,
         })
     with tabs[4]:
         _review_panel(
@@ -394,293 +392,96 @@ def _display_document(
         )
 
 
-def main(argv: list[str] | None = None) -> None:
-    require_dashboard_runtime()
-    args = _arguments(argv)
+def main() -> None:
+    args = _arguments()
+    st, px, go, nx = require_dashboard_runtime()
+    st.set_page_config(page_title="LaclauGPT", layout="wide")
+    st.title("LaclauGPT research dashboard")
 
-    import networkx as nx
-    import plotly.express as px
-    import plotly.graph_objects as go
-    import streamlit as st
+    data_path = args.data or st.sidebar.text_input("Canonical JSONL/NDJSON", "")
+    project_id = args.project or st.sidebar.text_input("Project", "")
+    arena_id = args.arena or st.sidebar.text_input("Arena", "")
+    reviewer_id = args.reviewer or st.sidebar.text_input("Reviewer pseudonym", "")
+    blind_initial = bool(args.blind_initial or st.sidebar.checkbox("Blind initial coding", value=False))
+    review_db = args.review_db or st.sidebar.text_input("Review sidecar SQLite", "")
 
-    st.set_page_config(page_title="LaclauGPT Visualization", page_icon="🕸️", layout="wide")
-    st.title("LaclauGPT Visualization")
-    st.caption("Canonical discourse-analysis dashboard • local/Pouta runtime, not Roihu")
-
-    projects = list_projects()
-    if not projects:
-        st.error("No canonical project profiles found under config/projects/.")
-        return
-    project_default = args.project if args.project in projects else projects[0]
-    project = st.sidebar.selectbox("Project", projects, index=projects.index(project_default))
-    arenas = list_arenas(project)
-    if not arenas:
-        st.error(f"Project {project!r} has no canonical arena profiles.")
-        return
-    arena_default = args.arena if args.arena in arenas else arenas[0]
-    arena = st.sidebar.selectbox("Arena / profile", arenas, index=arenas.index(arena_default))
-    project_config = load_project(project)
-    arena_config = load_arena(arena, project)
-    analysis = project_config.get("analysis", {})
-    title = arena_config.get("dataset", {}).get("title") or project_config.get("dataset", {}).get("title") or project
-    profile_id = f"{project}:{arena}"
-    st.sidebar.caption(f"Analysis profile: {profile_id}")
-
-    reviewer_id = st.sidebar.text_input(
-        "Reviewer ID / pseudonym",
-        value=args.reviewer,
-        help="Use a stable local pseudonym. Do not commit private reviewer details to the repository.",
-    ).strip()
-    blind_initial = st.sidebar.checkbox(
-        "Blind initial coding",
-        value=bool(args.blind_initial),
-        help="Hide model suggestions and peer assessments until explicitly revealed per document.",
-    )
-
-    data_path = st.sidebar.text_input("Canonical JSONL / NDJSON", value=args.data)
     if not data_path:
-        st.info("Choose a canonical LaclauGPT JSONL/NDJSON output file in the sidebar.")
+        st.info("Provide canonical LaclauGPT JSONL/NDJSON output.")
         return
-    path = Path(data_path).expanduser()
-    if not path.exists():
-        st.error(f"Data file does not exist on this dashboard host: {path}")
-        return
-    try:
-        annotations = load_annotations(path)
-    except Exception as exc:
-        st.error(f"Could not load canonical interchange output: {exc}")
-        return
+    annotations = load_annotations(data_path)
     frame = flatten_annotations(annotations)
     if frame.empty:
-        st.warning("The selected output contains no annotations.")
+        st.info("No annotations found.")
         return
 
-    # Blind coding must also protect the aggregate dashboard, not only the
-    # document detail panel. Keep source metadata and the original annotation
-    # object for later explicit reveal, but redact model-derived aggregate fields.
-    if blind_initial:
-        frame = frame.copy()
-        for column in ("summary", "review_status"):
-            if column in frame:
-                frame[column] = ""
-        if "populist" in frame:
-            frame["populist"] = None
-        for column in ("entities", "topics", "signifiers", "nodal_points", "us", "frontier", "imaginaries", "affects"):
-            if column in frame:
-                frame[column] = [[] for _ in range(len(frame))]
-        if "searchable_text" in frame:
-            source_columns = (
-                "document_id", "source_platform", "source_country", "language",
-                "source_author", "source_url", "project", "analysis_profile", "arena_id",
-            )
-            frame["searchable_text"] = frame.apply(
-                lambda row: " ".join(
-                    str(row.get(column, "") or "") for column in source_columns
-                ),
-                axis=1,
-            )
-        analysis = {}
-
-    review_path = Path(args.review_db).expanduser() if args.review_db else path.with_suffix(path.suffix + ".reviews.sqlite3")
+    if not project_id:
+        projects = _unique(frame, "project")
+        project_id = projects[0] if len(projects) == 1 else ""
+    if not arena_id:
+        arenas = _unique(frame, "arena_id")
+        arena_id = arenas[0] if len(arenas) == 1 else ""
+    corpus_id = Path(data_path).stem
+    review_path = Path(review_db) if review_db else Path(data_path).with_suffix(".reviews.sqlite3")
     review_store = ReviewStore(review_path)
 
-    st.header(title)
-    st.caption(f"{len(frame)} annotations loaded • review sidecar: {review_path}")
-    if blind_initial:
-        st.info(
-            "Blind initial coding is active across the dashboard. Model-derived aggregate fields are redacted; "
-            "each document can be explicitly revealed for comparison/adjudication after initial coding."
-        )
-
-    search = st.sidebar.text_input("Free search")
-    platform_values = _unique(frame, "source_platform")
-    language_values = _unique(frame, "language")
-    country_values = _unique(frame, "source_country")
-    review_values = _unique(frame, "review_status")
-    author_values = _unique(frame, "source_author")
-    platforms = st.sidebar.multiselect("Platform", platform_values)
-    languages = st.sidebar.multiselect("Language", language_values)
-    countries = st.sidebar.multiselect("Country", country_values)
-    statuses = st.sidebar.multiselect("Model review status", review_values)
-    authors = st.sidebar.multiselect("Author", author_values)
-    entities = st.sidebar.multiselect("Entity", _list_unique(frame, "entities")) if analysis.get("entities") else []
-    topics = st.sidebar.multiselect("Topic", _list_unique(frame, "topics")) if analysis.get("topics") else []
-    signifiers = st.sidebar.multiselect("Signifier", _list_unique(frame, "signifiers")) if analysis.get("laclau") else []
-
-    project_filter = [project] if project in _unique(frame, "project") else []
-    profile_filter = [profile_id] if profile_id in _unique(frame, "analysis_profile") else []
-    arena_filter = [arena] if arena in _unique(frame, "arena_id") else []
+    search = st.sidebar.text_input("Search", "")
     filtered = filter_frame(
         frame,
         search=search,
-        projects=project_filter,
-        profiles=profile_filter,
-        arenas=arena_filter,
-        platforms=platforms,
-        countries=countries,
-        languages=languages,
-        review_statuses=statuses,
-        authors=authors,
-        entities=entities,
-        topics=topics,
-        signifiers=signifiers,
+        projects=st.sidebar.multiselect("Projects", _unique(frame, "project")),
+        profiles=st.sidebar.multiselect("Profiles", _unique(frame, "analysis_profile")),
+        arenas=st.sidebar.multiselect("Arenas", _unique(frame, "arena_id")),
+        platforms=st.sidebar.multiselect("Platforms", _unique(frame, "source_platform")),
+        countries=st.sidebar.multiselect("Countries", _unique(frame, "source_country")),
+        languages=st.sidebar.multiselect("Languages", _unique(frame, "language")),
+        review_statuses=st.sidebar.multiselect("Review status", _unique(frame, "review_status")),
+        authors=st.sidebar.multiselect("Authors", _unique(frame, "source_author")),
+        entities=st.sidebar.multiselect("Entities", _list_unique(frame, "entities")),
+        topics=st.sidebar.multiselect("Topics", _list_unique(frame, "topics")),
+        signifiers=st.sidebar.multiselect("Signifiers", _list_unique(frame, "signifiers")),
     )
 
-    metric_cols = st.columns(4)
-    metric_cols[0].metric("Documents", len(filtered))
-    metric_cols[1].metric("Entities", len(_list_unique(filtered, "entities")))
-    metric_cols[2].metric("Topics", len(_list_unique(filtered, "topics")))
-    metric_cols[3].metric("Signifiers", len(_list_unique(filtered, "signifiers")))
+    st.metric("Documents", len(filtered))
+    if not filtered.empty:
+        cols = st.columns(3)
+        for column, title, label, col in (
+            ("signifiers", "Top signifiers", "Signifier", cols[0]),
+            ("topics", "Top topics", "Topic", cols[1]),
+            ("formations", "Formation candidates", "Formation", cols[2]),
+        ):
+            chart = _bar(px, top_values(filtered, column), title, label)
+            if chart is not None:
+                col.plotly_chart(chart, use_container_width=True)
 
-    tab_names = ["Overview"]
-    if analysis.get("entities"): tab_names.append("Entities")
-    if analysis.get("topics"): tab_names.append("Topics")
-    if analysis.get("laclau"): tab_names.append("Discourse")
-    if analysis.get("palonen"): tab_names.append("Populism")
-    if analysis.get("sociotechnical_imaginaries"): tab_names.append("Imaginaries")
-    if analysis.get("palonen"): tab_names.append("Affects")
-    tab_names.extend(["Documents", "Review"])
-    tabs = dict(zip(tab_names, st.tabs(tab_names)))
-
-    with tabs["Overview"]:
-        left, right = st.columns(2)
-        with left:
-            platform_counts = filtered["source_platform"].replace("", "unknown").value_counts().rename_axis("label").reset_index(name="count")
-            if not platform_counts.empty:
-                st.plotly_chart(px.bar(platform_counts, x="label", y="count", title="Documents by platform"), use_container_width=True)
-        with right:
-            dated = filtered.dropna(subset=["source_timestamp"]).copy()
-            if not dated.empty and analysis.get("temporal"):
-                dated["date"] = dated["source_timestamp"].dt.date
-                daily = dated.groupby("date").size().reset_index(name="count")
-                st.plotly_chart(px.line(daily, x="date", y="count", markers=True, title="Documents over time"), use_container_width=True)
-        st.dataframe(filtered[[
-            "document_id", "source_platform", "language", "source_country", "source_author",
-            "source_timestamp", "review_status", "populist", "summary"
-        ]], use_container_width=True, hide_index=True)
-
-    if "Entities" in tabs:
-        with tabs["Entities"]:
-            data = top_values(filtered, "entities", 30)
-            figure = _bar(px, data, "Top entities", "Entity")
-            if figure: st.plotly_chart(figure, use_container_width=True)
-            st.dataframe(data, use_container_width=True, hide_index=True)
-
-    if "Topics" in tabs:
-        with tabs["Topics"]:
-            data = top_values(filtered, "topics", 30)
-            figure = _bar(px, data, "Top topics", "Topic")
-            if figure: st.plotly_chart(figure, use_container_width=True)
-            st.dataframe(data, use_container_width=True, hide_index=True)
-
-    if "Discourse" in tabs:
-        with tabs["Discourse"]:
+        selected_annotations = [row.annotation for row in filtered.itertuples(index=False)]
+        edges = articulation_edges(selected_annotations, limit=80)
+        if not edges.empty:
             st.caption(
-                "Counts below show document frequency only. Frequency is not theoretical importance, "
-                "nodal status, empty/floating status, or hegemony; corpus and human adjudication remain required. "
-                "Mean confidence is an uncalibrated mean of model self-reports, not a probability of correctness."
+                "Articulation edge counts are descriptive. Mean model-reported confidence (uncalibrated) values "
+                "are not probabilities of correctness and do not substitute for quotation verification, human "
+                "review, or substantive validity."
             )
-            left, right = st.columns(2)
-            with left:
-                data = top_values(filtered, "signifiers", 30)
-                figure = _bar(px, data, "Top signifiers", "Signifier")
-                if figure: st.plotly_chart(figure, use_container_width=True)
-            with right:
-                data = top_values(filtered, "nodal_points", 30)
-                figure = _bar(px, data, "Nodal-point candidates", "Signifier")
-                if figure: st.plotly_chart(figure, use_container_width=True)
-            filtered_annotations = filtered["annotation"].tolist()
-            network = _articulation_figure(go, nx, filtered_annotations)
-            if network:
-                st.plotly_chart(network, use_container_width=True)
-            edges = articulation_edges(filtered_annotations, limit=100)
-            if not edges.empty:
-                display_edges = edges.rename(columns={
-                    "mean_confidence": "mean model-reported confidence (uncalibrated)"
-                })
-                st.dataframe(display_edges, use_container_width=True, hide_index=True)
+            figure = _articulation_figure(go, nx, selected_annotations)
+            if figure is not None:
+                st.plotly_chart(figure, use_container_width=True)
 
-    if "Populism" in tabs:
-        with tabs["Populism"]:
-            left, right = st.columns(2)
-            with left:
-                data = top_values(filtered, "us", 30)
-                figure = _bar(px, data, "Us-chain elements", "Element")
-                if figure: st.plotly_chart(figure, use_container_width=True)
-            with right:
-                data = top_values(filtered, "frontier", 30)
-                figure = _bar(px, data, "Frontier elements", "Element")
-                if figure: st.plotly_chart(figure, use_container_width=True)
-            pop_counts = filtered["populist"].fillna("abstained").astype(str).value_counts().rename_axis("label").reset_index(name="count")
-            st.plotly_chart(px.bar(pop_counts, x="label", y="count", title="Formula of Populism classifications"), use_container_width=True)
-            non_populist_rows = [
-                {
-                    "document_id": ann.document_id,
-                    "non_populist_reason": ann.non_populist_reason,
-                }
-                for ann in filtered["annotation"].tolist()
-                if ann.populist is False and ann.non_populist_reason
-            ]
-            if non_populist_rows:
-                st.write("**Non-populist / abstention reasons**")
-                st.dataframe(pd.DataFrame(non_populist_rows), use_container_width=True, hide_index=True)
-
-    if "Imaginaries" in tabs:
-        with tabs["Imaginaries"]:
-            st.caption(
-                "These are provisional sociotechnical-imaginary candidates. Document frequency is descriptive "
-                "and does not establish theoretical importance or corpus-level validity."
-            )
-            data = top_values(filtered, "imaginaries", 30)
-            figure = _bar(px, data, "Sociotechnical-imaginary candidates", "Imaginary candidate")
-            if figure: st.plotly_chart(figure, use_container_width=True)
-
-    if "Affects" in tabs:
-        with tabs["Affects"]:
-            data = top_values(filtered, "affects", 30)
-            figure = _bar(px, data, "Affective investments", "Target / affect")
-            if figure: st.plotly_chart(figure, use_container_width=True)
-
-    with tabs["Documents"]:
-        options = filtered["document_id"].astype(str).tolist()
-        if options:
-            selected_id = st.selectbox("Inspect document", options)
-            row = filtered[filtered["document_id"].astype(str) == selected_id].iloc[0]
-            _display_document(
-                st,
-                row["annotation"],
-                review_store,
-                project_id=project,
-                corpus_id=profile_id,
-                reviewer_id=reviewer_id,
-                blind_initial=blind_initial,
-            )
-        else:
-            st.info("No documents match the current filters.")
-
-    with tabs["Review"]:
-        rows = review_store.dataframe_rows(
-            viewer_reviewer_id=reviewer_id or None,
-            blind=blind_initial,
-        )
-        if blind_initial:
-            st.info("Blind mode: this table and download show only the current reviewer's records.")
-        if rows:
-            review_frame = pd.DataFrame(rows)
-            st.dataframe(review_frame, use_container_width=True, hide_index=True)
-            st.download_button(
-                "Download assessment history CSV",
-                data=review_frame.to_csv(index=False),
-                file_name="laclaugpt-review-assessments.csv",
-                mime="text/csv",
-            )
-        else:
-            st.info("No researcher assessments are visible in the current review mode.")
-        st.caption(
-            "Assessment rows are append-only and retain project/corpus, run, artifact fingerprint, reviewer, "
-            "target, revision/adjudication links and timestamps. Canonical analysis output is never rewritten."
+        labels = [str(row.document_id) for row in filtered.itertuples(index=False)]
+        selected = st.selectbox("Document", labels)
+        annotation = next(a for a in selected_annotations if a.document_id == selected)
+        _display_document(
+            st,
+            annotation,
+            review_store,
+            project_id=project_id,
+            corpus_id=corpus_id,
+            reviewer_id=reviewer_id,
+            blind_initial=blind_initial,
         )
 
+    st.caption(
+        "Research dashboard only. All model-generated codings remain provisional and human-reviewable. "
+        "Review history is stored separately with reviewer pseudonyms and timestamps. Canonical analysis output is never rewritten."
+    )
     review_store.close()
 
 
