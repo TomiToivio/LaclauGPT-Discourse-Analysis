@@ -15,14 +15,22 @@
 (() => {
   "use strict";
 
-  const BACKEND_URL = "http://127.0.0.1:8765";
-
-  // Request URL matchers per platform. Match endpoint families, never
-  // deployment-specific GraphQL query IDs.
+  // Backend address is study-profile specific (Brazil26 :8765, AI26 :8766).
+  // Store it in extension local storage as `backend_url`; the default keeps
+  // the historical Brazil26 endpoint for backwards compatibility. Set per
+  // Firefox profile via browser.storage.local (see collector/firefox/README.md).
+  const DEFAULT_BACKEND_URL = "http://127.0.0.1:8765";
+  let backendUrl = DEFAULT_BACKEND_URL;
+  browser.storage.local.get({ backend_url: DEFAULT_BACKEND_URL })
+    .then(item => {
+      const stored = (item.backend_url || "").toString().trim();
+      backendUrl = stored.startsWith("http") ? stored : DEFAULT_BACKEND_URL;
+    })
+    .catch(() => {});
   const MATCHERS = {
     tiktok: /api\.tiktokv\.com|\/api\/post\/item_list|\/api\/search\/(?:item_list|general\/full)|\/api\/preload\/item_list/,
-    x: /\/i\/api\/graphql(?:\/|\?|$)/,
-    instagram: /\/api\/v1\/|\/graphql\/query(?:[/?]|$)/,
+    instagram: /\/api\/v1\/|\/graphql(?:\/query)?(?:[/?]|$)/,
+    x: /(?:^|\.)x\.com\/i\/api\/graphql|(?:^|\.)twitter\.com\/i\/api\/graphql|\/i\/api\/graphql(?:\/|\?|$)/,
   };
 
   function platformFor(url) {
@@ -45,7 +53,7 @@
   async function postCapture({ platform, apiUrl, platformUrl, body }) {
     if (!platform || body === null || body === undefined || body === "") return false;
     try {
-      const response = await fetch(`${BACKEND_URL}/capture`, {
+      const response = await fetch(`${backendUrl}/capture`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -161,6 +169,6 @@
 
   // Keep the backend status fresh without generating collector captures.
   setInterval(() => {
-    fetch(`${BACKEND_URL}/ping`, { method: "POST" }).catch(() => {});
+    fetch(`${backendUrl}/ping`, { method: "POST" }).catch(() => {});
   }, 60000);
 })();

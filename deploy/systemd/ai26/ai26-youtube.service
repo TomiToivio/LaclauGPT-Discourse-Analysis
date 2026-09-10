@@ -1,0 +1,11 @@
+# Generic systemd user-unit example. Keep host-specific overrides outside Git.
+[Unit]
+Description=LaclauGPT YouTube collection tick
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/src/LaclauGPT-Discourse-Analysis/ai26_runtime
+ExecStart=/usr/bin/python3 collect_youtube_loop.py
+StandardOutput=append:%h/.local/state/laclaugpt/youtube.log
+StandardError=append:%h/.local/state/laclaugpt/youtube.log

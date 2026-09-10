@@ -7,7 +7,7 @@ collection use the same config, window gate, parsers, store and provenance.
 
 Example:
     python -m collector.backend.scheduler \
-        --config collector/config/brazil-election-2026.yaml \
+        --config collector/config/study.private.yaml \
         --data-root ~/laclaugpt-brasil-data
 """
 from __future__ import annotations
@@ -34,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--config",
-        default="collector/config/brazil-election-2026.yaml",
+        default="collector/config/study.private.yaml",
         help="study YAML configuration",
     )
     parser.add_argument(

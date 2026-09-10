@@ -1,18 +1,21 @@
 # -*- coding: utf-8 -*-
 """Evidence-first operationalisation of Laclaudian discourse analysis.
 
-The model produces provisional document-level coding.  Corpus-level claims
-(especially floating and empty signifiers and hegemonic influence) are marked
-as candidates for comparison and human validation.
+The model produces provisional document-level coding. Corpus-level claims
+(especially floating and empty signifiers, imaginaries and hegemonic influence)
+are marked as candidates for comparison and human validation.
 """
 from __future__ import annotations
 
-PROMPT_VERSION = "discourse-v1.0"
+PROMPT_VERSION = "discourse-v1.4"
 
 SYSTEM_PROMPT_TEMPLATE = """You assist a human political scientist with a
-provisional Laclaudian discourse analysis.  Analyse only the supplied source
-material.  Every substantive coding must include a short verbatim evidence
-quote and calibrated confidence.  An empty list is a valid result.
+provisional Laclaudian discourse analysis. Analyse only the supplied source
+material. Every substantive coding must include a short verbatim evidence
+quote and a model-reported confidence value between 0 and 1. This value is an
+uncalibrated self-report unless separately evaluated against a declared
+reference task; it is not a probability that the coding is correct. An empty
+list is a valid result.
 
 {topic_background}
 
@@ -27,23 +30,38 @@ Retrieved codebook candidates (stable IDs are suggestions, not evidence):
 Operational distinctions:
 - articulation: a relation that modifies the identity/meaning of its elements;
 - equivalence: elements made substitutable or jointly constitutive in a chain;
+  semantic similarity, co-occurrence or shared vocabulary is not equivalence;
 - difference: elements differentiated without necessarily becoming enemies;
 - antagonism/frontier: a limit or opposing outside constitutive of an identity;
+  criticism, negative sentiment or a mentioned opponent is not by itself
+  antagonism; the outside must be constitutive of an identity, and a list of
+  disliked entities is not a frontier;
 - nodal-point candidate: a privileged signifier organising nearby relations;
-- floating-signifier candidate: a term whose meaning appears disputed.  A
+- floating-signifier candidate: a term whose meaning appears disputed. A
   document alone cannot establish floating status; mark corpus validation;
 - empty-signifier candidate: a term that appears to represent a heterogeneous
-  chain or absent social fullness.  Polysemy alone is insufficient;
-- sociotechnical imaginary: a publicly performed vision linking a desirable or
-  feared social order to science and technology.  Code its normative future,
-  diagnosis of the present, role of technology, and human agency;
-- ideological formation: an inferred pattern, not a label assigned merely from
-  speaker identity or keyword presence;
-- hegemony cannot be inferred from frequency in a single document.  Record only
+  chain or absent social fullness. Polysemy alone is insufficient;
+- sociotechnical-imaginary candidate: a publicly performed vision linking a
+  desirable or feared social order to science and technology. Code its
+  normative future, diagnosis of the present, role of technology, and human
+  agency, but treat document-level output as a candidate requiring corpus and
+  human validation;
+- ideological formation: an inferred pattern, not a permanent actor identity.
+  For each formation candidate, distinguish whether the candidate characterises
+  an attributed source position or is the analyst's cross-claim interpretation.
+  Preserve asserted/quoted/reported/rejected/parodied/uncertain claim status and
+  record the attributed speaker or claim reference when the source supports it.
+  Missing attribution must remain uncertain: never infer a speaker from the
+  formation label or treat quoted/rejected material as author endorsement;
+- hegemony cannot be inferred from frequency in a single document. Record only
   evidence relevant to later cross-arena/institutional analysis.
 
+Confidence is separate from quotation verification, human review, and
+substantive validity. Any downstream threshold on confidence is an operational
+selection rule, not an empirical probability cutoff.
+
 Do not assume the text is populist, ideological, about AI, or a member of a
-seeded formation.  Distinguish author claims from quoted/criticised claims.
+seeded formation. Distinguish author claims from quoted/criticised claims.
 Return one JSON object matching the schema and no prose outside it.
 """
 
@@ -82,6 +100,14 @@ def pydantic_models():
     from typing import Literal
     from pydantic import BaseModel, Field, model_validator
 
+    confidence_field = Field(
+        ge=0.0, le=1.0,
+        description=(
+            "Model-reported uncalibrated confidence/self-reported uncertainty; "
+            "not a probability of correctness unless separately validated."
+        ),
+    )
+
     class SignifierCoding(BaseModel):
         term: str
         role: Literal[
@@ -90,7 +116,7 @@ def pydantic_models():
         ]
         rationale: str
         evidence_quote: str = Field(min_length=1)
-        confidence: float = Field(ge=0.0, le=1.0)
+        confidence: float = confidence_field
         needs_corpus_validation: bool = False
 
         @model_validator(mode="after")
@@ -105,10 +131,10 @@ def pydantic_models():
         relation: Literal["articulation", "equivalence", "difference", "antagonism"]
         rationale: str
         evidence_quote: str = Field(min_length=1)
-        confidence: float = Field(ge=0.0, le=1.0)
+        confidence: float = confidence_field
         claim_status: Literal[
             "asserted", "quoted", "reported", "rejected", "parodied", "uncertain"
-        ] = "asserted"
+        ] = "uncertain"
 
     class ImaginaryCoding(BaseModel):
         label: str
@@ -117,17 +143,39 @@ def pydantic_models():
         technology_role: str
         human_agency: str
         evidence_quote: str = Field(min_length=1)
-        confidence: float = Field(ge=0.0, le=1.0)
+        confidence: float = confidence_field
         claim_status: Literal[
             "asserted", "quoted", "reported", "rejected", "parodied", "uncertain"
-        ] = "asserted"
+        ] = "uncertain"
+        needs_corpus_validation: bool = True
+
+        @model_validator(mode="after")
+        def imaginary_requires_corpus_validation(self):
+            self.needs_corpus_validation = True
+            return self
 
     class FormationCandidate(BaseModel):
         label: str
         supporting_features: list[str] = Field(min_length=1)
         counter_evidence: list[str] = []
         evidence_quote: str = Field(min_length=1)
-        confidence: float = Field(ge=0.0, le=1.0)
+        confidence: float = confidence_field
+        claim_status: Literal[
+            "asserted", "quoted", "reported", "rejected", "parodied", "uncertain"
+        ] = "uncertain"
+        interpretation_scope: Literal["attributed_position", "analyst_interpretation"] = (
+            "analyst_interpretation"
+        )
+        attributed_speaker: str = ""
+        attributed_claim_ref: str = ""
+
+        @model_validator(mode="after")
+        def attribution_defaults_are_conservative(self):
+            if self.interpretation_scope == "attributed_position" and not (
+                self.attributed_speaker.strip() or self.attributed_claim_ref.strip()
+            ):
+                self.claim_status = "uncertain"
+            return self
 
     class DiscourseAnalysis(BaseModel):
         applicable: bool

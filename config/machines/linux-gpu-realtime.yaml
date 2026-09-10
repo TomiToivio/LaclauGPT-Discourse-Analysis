@@ -1,0 +1,31 @@
+machine: linux-gpu-realtime
+backends:
+  source: mongodb_remote
+  analysis: arangodb_remote
+  graph: arangodb_remote
+  vector: chromadb_remote
+  cache: redis_remote
+  analytics: duckdb_local
+  blob: filesystem
+services:
+  collector:
+    enabled: true
+    backend: firefox-local
+  analysis:
+    enabled: true
+  dashboard:
+    enabled: true
+    host: ${LACLAUGPT_DASHBOARD_HOST:-127.0.0.1}
+    port: ${LACLAUGPT_DASHBOARD_PORT:-8501}
+  llm:
+    mode: local
+    provider: ollama
+    model: gemma4:26b
+    base_url: ${OLLAMA_BASE_URL:-http://127.0.0.1:11434}
+  context_memory:
+    enabled: true
+runtime:
+  topology: realtime-fullstack
+  gpu_required: true
+  incremental_ingest: true
+  process_supervision: external

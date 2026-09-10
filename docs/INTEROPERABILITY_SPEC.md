@@ -340,12 +340,15 @@ Relations SHOULD be represented as graph-compatible edges.
   "source": "sig_ai",
   "target": "sig_growth",
   "relation": "articulated_with",
+  "claim_status": "asserted",
   "polarity": null,
   "confidence": 0.82,
   "status": "PROVISIONAL",
   "evidence": []
 }
 ```
+
+`claim_status` SHOULD preserve attribution context where available, using values such as `asserted`, `quoted`, `reported`, `rejected`, `parodied`, or `uncertain`. A quoted or rejected articulation must not be silently rendered as the document author's own position.
 
 Recommended relation vocabulary:
 
@@ -376,12 +379,14 @@ Affect MUST NOT be reduced to sentiment polarity.
   "target": "sig_technology",
   "affects": [
     {
-      "label": "hope",
+      "label": "anger",
+      "side": "us",
       "confidence": 0.85,
       "evidence": []
     },
     {
-      "label": "ambition",
+      "label": "admiration",
+      "side": "frontier",
       "confidence": 0.76,
       "evidence": []
     }
@@ -389,11 +394,21 @@ Affect MUST NOT be reduced to sentiment polarity.
 }
 ```
 
+The example is intentionally non-mechanical: affective investment is not derived from political side. Anger may invest an Us and admiration may qualify an opponent or frontier element when source evidence supports that reading.
+
 Positive/negative sentiment MAY exist as a separate descriptive field.
+Implemented since schema 1.4 as `DocumentAnnotation.sentiment_observations`
+(descriptive `positive|neutral|negative` polarity over resolved stable-ID
+targets, with model/prompt provenance and `review_status`), deliberately a
+separate record family from `affects` (affective investment). Enabling or
+displaying a sentiment view never transforms sentiment polarity into
+affective investment (THEORY.md INV_AFFECT).
 
 ---
 
 # 9. Sociotechnical imaginaries
+
+Document-level machine output SHOULD be treated as a **sociotechnical-imaginary candidate** requiring human and corpus validation rather than as a final corpus-level finding.
 
 ```json
 {
@@ -458,33 +473,32 @@ Unanticipated formations MUST be permitted.
 
 # 11. Formula of Populism
 
-Formula of Populism analysis SHOULD be represented structurally rather than solely as formatted text.
+Formula of Populism analysis SHOULD be represented structurally rather than solely as formatted text. The field name `populist` represents a provisional model coding, not a machine-detected fact.
+
+A positive provisional coding MAY look like:
 
 ```json
 {
   "populism": {
-    "detected": true,
+    "populist": true,
 
     "us": {
       "elements": [
-        "technology",
-        "markets",
-        "growth"
+        "workers",
+        "citizens"
       ],
       "affects": [
-        "hope",
-        "confidence"
+        "anger",
+        "solidarity"
       ]
     },
 
     "frontier": {
       "elements": [
-        "bureaucracy",
-        "deceleration"
+        "government"
       ],
       "affects": [
-        "anger",
-        "contempt"
+        "admiration"
       ]
     },
 
@@ -494,12 +508,34 @@ Formula of Populism analysis SHOULD be represented structurally rather than sole
 }
 ```
 
-The formula MUST NOT be produced unless both:
+A valid abstention/non-populist result may retain one evidenced side while leaving the other unevidenced:
+
+```json
+{
+  "populism": {
+    "populist": false,
+    "non_populist_reason": "Collective Us is evidenced but no constitutive antagonistic frontier is established.",
+    "us": {
+      "elements": ["workers"],
+      "affects": ["anger"]
+    },
+    "frontier": {
+      "elements": [],
+      "affects": []
+    },
+    "status": "PROVISIONAL"
+  }
+}
+```
+
+The formula MUST NOT be coded `populist: true` unless both:
 
 1. a collective political subject; and
 2. a constitutive frontier
 
 are supported by evidence.
+
+Affective investment MUST NOT be mechanically mapped from side to positive/negative polarity. Absence of a fully evidenced formula is a valid analytical result.
 
 ---
 

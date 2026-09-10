@@ -5,6 +5,25 @@ when a Hermes session runs inside this repository (see
 [`docs/HERMES_INTEGRATION.md`](docs/HERMES_INTEGRATION.md)). It is project
 context, not runtime code: the pipeline has zero runtime dependency on Hermes.
 
+## Required theory context
+
+Before changing any theory-facing part of this repository — prompts, schemas,
+discourse-analysis logic, Context Memory behaviour, visualisations, or
+theory-facing documentation — you must read [`THEORY.md`](THEORY.md) in full
+and treat its concept registry (§14) and invariants (§15) as the semantic
+contract. Identify which concept IDs/invariants your change touches, verify
+the implementation against them before editing, preserve evidence-first
+coding, uncertainty, counter-evidence, abstention and human review, and report
+any theory–implementation mismatch explicitly. If a theoretical definition
+itself must change, verify it against the original sources (Laclau 2005;
+Laclau & Mouffe 2001; Palonen 2025) rather than silently rewriting THEORY.md
+from implementation behaviour. The three books remain the authority when
+THEORY.md and implementation conflict.
+
+LaclauGPT is **human-in-the-loop, human-verified research only**. Hermes may
+orchestrate and inspect preliminary analyses, but it must never present model
+outputs as final findings, ground truth, or autonomous scholarly judgement.
+
 ## Identity boundary
 
 Hermes is a participant **caller** of this pipeline, not a component of it.
@@ -13,6 +32,14 @@ Every analysis the agent triggers must go through the canonical CLI
 `--execution agent` selection so the run's provenance records the caller. The
 agent must never reimplement pipeline stages or bypass configuration
 validation.
+
+## Model routing boundary
+
+Hermes uses **only local Ollama open-source models**. Agent-triggered runs
+require `LLM_MODE=local` in the environment: Ollama cloud, external endpoints
+and auto routing are refused, and `LLM_ALLOW_CLOUD_FALLBACK=1` is forbidden so
+a local run can never silently fall back to a cloud model. The same rule binds
+the Claude Code integration ([`docs/CLAUDE_INTEGRATION.md`](docs/CLAUDE_INTEGRATION.md)).
 
 ## Memory boundary
 
@@ -43,16 +70,20 @@ python -m collector.firefox.firefox_backend \
 
 ## Working rules
 
-1. Run `python -m pytest -q tests` before declaring any change done; CI
+1. Read `THEORY.md` before any theory-facing change and preserve its invariants.
+2. Run `python -m pytest -q tests` before declaring any change done; CI
    (`Repository CI`) is the gate.
-2. Research data roots (`laclaugpt-brasil-data/`, `collection-data/`, `*.har`)
+3. Research data roots (`laclaugpt-brasil-data/`, `collection-data/`, `*.har`)
    are never committed; `.gitignore` enforces this.
-3. Do not commit secrets: endpoints and credentials come from environment
+4. Do not commit secrets: endpoints and credentials come from environment
    variables, never from files in this tree.
-4. Collection is for public political content only; the collector does not
+5. Collection is for public political content only; the collector does not
    bypass authentication barriers, private accounts or CAPTCHAs.
-5. Statement-level claims must trace to source evidence; the agent may reject
+6. Statement-level claims must trace to source evidence; the agent may reject
    its own interpretation, never invent evidence.
+7. Frequency is not hegemony; vagueness is not empty signification; criticism
+   is not antagonism; sentiment is not affective investment; and
+   `populist=true` requires evidenced Us and Frontier construction.
 
 ## Conversational personality
 

@@ -9,9 +9,12 @@ resources:
   memory: 64G
   gpus: 1
 runtime:
+  collector: false
+  analysis: true
+  dashboard: false
+  slurm: true
   use_tmpdir: true
   resume: true
   checkpoint: true
   retry_failed_items: true
   skip_already_processed: true
-

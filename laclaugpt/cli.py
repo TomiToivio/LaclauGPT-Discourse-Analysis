@@ -23,6 +23,8 @@ def parser() -> argparse.ArgumentParser:
         "profiles",
         help="list canonical project, arena, machine and execution profiles",
     )
+    from laclaugpt.collect.cli import register as register_collect
+    register_collect(sub)
     analyze = sub.add_parser("analyze", help="compose and validate an analysis run")
     analyze.add_argument("dataset", nargs="?")
     analyze.add_argument("--project", required=True, choices=list_projects())
@@ -41,6 +43,7 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--machine", required=True, choices=list_machines())
     run.add_argument("--execution", required=True, choices=list_executions())
     run.add_argument("--dataset")
+    run.add_argument("--output", help="canonical JSONL output path for the run")
     run.add_argument("--parent-run-id")
     run.add_argument(
         "--pipeline-config",
@@ -82,6 +85,9 @@ def _resolve_arena(args: argparse.Namespace) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+    if args.command == "collect":
+        from laclaugpt.collect.cli import run as run_collect
+        return run_collect(args)
     if args.command == "profiles":
         print(json.dumps({
             "projects": list_projects(),
@@ -108,6 +114,9 @@ def main(argv: list[str] | None = None) -> int:
         dataset_overrides = {}
         if dataset:
             dataset_overrides["input"] = dataset
+        run_output = getattr(args, "output", None)
+        if run_output:
+            dataset_overrides["output"] = run_output
         overrides = {"dataset": dataset_overrides} if dataset_overrides else None
         effective = compose_config(
             args.project,

@@ -1,0 +1,11 @@
+# Generic systemd user-timer example. Tune cadence in private deployment config.
+[Unit]
+Description=LaclauGPT Telegram bridge schedule
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

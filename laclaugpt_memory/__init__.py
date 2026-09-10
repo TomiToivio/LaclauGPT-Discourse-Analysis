@@ -151,6 +151,14 @@ CREATE TABLE IF NOT EXISTS temporal (
     UNIQUE(obj_id, related_obj, relation, period)
 );
 
+CREATE TABLE IF NOT EXISTS rejected_merges (
+    left_id TEXT NOT NULL,               -- canonical object A (sorted)
+    right_id TEXT NOT NULL,              -- canonical object B (sorted)
+    ts TEXT NOT NULL,
+    rationale TEXT DEFAULT '',           -- human rejection rationale
+    PRIMARY KEY (left_id, right_id)
+);
+
 CREATE TABLE IF NOT EXISTS runs (
     run_id TEXT PRIMARY KEY,
     started_at TEXT NOT NULL,
@@ -407,6 +415,16 @@ class Memory:
                 if score >= self.embed_threshold:
                     add(oid, "embedding", score)
         cands = sorted(out.values(), key=lambda c: -c.score)
+        # INV_HUMAN_REVIEW (issue #62 finding 2): a human-rejected merge pair
+        # is never retrievable as a candidate, in any run, on any path —
+        # similarity-driven proposals die here before they can be reused by
+        # the auto-rules or pointed at by the LLM resolver.
+        rejected: set[frozenset] = {
+            frozenset((r[0], r[1])) for r in self.conn.execute(
+                "SELECT left_id, right_id FROM rejected_merges").fetchall()}
+        if rejected:
+            cands = [c for c in cands
+                     if not any(c.obj_id in pair for pair in rejected)]
         return cands[:top_k]
 
     # ── resolution API ───────────────────────────────────────────────
@@ -426,19 +444,31 @@ class Memory:
         if not raw:
             return Resolution(raw=raw, kind=kind, decision="UNCERTAIN")
         cands = self.retrieve_candidates(raw, kind)
+        # Issue #62 finding 3: only exact-class matches (normalised label or
+        # alias-table hit — both mechanically unambiguous) auto-reuse.
+        # Near-identical *surface forms* below 1.0 (the old 0.98
+        # string/embedding auto-reuse) stay candidates for human review
+        # instead of silently becoming the same canonical concept.
         auto = None
-        if cands and cands[0].score >= (1.0 if cands[0].via == "exact" else self.embed_threshold):
+        if cands and cands[0].via in ("exact", "alias") and cands[0].score >= 0.99:
             auto = cands[0]
         if decision is None:
             decision = "EXISTING" if auto else "NEW"
 
         if decision == "EXISTING":
             obj_id = chosen_obj_id or (auto.obj_id if auto else "")
-            if not obj_id and cands and cands[0].score >= 0.60:
-                obj_id = cands[0].obj_id
             if not obj_id:
-                return self._create_provisional(raw, kind, definition, example, type_,
-                                                stage, video_key, evidence, model)
+                # Issue #62 finding 1: an explicit LLM EXISTING decision
+                # without a chosen ID is a resolver failure, not a licence to
+                # re-point to the best candidate at any similarity. Below the
+                # configured fuzzy thresholds no lexical guess is made; the
+                # raw form stays available for human review via UNCERTAIN.
+                return Resolution(raw=raw, kind=kind,
+                                  obj_id=cands[0].obj_id if cands else "",
+                                  label=cands[0].label if cands else "",
+                                  decision="UNCERTAIN",
+                                  matched_via=cands[0].via if cands else "",
+                                  score=cands[0].score if cands else 0.0)
             via = cands[0].via if cands else ""
             score = cands[0].score if cands else 1.0
             self._add_alias(obj_id, raw)
@@ -572,6 +602,37 @@ class Memory:
         self._log("human", "", obj_id, "rejected", {"rationale": rationale})
         self.conn.commit()
 
+    def reject_merge(self, left_id: str, right_id: str, rationale: str = "") -> None:
+        """Record a human rejection of merging two canonical objects (issue #62).
+
+        Rejected pairs are excluded from candidate retrieval in every later
+        run, so a similarity-driven proposal can never auto-reuse a merge a
+        human already declined (INV_HUMAN_REVIEW).
+        """
+        if left_id == right_id:
+            return
+        a, b = sorted((left_id, right_id))
+        self.conn.execute(
+            "INSERT OR IGNORE INTO rejected_merges (left_id, right_id, ts, rationale) "
+            "VALUES (?, ?, ?, ?)", (a, b, now_iso(), rationale))
+        self._log("human", "", a, "rejected_merge",
+                  {"other": b, "rationale": rationale})
+        self.conn.commit()
+
+    def _merge_rejected_for(self, obj_id: str, blocked: set[frozenset]) -> bool:
+        if not blocked:
+            return False
+        kind = (self.get(obj_id) or {}).get("kind")
+        if not kind:
+            return False
+        for (other,) in self.conn.execute(
+                "SELECT left_id FROM rejected_merges WHERE right_id = ? "
+                "UNION SELECT right_id FROM rejected_merges WHERE left_id = ?",
+                (obj_id, obj_id)).fetchall():
+            if frozenset((obj_id, other)) in blocked:
+                return True
+        return False
+
     def _add_alias(self, obj_id: str, raw: str) -> None:
         norm = normalize(raw)
         if not norm:
@@ -636,13 +697,17 @@ class Memory:
                 if c.state == "CANONICAL"
             ]
             if not cands:
-                # no direct match for this chunk: show the most-used entries
-                # of that kind (usage-weighted codebook preview, capped) so
-                # the model still knows what exists. Never the whole DB.
+                # no direct match for this chunk: show a stable, neutral codebook
+                # preview of that kind so the model still knows what exists.
+                # Never the whole DB. Issue #62 finding 4: the ordering is
+                # alphabetical, not usage-based — `uses` counts model matches,
+                # so usage-ordered priming would re-inject model-generated
+                # frequent labels as if they were established codebook entries
+                # (a self-reinforcing loop). Alphabetical is model-neutral.
                 rows = self.conn.execute(
                     "SELECT o.obj_id, o.label, o.state, o.definition "
                     "FROM objects o WHERE o.kind = ? AND o.state = 'CANONICAL' "
-                    "ORDER BY o.uses DESC LIMIT ?", (kind, top_k_per_kind)).fetchall()
+                    "ORDER BY o.label LIMIT ?", (kind, top_k_per_kind)).fetchall()
                 cands = [Candidate(obj_id=r0[0], kind=kind, label=r0[1], state=r0[2],
                                    score=0.0, via="usage", definition=r0[3]) for r0 in rows]
             if cands:
@@ -651,13 +716,22 @@ class Memory:
 
     def context_prompt_block(self, text: str, top_k_per_kind: int = 5,
                              kinds: Iterable[str] = KINDS) -> str:
-        """Render retrieved context for prompt injection (compact)."""
+        """Render retrieved context for prompt injection (compact).
+
+        Issue #62 finding 4: neutral framing. The candidates are retrieval
+        suggestions with stable IDs, never authoritative prior findings; the
+        wording must not push the model toward reusing them ("prefer
+        EXISTING" priming removed).
+        """
         ctx = self.retrieve_context(text, top_k_per_kind, kinds)
         if not ctx:
             return "(no established codebook entries match this chunk yet)"
         out_lines = []
         for kind, cands in ctx.items():
-            out_lines.append(f"Established {kind} candidates (prefer EXISTING; use exact obj_id):")
+            out_lines.append(
+                f"Codebook suggestions for {kind} (stable IDs for reference only; "
+                "use the exact obj_id only when the source material genuinely "
+                "matches the entry):")
             for c in cands:
                 d = f" — {c.definition}" if c.definition else ""
                 out_lines.append(f"- {c.obj_id} = {c.label}{d}")
@@ -740,7 +814,13 @@ class Memory:
 def resolve_candidates(candidates: list[str], kind: str,
                        memory: "Memory") -> tuple[list[str], list[str]]:
     """Compatibility wrapper matching the old pipeline.py call shape.
-    Returns (matched_labels, new_labels)."""
+    Returns (matched_labels, new_labels).
+
+    Issue #62 (minor): UNCERTAIN resolutions are no longer folded into
+    `matched` — folding them would present an unconfirmed proposal as an
+    established match. They are returned in `new` as proposals for human
+    review, clearly distinguishable from confirmed reuse.
+    """
     matched, new = [], []
     for cand in candidates:
         if not cand or not cand.strip():
@@ -748,9 +828,10 @@ def resolve_candidates(candidates: list[str], kind: str,
         res = memory.resolve(cand, kind)
         if res.decision == "EXISTING":
             matched.append(res.label)
-        elif res.decision == "NEW":
-            new.append(res.label)
         else:
-            matched.append(res.label)  # UNCERTAIN maps onto the proposed existing object
+            # NEW and UNCERTAIN alike are unresolved proposals until review;
+            # UNCERTAIN additionally keeps the candidate object visible in the
+            # review queue (its obj_id rides in res, not in the label lists).
+            new.append(res.label)
     matched, new = list(dict.fromkeys(matched)), list(dict.fromkeys(new))
     return matched, new
