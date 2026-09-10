@@ -1,25 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""AI26 YouTube collection: official channel RSS -> metadata -> Mongo.
-
-Hierarchy level 1 (per issue #73 task): official YouTube channel RSS for
-new-video detection. Transcript retrieval is a later stage (level 3).
-Format of youtube.txt: arena<TAB>channel_rss_url<TAB>label
-"""
+"""AI26 YouTube collection: official channel RSS -> metadata -> Mongo."""
 from __future__ import annotations
 
 import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, "LACLAUGPT_REPO_ROOT")
-sys.path.insert(0, "LACLAUGPT_REPO_ROOT/ai26_runtime")
+REPO = Path(os.environ.get("LACLAUGPT_ROOT", str(Path(__file__).resolve().parents[1]))).expanduser().resolve()
+sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(REPO / "ai26_runtime"))
 
 import feedparser  # noqa: E402
 from mongo_writer import get_db  # noqa: E402
 
-FEEDS = Path(os.environ.get("AI26_FEEDS",
-        "~/.config/laclaugpt/ai26/feeds.txt"))
+FEEDS = Path(os.environ.get("AI26_FEEDS", "~/.config/laclaugpt/ai26/feeds.txt")).expanduser()
 P = "ai26_"
 
 
@@ -67,7 +62,7 @@ def collect_youtube() -> int:
                     "arena": arena,
                     "channel_label": label,
                     "channel_rss": url,
-                    "transcript": None,  # level 3: fetched later
+                    "transcript": None,
                 },
             }
             db[P + "sources"].insert_one(doc)
