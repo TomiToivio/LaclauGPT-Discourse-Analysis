@@ -78,6 +78,8 @@ The profile enables:
 
 Even on one host these remain separate services. They should communicate through canonical files, APIs, databases or queues rather than hidden in-process coupling. Process supervision is intentionally external so systemd, containers or another supervisor can restart components independently.
 
+Any concrete hostname, IP address, database account, filesystem path, service schedule, backup policy or other deployment-specific setting must remain in machine-local configuration outside the public repository.
+
 ## 5. CSC Roihu / Slurm: analysis only
 
 Use `roihu` + `slurm` for GPU batch analysis.
@@ -143,10 +145,3 @@ The tests do not launch real models, browsers, dashboards or Slurm jobs.
 **One LaclauGPT, many environments.**
 
 The runtime topology is replaceable infrastructure. The discourse-analysis semantics are not.
-
-## Private realtime deployment
-
-Concrete hostnames, hardware inventory, service schedules, database roles,
-backup topology, credential locations, and live collection status belong in
-machine-local configuration and private operations documentation. Public
-examples under `deploy/systemd/` use generic paths and require local overrides.
