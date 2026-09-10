@@ -60,6 +60,12 @@ backend address in extension local storage under `backend_url`, so the
 SAME extension code runs against different backends without code
 duplication.
 
+The backend may also listen on a non-localhost address (e.g. the
+deployment host's Tailscale IP) when the browser runs on a different
+machine than the backend. Per-deployment addresses live ONLY in the
+extension storage of that machine's profile — never in the public
+sources.
+
 Create one profile per study and set the backend once per profile:
 
 ```bash
@@ -74,9 +80,24 @@ firefox --profile laclaugpt-ai26
 #   browser.storage.local.set({ backend_url: "http://127.0.0.1:8766" })
 ```
 
+The value must match the backend's actual `--host`/port. When the
+backend binds a Tailscale/deployment IP instead of localhost, set that
+same IP in `backend_url`, e.g.
+`browser.storage.local.set({ backend_url: "http://<tailscale-ip>:8766" })`
+for the AI26 profile and `:8765` for the Brazil26 profile. A profile
+still pointing at a stale default shows up as a healthy `/tour` and
+`/status` on the backend with `firefox bridge: saved=0` and no new
+`raw/` files — the fix is the storage edit above, not a backend
+restart.
+
 `navigation.js` awaits the stored value before its first tour tick;
 `capture.js` resolves it before the first capture POST. Invalid or
 absent values fall back to `127.0.0.1:8765`.
+
+After editing `backend_url` (or after a browser restart), reload the
+temporary add-on via about:debugging so both background scripts pick up
+the stored value. Verify capture flow, not unit state: newest
+`raw/<platform>/<date>/capture-*.ndjson` mtimes minutes old = alive.
 
 ## Data roots
 
