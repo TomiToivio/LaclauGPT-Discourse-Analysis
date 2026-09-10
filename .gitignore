@@ -111,6 +111,9 @@ ENV/
 env.bak/
 venv.bak/
 
+# Local AI-agent state
+.claude/settings.local.json
+
 # Private / machine-specific configuration
 config/*.local.yaml
 config/*.private.yaml
@@ -123,11 +126,18 @@ secrets/
 # study-specific source selection belong outside Git by default.
 collector/config/*.private.yaml
 collector/config/*.local.yaml
+collector/config/*-operational.yaml
+collector/config/*-live.yaml
 collector/config/telegram.yaml
 collector/config/rss.yaml
 collector/config/web.yaml
 collector/config/collection-sources.yaml
 collector/config/live-sources.yaml
+collector/config/brazil-election-2026.yaml
+
+# Host-specific deployment notes stay outside the public repository.
+docs/DEPLOYMENT_*_LOCAL.md
+docs/DEPLOYMENT_LASKIN_AI26.md
 
 # Explicit restricted research roots
 /private_data/
