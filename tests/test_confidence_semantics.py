@@ -1,6 +1,7 @@
 """Regression coverage for issue #90 confidence/uncertainty semantics."""
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 from typing import get_args
 
@@ -22,18 +23,33 @@ def _description(model, field_name: str) -> str:
     return str(model.model_fields[field_name].description or "").lower()
 
 
+def _normalized(text: str) -> str:
+    """Compare semantic wording without depending on Markdown or line wrapping."""
+    return " ".join(text.lower().replace("**", "").split())
+
+
+def _python_string_constants(path: Path) -> str:
+    """Read runtime string literals without source-level adjacent-literal seams."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    strings = [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    ]
+    return _normalized(" ".join(strings))
+
+
 def test_discourse_prompt_uses_uncalibrated_model_reported_confidence() -> None:
-    prompt = discourse_prompt.build_system_prompt("topic", "metadata")
-    lowered = prompt.lower()
+    prompt = _normalized(discourse_prompt.build_system_prompt("topic", "metadata"))
     assert discourse_prompt.PROMPT_VERSION == "discourse-v1.4"
-    assert "calibrated confidence" not in lowered
-    assert "model-reported confidence" in lowered
-    assert "uncalibrated self-report" in lowered
-    assert "not a probability" in lowered
-    assert "quotation verification" in lowered
-    assert "human review" in lowered
-    assert "substantive validity" in lowered
-    assert "operational selection rule" in lowered
+    assert "calibrated confidence" not in prompt
+    assert "model-reported confidence" in prompt
+    assert "uncalibrated self-report" in prompt
+    assert "not a probability" in prompt
+    assert "quotation verification" in prompt
+    assert "human review" in prompt
+    assert "substantive validity" in prompt
+    assert "operational selection rule" in prompt
 
 
 def test_discourse_confidence_field_remains_compatible_but_is_described() -> None:
@@ -52,16 +68,15 @@ def test_discourse_confidence_field_remains_compatible_but_is_described() -> Non
 
 
 def test_populism_prompt_and_field_use_same_semantics() -> None:
-    prompt = populism_prompt.build_system_prompt("topic", "metadata")
-    lowered = prompt.lower()
+    prompt = _normalized(populism_prompt.build_system_prompt("topic", "metadata"))
     assert populism_prompt.PROMPT_VERSION == "populism-v3.4"
-    assert "model-reported confidence" in lowered
-    assert "uncalibrated self-report" in lowered
-    assert "not a probability" in lowered
-    assert "quotation verification" in lowered
-    assert "human review" in lowered
-    assert "substantive theoretical validity" in lowered
-    assert "operational selection rule" in lowered
+    assert "model-reported confidence" in prompt
+    assert "uncalibrated self-report" in prompt
+    assert "not a probability" in prompt
+    assert "quotation verification" in prompt
+    assert "human review" in prompt
+    assert "substantive theoretical validity" in prompt
+    assert "operational selection rule" in prompt
 
     element, _ = populism_prompt.pydantic_models()
     assert "confidence" in element.model_fields
@@ -71,19 +86,21 @@ def test_populism_prompt_and_field_use_same_semantics() -> None:
 
 
 def test_dashboard_labels_confidence_as_uncalibrated_model_report() -> None:
-    source = (REPO_ROOT / "laclaugpt" / "visualization" / "app.py").read_text(
-        encoding="utf-8"
-    ).lower()
+    path = REPO_ROOT / "laclaugpt" / "visualization" / "app.py"
+    source = path.read_text(encoding="utf-8").lower()
+    rendered_strings = _python_string_constants(path)
     assert 'model_confidence_label = "model-reported confidence (uncalibrated)"' in source
-    assert "mean model-reported confidence (uncalibrated)" in source
-    assert "not probabilities of correctness" in source
-    assert "quotation verification" in source
+    assert "mean model-reported confidence (uncalibrated)" in rendered_strings
+    assert "not probabilities of correctness" in rendered_strings
+    assert "quotation verification" in rendered_strings
 
 
 def test_confidence_documentation_defines_thresholds_as_operational() -> None:
-    text = (REPO_ROOT / "docs" / "CONFIDENCE_AND_UNCERTAINTY.md").read_text(
-        encoding="utf-8"
-    ).lower()
+    text = _normalized(
+        (REPO_ROOT / "docs" / "CONFIDENCE_AND_UNCERTAINTY.md").read_text(
+            encoding="utf-8"
+        )
+    )
     assert "model-reported, uncalibrated self-report" in text
     assert "not automatically a probability" in text
     assert "operational selection rule" in text

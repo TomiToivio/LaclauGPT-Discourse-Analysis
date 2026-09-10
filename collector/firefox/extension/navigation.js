@@ -12,7 +12,7 @@
 (() => {
   "use strict";
 
-  const BACKEND_URL = "http://100.115.95.109:8765";
+  const BACKEND_URL = "http://127.0.0.1:8765";
   const VISIT_INTERVAL_MS = 300000;
   const SCROLL_INTERVAL_MS = 3000;
   const SCROLLS_PER_VISIT = 10;
