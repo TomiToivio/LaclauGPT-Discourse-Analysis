@@ -30,9 +30,9 @@ def test_discourse_prompt_uses_uncalibrated_model_reported_confidence() -> None:
     assert "model-reported confidence" in lowered
     assert "uncalibrated self-report" in lowered
     assert "not a probability" in lowered
-    assert "mechanical quotation verification" in lowered
+    assert "quotation verification" in lowered
     assert "human review" in lowered
-    assert "substantive theoretical validity" in lowered
+    assert "substantive validity" in lowered
     assert "operational selection rule" in lowered
 
 
@@ -45,7 +45,7 @@ def test_discourse_confidence_field_remains_compatible_but_is_described() -> Non
         description = _description(model, "confidence")
         assert "uncalibrated" in description
         assert "not a probability" in description
-        # Existing interchange shape/range is preserved.
+        # Existing output shape/range is preserved.
         metadata = field.metadata
         assert any(getattr(item, "ge", None) == 0.0 for item in metadata)
         assert any(getattr(item, "le", None) == 1.0 for item in metadata)
@@ -58,6 +58,9 @@ def test_populism_prompt_and_field_use_same_semantics() -> None:
     assert "model-reported confidence" in lowered
     assert "uncalibrated self-report" in lowered
     assert "not a probability" in lowered
+    assert "quotation verification" in lowered
+    assert "human review" in lowered
+    assert "substantive theoretical validity" in lowered
     assert "operational selection rule" in lowered
 
     element, _ = populism_prompt.pydantic_models()
