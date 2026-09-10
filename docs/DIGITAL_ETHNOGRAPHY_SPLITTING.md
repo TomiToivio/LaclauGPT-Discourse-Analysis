@@ -8,8 +8,8 @@ signals:
 2. vertical optical flow consistent with a feed scroll.
 
 Nearby candidates are merged, a configurable guard interval trims the scrolling
-transition, and short fragments are omitted. Every boundary retains its two
-scores and the effective configuration in `splitting-manifest.json`.
+transition, and short fragments are omitted. Every boundary retains its two signal measurements and a heuristic
+signal-strength score and the effective configuration in `splitting-manifest.json`.
 
 This is descriptive preprocessing, not discourse analysis. Researchers should
 inspect the clips and manifest before treating them as analytical documents.

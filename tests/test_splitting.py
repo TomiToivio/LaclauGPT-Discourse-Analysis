@@ -23,10 +23,10 @@ def test_visual_metrics_detect_changed_shifted_region() -> None:
     pytest.importorskip("cv2")
     from laclaugpt.splitting.core import identity_change, vertical_flow
 
-    before = np.zeros((200, 100, 3), dtype=np.uint8)
-    after = before.copy()
-    before[120:170, 5:70] = 255
-    after[100:150, 5:70] = 255
+    rng = np.random.default_rng(42)
+    before = rng.integers(0, 256, size=(200, 100, 3), dtype=np.uint8)
+    after = np.roll(before, -20, axis=0)
+    after[-20:] = 0
     roi = (0.0, 0.45, 0.8, 0.9)
     assert identity_change(before, after, roi) > 0.1
-    assert vertical_flow(before, after) > 0.01
+    assert vertical_flow(before, after) > SplitConfig().vertical_flow_threshold
