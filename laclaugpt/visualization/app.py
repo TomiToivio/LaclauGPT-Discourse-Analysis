@@ -14,6 +14,9 @@ from laclaugpt.visualization.review import ReviewStore, assessment_context, cano
 from laclaugpt.visualization.runtime import require_dashboard_runtime
 
 
+MODEL_CONFIDENCE_LABEL = "model-reported confidence (uncalibrated)"
+
+
 def _arguments(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--data", default="")
@@ -292,6 +295,10 @@ def _display_document(
         st.caption("Blind coding has been explicitly revealed for comparison/adjudication.")
     st.markdown("#### Summary")
     st.write(annotation.summary or "No summary")
+    st.caption(
+        "Confidence values below are model-reported, uncalibrated self-reports. They are not probabilities "
+        "of correctness and are separate from quotation verification, human review and substantive validity."
+    )
 
     tabs = st.tabs(["Discourse", "Populism", "Evidence", "Provenance", "Researcher review"])
     with tabs[0]:
@@ -303,7 +310,7 @@ def _display_document(
                 {
                     "signifier": item.signifier.label,
                     "role": item.role,
-                    "confidence": item.confidence,
+                    MODEL_CONFIDENCE_LABEL: item.confidence,
                     "needs_corpus_validation": item.needs_corpus_validation,
                     "verified": item.evidence_verified,
                     "evidence": item.evidence,
@@ -318,7 +325,7 @@ def _display_document(
                     "related_to": ", ".join(ref.label for ref in item.related_to),
                     "relation": item.relation,
                     "claim_status": item.claim_status,
-                    "confidence": item.confidence,
+                    MODEL_CONFIDENCE_LABEL: item.confidence,
                     "verified": item.evidence_verified,
                     "evidence": item.evidence,
                 }
@@ -344,7 +351,7 @@ def _display_document(
                     "target": item.target.label,
                     "affect": item.affect,
                     "side": item.side,
-                    "confidence": item.confidence,
+                    MODEL_CONFIDENCE_LABEL: item.confidence,
                     "evidence": item.evidence,
                 }
                 for item in annotation.affects
@@ -570,7 +577,8 @@ def main(argv: list[str] | None = None) -> None:
         with tabs["Discourse"]:
             st.caption(
                 "Counts below show document frequency only. Frequency is not theoretical importance, "
-                "nodal status, empty/floating status, or hegemony; corpus and human adjudication remain required."
+                "nodal status, empty/floating status, or hegemony; corpus and human adjudication remain required. "
+                "Mean confidence is an uncalibrated mean of model self-reports, not a probability of correctness."
             )
             left, right = st.columns(2)
             with left:
@@ -587,7 +595,10 @@ def main(argv: list[str] | None = None) -> None:
                 st.plotly_chart(network, use_container_width=True)
             edges = articulation_edges(filtered_annotations, limit=100)
             if not edges.empty:
-                st.dataframe(edges, use_container_width=True, hide_index=True)
+                display_edges = edges.rename(columns={
+                    "mean_confidence": "mean model-reported confidence (uncalibrated)"
+                })
+                st.dataframe(display_edges, use_container_width=True, hide_index=True)
 
     if "Populism" in tabs:
         with tabs["Populism"]:
