@@ -96,6 +96,7 @@ def _review_panel(
     blind: bool,
 ) -> None:
     context = assessment_context(annotation, project_id=project_id, corpus_id=corpus_id)
+    scope = f"{annotation.document_id}-{context['artifact_fingerprint']}"
     st.caption(
         f"Project/corpus: {context['project_id']} / {context['corpus_id']} · "
         f"run: {context['run_id']} · artifact: {context['artifact_fingerprint'][:22]}…"
@@ -103,14 +104,37 @@ def _review_panel(
     if not reviewer_id.strip():
         st.warning("Enter a local reviewer pseudonym in the sidebar before saving an assessment.")
 
-    targets = canonical_review_targets(annotation)
-    labels = [item["label"] for item in targets]
-    selected_label = st.selectbox(
-        "Assessment target",
-        labels,
-        key=f"review-target-{annotation.document_id}-{context['artifact_fingerprint']}",
-    )
-    target = targets[labels.index(selected_label)]
+    if blind:
+        target_type = st.selectbox(
+            "Assessment target type",
+            ["document", "code", "claim"],
+            key=f"review-target-type-{scope}",
+        )
+        target_id = ""
+        if target_type != "document":
+            target_id = st.text_input(
+                "Canonical code / claim ID",
+                help=(
+                    "Enter the code or claim identifier independently. Model-proposed target labels are "
+                    "intentionally hidden during blind initial coding."
+                ),
+                key=f"review-target-id-{scope}-{target_type}",
+            ).strip()
+        target = {"target_type": target_type, "target_id": target_id}
+    else:
+        targets = canonical_review_targets(annotation)
+        labels = [item["label"] for item in targets]
+        selected_label = st.selectbox(
+            "Assessment target",
+            labels,
+            key=f"review-target-{scope}",
+        )
+        target = targets[labels.index(selected_label)]
+
+    target_ready = target["target_type"] == "document" or bool(target["target_id"].strip())
+    if not target_ready:
+        st.caption("Enter a code/claim ID before saving this target.")
+
     current = review_store.get(
         annotation.document_id,
         reviewer_id=reviewer_id or "unknown",
@@ -125,18 +149,18 @@ def _review_panel(
         "Researcher review status",
         status_options,
         index=status_options.index(current_status),
-        key=f"review-status-{annotation.document_id}-{target['target_type']}-{target['target_id']}",
+        key=f"review-status-{scope}-{target['target_type']}-{target['target_id']}",
     )
     tags = st.text_input(
         "Tags",
         value=", ".join(current["tags"]),
-        key=f"review-tags-{annotation.document_id}-{target['target_type']}-{target['target_id']}",
+        key=f"review-tags-{scope}-{target['target_type']}-{target['target_id']}",
     )
     note = st.text_area(
         "Researcher note",
         value=current["note"],
         height=160,
-        key=f"review-note-{annotation.document_id}-{target['target_type']}-{target['target_id']}",
+        key=f"review-note-{scope}-{target['target_type']}-{target['target_id']}",
     )
 
     history = review_store.history(
@@ -158,7 +182,7 @@ def _review_panel(
     record_type = st.selectbox(
         "Record type",
         record_types,
-        key=f"review-record-type-{annotation.document_id}-{target['target_type']}-{target['target_id']}",
+        key=f"review-record-type-{scope}-{target['target_type']}-{target['target_id']}",
     )
 
     linked_ids: list[int] = []
@@ -168,13 +192,13 @@ def _review_panel(
             "Prior assessment IDs to adjudicate",
             choices,
             default=choices,
-            key=f"review-links-{annotation.document_id}-{target['target_type']}-{target['target_id']}",
+            key=f"review-links-{scope}-{target['target_type']}-{target['target_id']}",
         )
 
     if st.button(
         "Save assessment",
-        key=f"review-save-{annotation.document_id}-{target['target_type']}-{target['target_id']}",
-        disabled=not bool(reviewer_id.strip()),
+        key=f"review-save-{scope}-{target['target_type']}-{target['target_id']}",
+        disabled=not bool(reviewer_id.strip()) or not target_ready,
     ):
         if record_type == "adjudication" and len(linked_ids) < 2:
             st.error("Adjudication must link at least two prior assessments.")
@@ -437,6 +461,17 @@ def main(argv: list[str] | None = None) -> None:
         for column in ("entities", "topics", "signifiers", "nodal_points", "us", "frontier", "imaginaries", "affects"):
             if column in frame:
                 frame[column] = [[] for _ in range(len(frame))]
+        if "searchable_text" in frame:
+            source_columns = (
+                "document_id", "source_platform", "source_country", "language",
+                "source_author", "source_url", "project", "analysis_profile", "arena_id",
+            )
+            frame["searchable_text"] = frame.apply(
+                lambda row: " ".join(
+                    str(row.get(column, "") or "") for column in source_columns
+                ),
+                axis=1,
+            )
         analysis = {}
 
     review_path = Path(args.review_db).expanduser() if args.review_db else path.with_suffix(path.suffix + ".reviews.sqlite3")
