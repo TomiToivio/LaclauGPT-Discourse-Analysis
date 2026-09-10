@@ -334,8 +334,9 @@ def _display_document(
         if annotation.imaginaries:
             st.write("**Sociotechnical-imaginary candidates:**", ", ".join(item.label for item in annotation.imaginaries))
         st.caption(
-            "Document and corpus frequencies are descriptive evidence only. They do not by themselves establish "
-            "nodal status, imaginary importance, empty/floating status, or hegemony."
+            "Frequency is not theoretical importance. Descriptive frequency does not establish theoretical "
+            "importance, nodal status, imaginary importance, empty/floating status, or hegemony; corpus and "
+            "human adjudication remain required."
         )
     with tabs[1]:
         st.write("**Populist:**", annotation.populist)
