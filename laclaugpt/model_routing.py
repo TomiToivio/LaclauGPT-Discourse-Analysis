@@ -1,15 +1,10 @@
 # -*- coding: utf-8 -*-
-"""AI26 task-difficulty model routing for Gemma 4 variants.
+"""Task-difficulty model routing for local Gemma 4 variants.
 
-Tomi's rule (2026-09-08, revised same day): FEWER models. Three local tiers,
-31b and 12b retired on Laskin. All LOCAL (no cloud fallback for research).
-
-Tiers on Laskin (V100-32GB GPUs):
-    gemma4:e2b   7.2 GB  — cheap/dense stages (postprocess, entities, sentiment)
-    gemma4:e4b   9.6 GB  — default descriptive work (summary)
-    gemma4:26b  18.0 GB  — default RESEARCH model (MoE, strong reasoning):
-                           discourse (Laclau/Palonen coding + verbatim
-                           evidence) and populism (Us/Frontier judgement)
+The router uses three local tiers and does not introduce a cloud fallback.
+Approximate model footprints are kept only to support generic VRAM guards;
+concrete hostnames, GPU inventories and deployment measurements belong in
+machine-local operational notes outside the public repository.
 
 Routing by pipeline stage:
     summary      -> gemma4:e4b
@@ -18,7 +13,7 @@ Routing by pipeline stage:
     populism     -> gemma4:26b
     entities     -> gemma4:e2b
     sentiment    -> gemma4:e2b
-    topics       -> gemma4:26b  (long-context reasoning on a small rotation)
+    topics       -> gemma4:26b
     temporal     -> gemma4:26b
 
 Document-length override: very long texts (>8000 chars) escalate e2b/e4b
