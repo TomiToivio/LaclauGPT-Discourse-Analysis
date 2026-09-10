@@ -7,7 +7,7 @@ representations through the shared collector Store.
 
 Run:
     python -m collector.firefox.firefox_backend \
-        --config collector/config/brazil-election-2026.yaml \
+        --config collector/config/study.private.yaml \
         --data-root ~/laclaugpt-brasil-data
 """
 from __future__ import annotations

@@ -1,6 +1,6 @@
 """Collection runner: systematic, resumable, observable.
 
-    python -m collector.run --config collector/config/brazil-election-2026.yaml \
+    python -m collector.run --config collector/config/study.private.yaml \
         --data-root ~/laclaugpt-brasil-data
 
 One run iterates every configured account on every enabled platform:

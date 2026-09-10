@@ -12,6 +12,6 @@ Use public templates with fictional/example values for documentation and tests. 
 
 A study configuration containing factual identifiers for public figures or public institutions may be published only as a narrow reproducibility exception after explicit review. Such files must not contain inferred sensitive attributes, credentials, private links or unrelated research-subject information.
 
-The existing `brazil-election-2026.yaml` is an example of that reviewed exception and must not be treated as precedent for publishing all future watch lists.
+The existing `study.private.yaml` is an example of that reviewed exception and must not be treated as precedent for publishing all future watch lists.
 
 For the complete rule, including Telegram, RSS and web-source lists, see [`../../docs/DATA_COLLECTION_CONFIGURATION.md`](../../docs/DATA_COLLECTION_CONFIGURATION.md) and [`../../docs/DATA_PUBLICATION_POLICY.md`](../../docs/DATA_PUBLICATION_POLICY.md).
