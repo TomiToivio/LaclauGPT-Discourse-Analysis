@@ -2,16 +2,14 @@
 # -*- coding: utf-8 -*-
 """AI26 incremental analysis worker: ai26_sources -> canonical pipeline -> ai26_annotations.
 
-Local Ollama only (LLM_MODE=local). Stage-aware gemma4 routing is resolved by
-pipeline.Stage.call via laclaugpt.model_routing (summary e4b, discourse 31b,
-populism 26b, postprocess e2b; long texts escalate one tier). No cloud fallback.
+Local Ollama only. Stage-aware local model routing is resolved by
+pipeline.Stage.call via laclaugpt.model_routing. No cloud fallback.
 
-Failure semantics (fixed 2026-09-08: earlier run marked 2519 docs done with
-zero annotations produced — never again):
+Failure semantics:
 - if the pipeline subprocess fails, documents are marked analysis_status=error
   with the stderr tail, NOT done;
 - documents are marked done only after their annotations were actually written;
-- every tick appends a run record to ai26_runs for observability.
+- every tick appends a run record for observability.
 """
 from __future__ import annotations
 
@@ -24,21 +22,21 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.path.insert(0, "/mnt/workspace/LaclauGPT-Discourse-Analysis")
-sys.path.insert(0, "/mnt/workspace/LaclauGPT-Discourse-Analysis/ai26_runtime")
+REPO = Path(os.environ.get(
+    "LACLAUGPT_ROOT", str(Path(__file__).resolve().parents[1])
+)).expanduser().resolve()
+sys.path.insert(0, str(REPO))
+sys.path.insert(0, str(REPO / "ai26_runtime"))
 
 os.environ["LLM_MODE"] = "local"
 os.environ.setdefault("OLLAMA_HOST", "http://127.0.0.1:11434")
-# keep all gemma4 tiers resident across stage rotation (3x V100 = 96 GB)
 os.environ.setdefault("OLLAMA_KEEP_ALIVE", "24h")
-# hard data boundary: no cloud fallback for research pipeline
 os.environ.pop("LLM_ALLOW_CLOUD_FALLBACK", None)
 
 from mongo_writer import get_db  # noqa: E402
 
 P = "ai26_"
 BATCH = int(os.environ.get("AI26_BATCH", "10"))
-REPO = Path("/mnt/workspace/LaclauGPT-Discourse-Analysis")
 
 
 def pick_unanalyzed(arena: str | None = None) -> list[dict]:
@@ -46,7 +44,6 @@ def pick_unanalyzed(arena: str | None = None) -> list[dict]:
     query = {"analysis_status": {"$ne": "done"}}
     if arena:
         query["metadata.arena"] = arena
-    # retry errored docs last: fresh material first
     return list(db[P + "sources"].find(query)
                 .sort([("analysis_status", 1), ("collected_at", 1)])
                 .limit(BATCH))
@@ -88,7 +85,7 @@ def run_pipeline(docs: list[dict]) -> dict:
         _mark_error(db, ids, f"pipeline timeout after 3600s: {exc}")
         _record_run(db, run_id, arena, len(docs), 0, "timeout", started)
         return {"docs": len(docs), "annotated": 0, "status": "timeout"}
-    except Exception as exc:  # spawn failure etc.
+    except Exception as exc:
         _mark_error(db, ids, f"pipeline spawn failed: {exc}")
         _record_run(db, run_id, arena, len(docs), 0, "spawn_error", started)
         return {"docs": len(docs), "annotated": 0, "status": "spawn_error"}
@@ -113,11 +110,7 @@ def run_pipeline(docs: list[dict]) -> dict:
             stats["annotated"] += 1
             annotated_ids.append(ann.document_id)
         Path(out_jsonl).unlink()
-        # mark ONLY docs whose annotations were actually written
         if annotated_ids:
-            # annotations carry document_id = f"{platform}::{key}" where key is
-            # the source_url/native_id written into the CSV — resolve both
-            # spellings so done-marking actually matches the analysed sources.
             bare = [a.split("::", 1)[1] for a in annotated_ids if "::" in a]
             match_ids = list(dict.fromkeys(annotated_ids + bare))
             db[P + "sources"].update_many(
@@ -170,7 +163,6 @@ def main() -> None:
         stats = run_pipeline(docs)
         print(f"analysis: {stats}")
     except Exception:
-        # last-resort guard: never exit silently, never leave docs half-marked
         print("worker crashed:", traceback.format_exc()[-1500:])
         raise
 
