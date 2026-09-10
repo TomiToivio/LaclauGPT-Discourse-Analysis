@@ -144,11 +144,9 @@ The tests do not launch real models, browsers, dashboards or Slurm jobs.
 
 The runtime topology is replaceable infrastructure. The discourse-analysis semantics are not.
 
-## Laskin AI26 realtime deployment (operational)
+## Private realtime deployment
 
-The concrete `linux-gpu-realtime` + `realtime-fullstack` installation runs on
-`laskin01` (3x V100-32GB). Its machine-local, uncommitted configuration and
-the implementation status of every service (collection timers, incremental
-analysis with stage-aware local gemma4 routing, dashboard, minet batch chain,
-MongoDB roles, backups) are documented in
-[DEPLOYMENT_LASKIN_AI26.md](DEPLOYMENT_LASKIN_AI26.md).
+Concrete hostnames, hardware inventory, service schedules, database roles,
+backup topology, credential locations, and live collection status belong in
+machine-local configuration and private operations documentation. Public
+examples under `deploy/systemd/` use generic paths and require local overrides.
