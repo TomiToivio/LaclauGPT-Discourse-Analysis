@@ -1,6 +1,7 @@
 """Regression coverage for issue #90 confidence/uncertainty semantics."""
 from __future__ import annotations
 
+import ast
 from pathlib import Path
 from typing import get_args
 
@@ -25,6 +26,17 @@ def _description(model, field_name: str) -> str:
 def _normalized(text: str) -> str:
     """Compare semantic wording without depending on Markdown or line wrapping."""
     return " ".join(text.lower().replace("**", "").split())
+
+
+def _python_string_constants(path: Path) -> str:
+    """Read runtime string literals without source-level adjacent-literal seams."""
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    strings = [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str)
+    ]
+    return _normalized(" ".join(strings))
 
 
 def test_discourse_prompt_uses_uncalibrated_model_reported_confidence() -> None:
@@ -74,15 +86,13 @@ def test_populism_prompt_and_field_use_same_semantics() -> None:
 
 
 def test_dashboard_labels_confidence_as_uncalibrated_model_report() -> None:
-    source = _normalized(
-        (REPO_ROOT / "laclaugpt" / "visualization" / "app.py").read_text(
-            encoding="utf-8"
-        )
-    )
+    path = REPO_ROOT / "laclaugpt" / "visualization" / "app.py"
+    source = path.read_text(encoding="utf-8").lower()
+    rendered_strings = _python_string_constants(path)
     assert 'model_confidence_label = "model-reported confidence (uncalibrated)"' in source
-    assert "mean model-reported confidence (uncalibrated)" in source
-    assert "not probabilities of correctness" in source
-    assert "quotation verification" in source
+    assert "mean model-reported confidence (uncalibrated)" in rendered_strings
+    assert "not probabilities of correctness" in rendered_strings
+    assert "quotation verification" in rendered_strings
 
 
 def test_confidence_documentation_defines_thresholds_as_operational() -> None:
