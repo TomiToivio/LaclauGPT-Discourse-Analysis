@@ -38,9 +38,9 @@ for _ in {1..60}; do
   sleep 1
 done
 curl --fail --silent --show-error "$OLLAMA_HOST/api/tags" >/dev/null
-ollama pull gemma4:e4b
+ollama pull gemma4:26b
 
-python scripts/ep24_roihu_reprocess.py \
+python -m scripts.ep24_roihu_reprocess \
   --country "$country" \
   --source-csv "$SOURCE_CSV" \
   --data-root "$DATA_ROOT" \
