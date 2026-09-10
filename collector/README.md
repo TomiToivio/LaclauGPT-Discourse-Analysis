@@ -98,7 +98,7 @@ on live research subjects or real social-media accounts.
 
 ## Configure accounts
 
-`config/brazil-election-2026.yaml` is the single source of truth for the study
+`config/study.private.yaml` is the single source of truth for the study
 window, timezone, enabled platforms, target accounts and page URL templates.
 Handles are kept exactly as configured. The file currently flags that seven
 main candidates were expected while six are configured; the collector reports
@@ -110,7 +110,7 @@ Start the local backend:
 
 ```bash
 python -m collector.firefox.firefox_backend \
-    --config collector/config/brazil-election-2026.yaml \
+    --config collector/config/study.private.yaml \
     --data-root ~/laclaugpt-brasil-data
 ```
 
@@ -134,7 +134,7 @@ Plan without browsing:
 
 ```bash
 python -m collector.run \
-    --config collector/config/brazil-election-2026.yaml \
+    --config collector/config/study.private.yaml \
     --data-root ~/laclaugpt-brasil-data \
     --dry-run
 ```
@@ -143,7 +143,7 @@ One Chromium/CDP pass:
 
 ```bash
 python -m collector.run \
-    --config collector/config/brazil-election-2026.yaml \
+    --config collector/config/study.private.yaml \
     --data-root ~/laclaugpt-brasil-data
 ```
 
@@ -151,7 +151,7 @@ HAR fallback:
 
 ```bash
 python -m collector.run \
-    --config collector/config/brazil-election-2026.yaml \
+    --config collector/config/study.private.yaml \
     --data-root ~/laclaugpt-brasil-data \
     --driver har
 ```
@@ -160,7 +160,7 @@ With media:
 
 ```bash
 python -m collector.run \
-    --config collector/config/brazil-election-2026.yaml \
+    --config collector/config/study.private.yaml \
     --data-root ~/laclaugpt-brasil-data \
     --download-media
 ```

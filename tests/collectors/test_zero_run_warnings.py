@@ -14,7 +14,7 @@ import pytest
 
 from collector.config import load_config
 
-CFG_PATH = str(Path("collector/config/brazil-election-2026.yaml").resolve())
+CFG_PATH = str(Path("tests/fixtures/synthetic-collector-study.yaml").resolve())
 
 
 @pytest.fixture
