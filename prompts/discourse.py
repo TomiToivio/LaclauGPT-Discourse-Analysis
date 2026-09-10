@@ -7,7 +7,7 @@ are marked as candidates for comparison and human validation.
 """
 from __future__ import annotations
 
-PROMPT_VERSION = "discourse-v1.2"
+PROMPT_VERSION = "discourse-v1.3"
 
 SYSTEM_PROMPT_TEMPLATE = """You assist a human political scientist with a
 provisional Laclaudian discourse analysis. Analyse only the supplied source
@@ -43,8 +43,13 @@ Operational distinctions:
   normative future, diagnosis of the present, role of technology, and human
   agency, but treat document-level output as a candidate requiring corpus and
   human validation;
-- ideological formation: an inferred pattern, not a label assigned merely from
-  speaker identity or keyword presence;
+- ideological formation: an inferred pattern, not a permanent actor identity.
+  For each formation candidate, distinguish whether the candidate characterises
+  an attributed source position or is the analyst's cross-claim interpretation.
+  Preserve asserted/quoted/reported/rejected/parodied/uncertain claim status and
+  record the attributed speaker or claim reference when the source supports it.
+  Missing attribution must remain uncertain: never infer a speaker from the
+  formation label or treat quoted/rejected material as author endorsement;
 - hegemony cannot be inferred from frequency in a single document. Record only
   evidence relevant to later cross-arena/institutional analysis.
 
@@ -140,6 +145,22 @@ def pydantic_models():
         counter_evidence: list[str] = []
         evidence_quote: str = Field(min_length=1)
         confidence: float = Field(ge=0.0, le=1.0)
+        claim_status: Literal[
+            "asserted", "quoted", "reported", "rejected", "parodied", "uncertain"
+        ] = "uncertain"
+        interpretation_scope: Literal["attributed_position", "analyst_interpretation"] = (
+            "analyst_interpretation"
+        )
+        attributed_speaker: str = ""
+        attributed_claim_ref: str = ""
+
+        @model_validator(mode="after")
+        def attribution_defaults_are_conservative(self):
+            if self.interpretation_scope == "attributed_position" and not (
+                self.attributed_speaker.strip() or self.attributed_claim_ref.strip()
+            ):
+                self.claim_status = "uncertain"
+            return self
 
     class DiscourseAnalysis(BaseModel):
         applicable: bool
