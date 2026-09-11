@@ -5,8 +5,8 @@
 # tags are preserved. "ideological_prior" is a SAMPLING HINT (analytical code),
 # never a document-level ideology assignment (paper §2.3).
 #
-# Full texts live in the private collection runtime (Laskin, vasama_ai corpus);
-# this registry is the auditable public record of the sampling frame.
+# Full texts live in controlled private collection storage; this registry is the
+# auditable public record of the sampling frame and contains no runtime location.
 
 project: ai26
 registry_version: "2026-09-11"
