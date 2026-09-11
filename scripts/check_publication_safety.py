@@ -53,8 +53,17 @@ FORBIDDEN_ROOT_PREFIXES = (
     "config/sources/",
     "deploy/systemd/",
     "scripts/ep24/",
+    "scripts/legacy_ep24/",
 )
 
+FORBIDDEN_EP24_PATHS = {
+    "legacy_asr.py",
+    "legacy_fetch.py",
+    "legacy_full_pipeline.py",
+    "legacy_mm_pipeline.py",
+    "legacy_pipeline.py",
+    "legacy_screen_metadata.py",
+}
 
 FORBIDDEN_EXTENSIONS = {
     ".sqlite", ".sqlite3", ".duckdb", ".db", ".bson", ".rdb", ".aof",
@@ -109,13 +118,11 @@ SUSPICIOUS_CONTENT = (
     re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{20,}\b"),
     re.compile(r"\b\d{8,10}:[A-Za-z0-9_-]{30,}\b"),
     re.compile(r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"),
-    # User-specific home/check-out paths, including CSC-style /users/<account>/.
     re.compile(
         r"(?<![A-Za-z0-9])(?:/home|/Users|/users)/"
         r"(?!user/|username/|example/)[A-Za-z0-9._-]+/"
     ),
     re.compile(r"(?i)\b[A-Z]:\\Users\\(?!user\\|username\\|example\\)[^\\\s]+\\"),
-    # Project-specific HPC storage paths reveal allocation identifiers and layout.
     re.compile(
         r"(?<![A-Za-z0-9])/(?:scratch|projappl|project)/"
         r"project_[A-Za-z0-9._-]+(?:/|$)"
@@ -157,6 +164,16 @@ def path_violations(paths: list[str]) -> list[str]:
 
         if lowered.startswith(FORBIDDEN_ROOT_PREFIXES):
             problems.append(f"tracked restricted/private runtime root: {rel}")
+
+        # EP24 is an institutional research project with a stricter publication
+        # boundary than this public code repository. High-level Markdown history
+        # may mention it, but operational code/config/tests/codebooks stay local.
+        if "ep24" in lowered and p.suffix.lower() != ".md":
+            problems.append(f"tracked EP24 operational artifact: {rel}")
+        if rel in FORBIDDEN_EP24_PATHS or "legacy_roihu" in lowered:
+            problems.append(f"tracked renamed EP24 operational artifact: {rel}")
+        if rel.startswith("sources/codebooks/") and "ep24" in lowered:
+            problems.append(f"tracked EP24 operational codebook: {rel}")
 
         if p.suffix.lower() in FORBIDDEN_EXTENSIONS:
             problems.append(f"tracked database/media/auth/archive artifact ({p.suffix}): {rel}")
