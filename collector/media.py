@@ -17,8 +17,10 @@ from urllib.request import Request, urlopen
 
 from .store import Store
 
-USER_AGENT = ("Mozilla/5.0 (X11; Linux x86_64) LaclauGPT-Collector/0.1 "
-              "(research; contact tomi.toivio@helsinki.fi)")
+USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) LaclauGPT-Collector/0.1 "
+    "(research; project github.com/TomiToivio/LaclauGPT-Discourse-Analysis)"
+)
 DEFAULT_WORKERS = 4
 
 

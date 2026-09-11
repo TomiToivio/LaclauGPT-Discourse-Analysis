@@ -63,7 +63,7 @@ db.sqlite3-journal
 instance/
 .webassets-cache
 
-# Scrapy stuff:
+# Scrapy stuff
 .scrapy
 
 # Sphinx documentation
@@ -104,12 +104,45 @@ celerybeat.pid
 .env
 .env.*
 !.env.example
+.envrc
+.direnv/
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+.netrc
+.aws/
+.ssh/
+.gnupg/
+credentials.json
+client_secret*.json
+service-account*.json
+service_account*.json
+application_default_credentials.json
+token.json
+oauth*.json
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.kdbx
+
+# Browser/login/session state. These files can contain reusable authentication
+# material even when they are created only for researcher-operated collection.
+*.session
+*.session-journal
+cookies.txt
+cookies.json
+cookies.sqlite*
+Login Data
+Web Data
+Local State
+/browser-profiles/
+/browser_profiles/
 
 # Local AI-agent state
 .claude/settings.local.json
@@ -134,15 +167,51 @@ collector/config/web.yaml
 collector/config/collection-sources.yaml
 collector/config/live-sources.yaml
 collector/config/brazil-election-2026.yaml
+collector/browser-profiles/
+collector/browser_profiles/
+collector/firefox/profiles/
 
-# Host-specific deployment notes stay outside the public repository.
+# Host-specific deployment notes and private deployment overlays stay outside
+# the public repository. Public deploy/ files must remain portable templates.
 docs/DEPLOYMENT_*_LOCAL.md
 docs/DEPLOYMENT_LASKIN_AI26.md
+deploy/**/*.private.*
+deploy/**/*.local.*
 
 # Explicit restricted research roots
 /private_data/
 /restricted/
 /scratch/
+
+# Default-deny runtime/output roots. Public aggregate outputs should be copied
+# into a deliberately reviewed publication location rather than unignored here.
+/raw/
+/raw-data/
+/raw_data/
+/derived/
+/derived-data/
+/derived_data/
+/output/
+/outputs/
+/exports/
+/runs/
+/logs/
+/tmp/
+/temp/
+/checkpoints/
+/transcripts/
+/screenshots/
+/recordings/
+/media-downloads/
+/media_downloads/
+
+# AI26 helper scripts are public, but local exports and collector by-products
+# created beside them are not.
+/ai26_runtime/*.jsonl
+/ai26_runtime/*.csv
+/ai26_runtime/*.log
+/ai26_runtime/*.pid
+/ai26_runtime/*.session*
 
 # Common runtime research databases / media artifacts.
 # If a small binary fixture is ever genuinely required, keep it in a clearly
@@ -151,6 +220,14 @@ docs/DEPLOYMENT_LASKIN_AI26.md
 *.sqlite
 *.sqlite3
 *.duckdb
+*.db
+*.db-*
+*.bson
+*.rdb
+*.aof
+*.dump
+*.backup
+*.bak
 *.parquet
 *.mp4
 *.mov
@@ -159,6 +236,15 @@ docs/DEPLOYMENT_LASKIN_AI26.md
 *.wav
 *.mp3
 *.m4a
+
+# Compressed archives are a common accidental route for database dumps, raw
+# captures and exports. Track a reviewed release artifact explicitly if needed.
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
 
 # Spyder project settings
 .spyderproject
