@@ -17,8 +17,10 @@ from urllib.request import Request, urlopen
 
 from .store import Store
 
-USER_AGENT = ("Mozilla/5.0 (X11; Linux x86_64) LaclauGPT-Collector/0.1 "
-              "(research; contact tomi.toivio@helsinki.fi)")
+USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) LaclauGPT-Collector/0.1 "
+    "(research; project github.com/TomiToivio/LaclauGPT-Discourse-Analysis)"
+)
 DEFAULT_WORKERS = 4
 
 
@@ -55,107 +57,81 @@ class FilesystemBackend(MediaBackend):
 
 
 class MediaDownloader:
-    """Queue-driven media fetcher with sha256 checksums and dedup."""
-
-    def __init__(self, store: Store, backend: MediaBackend | None = None,
+    def __init__(self, store: Store, backend: MediaBackend,
                  workers: int = DEFAULT_WORKERS,
-                 fetcher: Callable[[str], tuple[bytes, str]] | None = None) -> None:
+                 opener: Callable = urlopen) -> None:
         self.store = store
-        self.backend = backend or FilesystemBackend(store.media_dir, store.root)
+        self.backend = backend
         self.workers = workers
-        self._fetcher = fetcher
+        self.opener = opener
+        self._lock = threading.Lock()
 
-    def enqueue_from_records(self, records: Iterable[dict]) -> list[dict]:
-        jobs: list[dict] = []
-        queued = set()
-        for rec in records:
-            for ref in rec.get("media_references", []):
-                media_key = f"{rec['platform']}_{rec['document_id']}_{ref['media_index']}"
-                if media_key in queued:
-                    continue
-                known = self.store.media_known(media_key)
-                if known and known.get("status") == "ok":
-                    continue
-                queued.add(media_key)
-                jobs.append({
-                    "media_key": media_key,
-                    "platform": rec["platform"],
-                    "document_id": rec["document_id"],
-                    "media_index": ref["media_index"],
-                    "kind": ref["kind"],
-                    "url": ref["url"],
-                })
-        return jobs
+    @staticmethod
+    def _guess_extension(url: str, mime_type: str) -> str:
+        extension = mimetypes.guess_extension(mime_type.split(";", 1)[0].strip())
+        if extension:
+            return extension
+        suffix = Path(url.split("?", 1)[0]).suffix
+        return suffix if suffix and len(suffix) <= 8 else ".bin"
 
-    def run_queue(self, jobs: list[dict]) -> list[dict]:
-        results: list[dict] = []
-        if not jobs:
-            return results
-        lock = threading.Lock()
+    @staticmethod
+    def _key(data: bytes, extension: str) -> tuple[str, str]:
+        sha = hashlib.sha256(data).hexdigest()
+        return sha, f"sha256/{sha[:2]}/{sha}{extension}"
 
-        def work(job: dict) -> None:
-            outcome = self._download_one(job)
-            with lock:
-                results.append(outcome)
-
-        with ThreadPoolExecutor(max_workers=max(1, self.workers)) as pool:
-            list(pool.map(work, jobs))
-        return results
-
-    def _download_one(self, job: dict) -> dict:
-        key = job["media_key"]
+    def _download(self, item: dict) -> dict:
+        url = item["url"]
+        request = Request(url, headers={"User-Agent": USER_AGENT})
         try:
-            body, mime = self._fetch(job["url"])
-        except Exception as exc:  # noqa: BLE001
-            http_status = exc.code if isinstance(exc, HTTPError) else None
-            failure = {
-                "media_key": key,
-                "status": "failed",
-                "failure_reason": str(exc)[:200],
-                "http_status": http_status,
-                "local_path": None,
-                "sha256": None,
-                "byte_size": None,
-                "mime_type": None,
-            }
-            self.store.record_media(
-                key, job["platform"], job["document_id"], job["media_index"],
-                job["url"], None, None, None, "", "failed",
-                failure["failure_reason"], http_status)
-            return failure
+            with self.opener(request, timeout=45) as response:
+                data = response.read()
+                mime_type = response.headers.get_content_type()
+        except HTTPError as exc:
+            self.store.mark_media_failed(item["id"], str(exc))
+            return {"url": url, "status": "failed", "error": str(exc)}
+        except Exception as exc:  # network failures are recorded, not fatal to capture
+            self.store.mark_media_failed(item["id"], str(exc))
+            return {"url": url, "status": "failed", "error": str(exc)}
 
-        sha = hashlib.sha256(body).hexdigest()
-        known = self.store.media_known(key)
-        if known and known.get("sha256") == sha and known.get("status") == "ok":
-            return {
-                "media_key": key,
-                "status": "duplicate",
-                "sha256": sha,
-                "local_path": known["local_path"],
-            }
+        extension = self._guess_extension(url, mime_type)
+        sha, key = self._key(data, extension)
+        with self._lock:
+            if not self.backend.exists(key):
+                stored = self.backend.save(key, data, mime_type)
+            else:
+                if isinstance(self.backend, FilesystemBackend):
+                    path = self.backend.root / key
+                    try:
+                        stored = path.relative_to(self.backend.reference_root).as_posix()
+                    except ValueError:
+                        stored = str(path)
+                else:
+                    stored = key
+            self.store.mark_media_done(
+                item["id"],
+                checksum=f"sha256:{sha}",
+                storage_path=stored,
+                mime_type=mime_type,
+                size_bytes=len(data),
+            )
+        return {"url": url, "status": "done", "storage_path": stored,
+                "checksum": f"sha256:{sha}"}
 
-        mime = (mime or "application/octet-stream").split(";", 1)[0].strip()
-        ext = (mimetypes.guess_extension(mime) or "").replace(".jpe", ".jpg")
-        fname = f"{key}{ext}"
-        local_path = self.backend.save(fname, body, mime)
+    def run_pending(self, limit: int = 100) -> list[dict]:
+        pending = self.store.pending_media(limit=limit)
+        if not pending:
+            return []
+        with ThreadPoolExecutor(max_workers=self.workers) as pool:
+            return list(pool.map(self._download, pending))
 
-        self.store.record_media(
-            key, job["platform"], job["document_id"], job["media_index"],
-            job["url"], local_path, sha, len(body), mime, "ok", None, 200)
-        return {
-            "media_key": key,
-            "status": "ok",
-            "sha256": sha,
-            "byte_size": len(body),
-            "mime_type": mime,
-            "local_path": local_path,
-            "http_status": 200,
-        }
 
-    def _fetch(self, url: str) -> tuple[bytes, str]:
-        if self._fetcher is not None:
-            return self._fetcher(url)
-        req = Request(url, headers={"User-Agent": USER_AGENT})
-        with urlopen(req, timeout=120) as resp:
-            mime = resp.headers.get("Content-Type", "") or "application/octet-stream"
-            return resp.read(), mime
+def queue_from_records(store: Store, records: Iterable[dict]) -> int:
+    """Queue all media URLs from normalized records. Returns queued count."""
+    queued = 0
+    for record in records:
+        capture_id = record.get("capture_id")
+        for url in record.get("media_urls", []) or []:
+            if url:
+                store.queue_media(capture_id, url)
+                queued += 1
+    return queued
