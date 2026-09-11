@@ -5,7 +5,8 @@ This is a lightweight repository guard, not a replacement for GitHub secret
 scanning, institutional disclosure review, or a forensic history audit. It aims
 to catch the most common accidental publication routes in a public research
 repository: raw/derived data, database/media dumps, browser/session state,
-credentials, private infrastructure paths and high-confidence token formats.
+credentials, private infrastructure paths, live operational source selection
+and high-confidence token formats.
 """
 
 from __future__ import annotations
@@ -50,6 +51,7 @@ FORBIDDEN_ROOT_PREFIXES = (
     "media_downloads/",
     "browser-profiles/",
     "browser_profiles/",
+    "collection-data/",
     "config/sources/",
     "deploy/systemd/",
 )
@@ -74,6 +76,20 @@ FORBIDDEN_FILENAMES = {
     "local state",
     ".netrc",
 }
+
+# Operational source-selection registries are private research configuration,
+# even when every individual URL/account is publicly accessible. Public tests
+# and examples should use synthetic fixtures instead.
+FORBIDDEN_OPERATIONAL_SOURCE_PATTERNS = (
+    re.compile(
+        r"^config/projects/.*(?:[-_]sources)\.(?:toml|ya?ml|json)$",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"^docs/.*(?:rss[-_]?sources|feeds|watch[-_]?lists?).*\.md$",
+        re.IGNORECASE,
+    ),
+)
 
 _CREDENTIAL_NAMES = (
     r"api[_-]?key|api[_-]?token|access[_-]?token|refresh[_-]?token|"
@@ -155,6 +171,11 @@ def path_violations(paths: list[str]) -> list[str]:
 
         if lowered.startswith(FORBIDDEN_ROOT_PREFIXES):
             problems.append(f"tracked restricted/private runtime root: {rel}")
+
+        for pattern in FORBIDDEN_OPERATIONAL_SOURCE_PATTERNS:
+            if pattern.search(rel):
+                problems.append(f"tracked operational source-selection artifact: {rel}")
+                break
 
         if p.suffix.lower() in FORBIDDEN_EXTENSIONS:
             problems.append(f"tracked database/media/auth/archive artifact ({p.suffix}): {rel}")
