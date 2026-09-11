@@ -1,4 +1,4 @@
-"""Stage-aware local model routing tests (DEPLOYMENT_HOST AI26, Tomi's 2026-09-08 rule).
+"""Stage-aware local model routing tests (AI26 local-GPU routing).
 
 No network, no Ollama daemon: chat_structured and pick_model are mocked.
 Verifies that gemma4-configured runs resolve a per-stage local model while

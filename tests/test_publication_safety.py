@@ -35,6 +35,9 @@ def test_content_guard_catches_high_signal_secrets_and_private_infra() -> None:
     assert _suspicious("mongodb://researcher:supersecret@db.example:27017/laclaugpt")  # PUBLICATION-SAFETY: allow
     assert _suspicious("ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")  # PUBLICATION-SAFETY: allow
     assert _suspicious("/home/researcher/private/ai26.yaml")  # PUBLICATION-SAFETY: allow
+    assert _suspicious("/users/researcher/private/ai26.yaml")  # PUBLICATION-SAFETY: allow
+    assert _suspicious("/scratch/project_1234567/private/ai26")  # PUBLICATION-SAFETY: allow
+    assert _suspicious("/projappl/project_1234567/private/ai26")  # PUBLICATION-SAFETY: allow
     assert _suspicious(r"C:\Users\researcher\private\ai26.yaml")  # PUBLICATION-SAFETY: allow
     assert _suspicious("host: 192.168.10.42")  # PUBLICATION-SAFETY: allow
 
@@ -44,7 +47,9 @@ def test_content_guard_allows_explicit_placeholders_and_loopback() -> None:
     assert not _suspicious("api_key: placeholder")
     assert not _suspicious("base_url: http://127.0.0.1:11434")
     assert not _suspicious("path: /home/user/project")
+    assert not _suspicious("path: /users/user/project")
     assert not _suspicious(r"path: C:\Users\user\project")
+    assert not _suspicious("path: ${LACLAUGPT_DATA_DIR}/ep24")
 
 
 def test_content_guard_does_not_treat_code_expressions_as_literal_secrets() -> None:
