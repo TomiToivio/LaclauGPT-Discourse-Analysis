@@ -1,7 +1,7 @@
 """DAIR public-source collectors; acquisition metadata is not ideology coding.
 
-This module is the canonical source-group collector for the reviewed public
-DAIR/AI26 profile.  It collects public source material only and immediately
+This module is the canonical source-group collector for a privately configured
+DAIR/AI26 source profile.  It collects public source material only and immediately
 maps it into the repository's canonical CollectRecord -> SourceItem /
 IngestionRecord spine.  No discourse, ideology, sentiment or actor-position
 classification happens here.
@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import html
 import json
+import os
 import re
 import time
 import urllib.error
@@ -25,7 +26,7 @@ import yaml
 
 from laclaugpt.collect import CollectRecord, CollectionStore, collect_web, normalize_url
 
-DEFAULT_CONFIG = Path("config/sources/dair-critical-ai.yaml")
+DEFAULT_CONFIG = Path(os.environ.get("LACLAUGPT_DAIR_CONFIG", "~/.config/laclaugpt/sources/dair-critical-ai.yaml")).expanduser()
 
 
 @dataclass
