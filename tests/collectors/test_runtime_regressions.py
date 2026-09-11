@@ -100,6 +100,23 @@ def test_firefox_capture_forwards_original_response_bytes():
     assert 'types: ["xmlhttprequest"]' in source
 
 
+def test_firefox_capture_matches_laclaugpt_tiktok_routes():
+    source = (REPO_ROOT / "collector/firefox/extension/capture.js").read_text(
+        encoding="utf-8")
+    # Keep Firefox interception aligned with the native TikTok parser routes.
+    assert "post|challenge" in source
+    assert "user\\/playlist" in source
+    assert "search\\/(?:item_list|general\\/full)" in source
+
+
+def test_firefox_capture_snapshots_page_url_before_response_finishes():
+    source = (REPO_ROOT / "collector/firefox/extension/capture.js").read_text(
+        encoding="utf-8")
+    assert "platformUrlPromise = tabUrlFor(details.tabId)" in source
+    assert "const platformUrl = await platformUrlPromise" in source
+    assert "details.documentUrl" in source
+
+
 def test_firefox_capture_accepts_embedded_page_state():
     capture = (REPO_ROOT / "collector/firefox/extension/capture.js").read_text(
         encoding="utf-8")
