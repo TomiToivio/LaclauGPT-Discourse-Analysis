@@ -8,8 +8,10 @@
 #SBATCH --output=ep24_full_finland_%j.out
 
 set -euo pipefail
-REPO_ROOT=/users/totoivio/LaclauGPT-Discourse-Analysis
-DATA_ROOT=/scratch/project_2009497/laclaugpt2
+: "${LACLAUGPT_REPO_ROOT:?set LACLAUGPT_REPO_ROOT to the checked-out repository}"
+: "${LACLAUGPT_DATA_DIR:?set LACLAUGPT_DATA_DIR to the controlled research-data root}"
+REPO_ROOT=$LACLAUGPT_REPO_ROOT
+DATA_ROOT=$LACLAUGPT_DATA_DIR
 cd "$REPO_ROOT"
 
 module load python-pytorch/2.10
