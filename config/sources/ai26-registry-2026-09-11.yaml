@@ -1,0 +1,158 @@
+# AI26 source registry — recent sources batch (maintainer directive 2026-09-11)
+#
+# Registry of AI26 corpus additions: recent priority sources + theoretical
+# anchors. Publication date, URL, actor, source type, ideological prior and
+# tags are preserved. "ideological_prior" is a SAMPLING HINT (analytical code),
+# never a document-level ideology assignment (paper §2.3).
+#
+# Full texts live in the private collection runtime (Laskin, vasama_ai corpus);
+# this registry is the auditable public record of the sampling frame.
+
+project: ai26
+registry_version: "2026-09-11"
+
+priority_sources:
+  - key: openai-christiano-board
+    date: "2026-09-09"
+    actor: OpenAI
+    source_type: frontier_lab_announcement
+    url: https://openai.com/index/paul-christiano-joins-openai-foundation-board/
+    ideological_prior: frontier_lab_institutional
+    tags: [ai_safety, frontier_lab, governance, x_risk]
+
+  - key: sanders-casar-asi-ban
+    date: "2026-09-03"
+    actor: "Sanders & Casar (US Senate/House)"
+    source_type: parliamentary_release
+    url: https://www.sanders.senate.gov/press-releases/news-sanders-casar-introduce-legislation-to-ban-artificial-superintelligence-and-temporarily-pause-advanced-ai-development/
+    ideological_prior: anti_asi_populist_left
+    tags: [anti_asi, populist, democratic_control, ai_oligarchy, pause]
+
+  - key: richter-hype-2026
+    date: "2026"
+    actor: Richter et al.
+    source_type: journal_article
+    url: https://link.springer.com/article/10.1007/s00146-026-03079-6
+    ideological_prior: critical_ai
+    tags: [hype, actors, imaginaries, longitudinal_discourse]
+
+  - key: yudkowsky-superintelligence-that
+    date: "2026-09-09"
+    actor: Eliezer Yudkowsky
+    source_type: forum_post
+    url: https://www.lesswrong.com/posts/hXozGp2rsbZgXnH3o/can-a-superintelligence-do-that
+    ideological_prior: x_risk_doomer
+    tags: [doomer, x_risk, superintelligence]
+
+  - key: wildeford-scramble
+    date: "2026-09-07"
+    actor: Peter Wildeford
+    source_type: forum_post
+    url: https://www.lesswrong.com/posts/S7e7swkWDyKdtvRqM/the-scramble-getting-in-position-to-pace-the-frontier
+    ideological_prior: ai_safety_governance
+    tags: [ai_safety, governance, compute, geopolitics]
+
+  - key: g20-carolina-principles
+    date: "2026-09-02"
+    actor: "G20 Innovation Ministerial / White House"
+    source_type: government_release
+    url: https://www.whitehouse.gov/releases/2026/09/g20-innovation-ministerial-concludes-with-consensus-statement/
+    ideological_prior: mainstream_institutional
+    tags: [mainstream_institutional, innovation, governance, adoption]
+
+  - key: uschina-safety-dialogue
+    date: "2026-09-04"
+    actor: Reuters (US-China AI safety dialogue)
+    source_type: news
+    url: https://www.reuters.com/legal/litigation/us-china-gear-up-mid-september-ai-safety-dialogue-2026-09-04/
+    ideological_prior: securitization_mainstream
+    tags: [geopolitics, ai_safety, securitization, china_us]
+
+  - key: kapoor-narayanan-agents
+    date: "2026-08-05"
+    actor: Kapoor & Narayanan (NormalTech)
+    source_type: blog_post
+    url: https://www.normaltech.ai/p/ai-agents-cant-yet-do-open-ended
+    ideological_prior: anti_hype_normal_technology
+    tags: [normal_technology, anti_hype, agents, rsi]
+
+  - key: asmolov-sovereignty
+    date: "2026"
+    actor: Gregory Asmolov
+    source_type: journal_article
+    url: https://journals.sagepub.com/doi/10.1177/20539517261426455
+    ideological_prior: sovereignty_geopolitical
+    tags: [ai_sovereignty, geopolitics, imaginaries, russia]
+
+  - key: may-paris-sargent-commonsense
+    date: "2026"
+    actor: "May, Paris & Sargent"
+    source_type: journal_article
+    url: https://journals.sagepub.com/doi/abs/10.1177/20539517261421466
+    ideological_prior: counter_hegemony_labor
+    tags: [labor, counter_hegemony, unions, inevitability]
+
+  - key: choroszewicz-rannisto-finland
+    date: "2026"
+    actor: Choroszewicz & Rannisto
+    source_type: journal_article
+    url: https://journals.sagepub.com/doi/10.1177/20539517261424159
+    ideological_prior: legitimation_public_sector
+    tags: [finland, public_sector, legitimation, governance]
+
+  - key: zu-talking-politics
+    date: "2026"
+    actor: Ziwen Zu
+    source_type: preprint
+    url: https://arxiv.org/abs/2607.00551
+    ideological_prior: computational_social_science
+    tags: [human_llm, political_discourse, ideology, computational_social_science]
+
+  - key: harcourt-eu-usa-regulation
+    date: "2026"
+    actor: Harcourt, Radaelli & Trein
+    source_type: journal_article
+    url: https://journals.sagepub.com/doi/10.1177/20539517261461461
+    ideological_prior: institutional_comparative
+    tags: [regulation, eu, usa, institutional_discourse]
+
+theoretical_anchors:
+  - key: oldenburg-papyshev-stories
+    date: "2025"
+    actor: Oldenburg & Papyshev
+    source_type: conference_paper
+    url: https://ojs.aaai.org/index.php/AIES/article/view/36686
+    ideological_prior: imaginary_framework
+    tags: [imaginaries, accelerationism, x_risk, critical_ai, governance]
+
+  - key: belsunces-deephype
+    date: "2025"
+    actor: Andreu Belsunces Gonçalves
+    source_type: preprint
+    url: https://arxiv.org/abs/2508.19749
+    ideological_prior: critical_hype_studies
+    tags: [agi, deep_hype, sociotechnical_fictions, longtermism, cyberlibertarianism]
+
+  - key: grba-insidious
+    date: "2026"
+    actor: Dejan Grba
+    source_type: preprint
+    url: https://arxiv.org/abs/2602.17383
+    ideological_prior: critical_speculation
+    tags: [imaginaries, agi, asi, singularity, longtermism, transhumanism]
+
+fetch_status:
+  text_fetched: [openai-christiano-board, g20-carolina-principles,
+                 kapoor-narayanan-agents, zu-talking-politics, belsunces-deephype,
+                 grba-insidious]
+  metadata_via_crossref: [richter-hype-2026, asmolov-sovereignty,
+                          may-paris-sargent-commonsense,
+                          choroszewicz-rannisto-finland, harcourt-eu-usa-regulation,
+                          oldenburg-papyshev-stories]
+  pending_full_text_retry: [sanders-casar-asi-ban, uschina-safety-dialogue,
+                            yudkowsky-superintelligence-that, wildeford-scramble]
+  note: >
+    Full texts behind bot-blocks/paywalls are retried by the hourly media pass;
+    registry preserves URL + metadata + tags so the corpus record is complete
+    even before a successful fetch. Sources are sampling-frame entries, not
+    ideological labels.
