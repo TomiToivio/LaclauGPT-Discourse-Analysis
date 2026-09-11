@@ -261,6 +261,12 @@ def chat_with_provenance(
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt},
     ]
+    # 2026-09-11: thinking-mode models (e.g. batiai/gemma4-12b) spend their
+    # num_predict budget on the internal `thinking` channel and return an
+    # EMPTY `content`, which then fails JSON validation. Disable thinking
+    # unless a caller explicitly opted in via OLLAMA_THINK.
+    if os.environ.get("OLLAMA_THINK", "").strip().casefold() not in _TRUE_VALUES:
+        kwargs["think"] = False
     try:
         response = _client().chat(model=use_model, messages=messages, options=opts, **kwargs)
     except Exception as exc:

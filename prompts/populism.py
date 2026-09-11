@@ -30,6 +30,10 @@ Partial evidence is not discarded: keep the evidenced side's elements in its
 list as document-level candidates (only ``populist=true`` requires both
 sides; never return both sides fully evidenced with ``populist=false``).
 
+Schema rule: whenever ``populist=false``, ``non_populist_reason`` MUST be a
+non-empty string (at least one sentence naming which side is absent and why
+the material does not construct it). Never leave it empty.
+
 For every Us/Frontier element provide a short verbatim source quote, an affect
 only if affect is evidenced, and a model-reported confidence value from 0 to 1.
 Treat confidence as an uncalibrated self-report of model uncertainty unless it

@@ -291,10 +291,15 @@ class Memory:
 
     def _next_id(self, kind: str) -> str:
         prefix = KIND_PREFIX[kind]
+        # Numeric max, not string max: lexicographic ORDER BY breaks once an
+        # id crosses the zero-padded boundary (S999 < S1000 lexicographically
+        # is false, so the old query kept returning S999 and the next id
+        # collided with the existing S1000 -> UNIQUE constraint failure).
         row = self.conn.execute(
-            "SELECT obj_id FROM objects WHERE kind = ? ORDER BY obj_id DESC LIMIT 1",
-            (kind,)).fetchone()
-        n = int(row[0][1:]) + 1 if row else 1
+            "SELECT MAX(CAST(SUBSTR(obj_id, 2) AS INTEGER)) FROM objects "
+            "WHERE kind = ? AND obj_id LIKE ? || '%'",
+            (kind, prefix)).fetchone()
+        n = (row[0] or 0) + 1
         return f"{prefix}{n:03d}"
 
     def get(self, obj_id: str) -> Optional[dict]:

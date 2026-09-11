@@ -30,27 +30,32 @@ from functools import lru_cache
 MODELS = {
     "e2b": "gemma4:e2b",
     "e4b": "gemma4:e4b",
+    "12b": "batiai/gemma4-12b:q6",
     "26b": "gemma4:26b",
 }
 
 # Ascending capability order for fallback walks
-CAPABILITY_ORDER = ["e2b", "e4b", "26b"]
+CAPABILITY_ORDER = ["e2b", "e4b", "12b", "26b"]
 
+# 2026-09-11 retiering: the 26b tier (25.8B Q4, ~16 GB weights) does not fit
+# any single GPU next to the other resident llama-servers and every 26b load
+# attempt stalled long enough to starve the small tiers. The 12b tier
+# (11.9B Q6, ~10.5 GB) carries the discourse-quality stages instead.
 STAGE_ROUTING = {
     "summary": "e4b",
-    "discourse": "26b",
+    "discourse": "12b",
     "postprocess": "e2b",
-    "populism": "26b",
+    "populism": "12b",
     "entities": "e2b",
     "sentiment": "e2b",
-    "topics": "26b",
-    "temporal": "26b",
+    "topics": "12b",
+    "temporal": "12b",
 }
 
 # texts longer than this escalate one tier (evidence fidelity on long posts)
 LONG_TEXT_CHARS = 8000
 
-OLLAMA_HOST = "http://127.0.0.1:11434"
+OLLAMA_HOST = "http://127.0.0.1:11435"
 
 
 @lru_cache(maxsize=1)
@@ -98,7 +103,7 @@ def pick_model(stage: str, text_len: int = 0) -> str:
         if tag not in loaded:
             continue
         # rough VRAM guards: need model size + KV cache headroom
-        need = {"e2b": 6, "e4b": 8, "26b": 17}[name]
+        need = {"e2b": 6, "e4b": 8, "12b": 13, "26b": 17}[name]
         if free == 0 or free >= need * 0.9:
             return tag
     # nothing fits by VRAM estimate — return the smallest present as last resort
