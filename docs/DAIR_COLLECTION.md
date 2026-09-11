@@ -1,44 +1,109 @@
 # DAIR critical-AI public-source collection
 
-This profile collects public source material for AI26. `dair-critical-ai` is a provisional sampling rationale, not an ideological classification. Collection remains separate from human-reviewed discourse analysis under `THEORY.md`.
+This is the canonical public collection profile for DAIR material in AI26. `dair-critical-ai` is a provisional sampling/source-selection rationale, **not** an ideological classification. Every collected item enters the canonical corpus with `classification_state: unjudged`; discourse and ideology interpretation happens later under `THEORY.md` with human review.
+
+The source configuration is `config/sources/dair-critical-ai.yaml`. It contains only reviewed factual identifiers for a public institution and public researchers. Runtime data, credentials, cookies, private paths and operational secrets stay outside Git.
+
+## Source matrix
 
 | Source | Method | Default content | Status |
 | --- | --- | --- | --- |
-| DAIR publications | conservative same-site HTML index | metadata and permitted page text | Enabled |
-| DAIR blog | conservative same-site HTML index | article text | Enabled |
+| DAIR website | direct public page | permitted page text/metadata | Enabled |
+| DAIR publications | RSS/Atom if a suitable feed is verified, otherwise conservative same-site index | metadata and permitted text | Enabled |
+| DAIR blog | RSS/Atom if a suitable feed is verified, otherwise conservative same-site index | article text | Enabled |
 | Mastodon (DAIR, Bender, Hanna) | public REST API | public statuses | Enabled |
 | Bluesky (DAIR, Bender, Hanna) | public AT Protocol AppView | public author feeds | Enabled |
-| Mystery AI Hype Theater 3000 | Buzzsprout RSS plus publisher episode transcript | audio metadata and creator transcript | Enabled |
-| X (`alexhanna`) | existing researcher-operated browser collector | public posts | Configured, disabled here |
-| PeerTube | public instance | none | Disabled; podcast transcript feed replaces it |
-| Twitch | authorized captions only | none | Optional/disabled |
-| LinkedIn | authorized manual browser capture only | none | Optional/disabled |
+| DAIR PeerTube | public REST API, DAIR-owned channels only | metadata and existing captions first | Enabled |
+| Mystery AI Hype Theater 3000 | Buzzsprout RSS + publisher transcript | audio metadata and creator transcript | Enabled |
+| X (`alexhanna`) | existing researcher-operated browser collector | public posts | Configured separately |
+| Twitch | authorized captions or separately reviewed audio-only VOD path | transcript + metadata | Optional/disabled |
+| LinkedIn | authorized/manual browser capture only | public company posts | Optional/disabled |
+
+DAIR's public PeerTube material identifies the account as `dair`, and DAIR's own PeerTube description links to `dair-community.social/@DAIR`; these factual identifiers are used only for source resolution, not interpretation.
 
 ## Run
 
-Install `.[collect]`, then run all enabled sources:
+Install the collection extras, then validate the plan without network collection or writes:
+
+```bash
+laclaugpt collect dair --project ai26 --source-group dair-critical-ai --dry-run
+```
+
+Run all enabled sources:
 
 ```bash
 laclaugpt collect dair --project ai26 --source-group dair-critical-ai
 ```
 
-Select one or more configured source keys:
+Select individual configured sources when needed:
 
 ```bash
-laclaugpt collect dair --source mastodon-alex --source bluesky-alex
-laclaugpt collect dair --source maiht3k-podcast --dry-run
+laclaugpt collect dair --source mastodon-alex
+laclaugpt collect dair --source bluesky-alex
+laclaugpt collect dair --source peertube-dair
+laclaugpt collect dair --source maiht3k-podcast
 ```
 
-Use `--config` to point to a local copy when adding accounts; each entry needs a unique `key`, `kind`, and explicit `enabled`. No credentials belong in this file. Public Mastodon and Bluesky endpoints need no token. X requires the repository's existing explicitly operated browser collector. LinkedIn must not be scraped or automatically logged into.
+Use `--data-root` for a controlled runtime location. The default `collection-data/` is ignored by Git.
 
-Outputs default to `collection-data/`: permitted API/page captures are written under `raw/<platform>/` before normalized canonical records under `normalized/`; deduplication uses platform-native IDs or normalized canonical URLs; cursors are stored in `checkpoints.json`. `collection-data/` is ignored. Use `--data-root` to select another local runtime directory.
+## Transcript-first modality policy
+
+The acquisition order is explicit:
+
+1. text-native source -> collect source text;
+2. creator/publisher captions or transcripts -> collect those first;
+3. platform-generated captions -> collect with `machine_generated_unverified` provenance;
+4. uncaptioned audio/video -> leave `asr_required=true` for a separate local ASR workflow where permitted;
+5. multimodal interpretation -> disabled by default and enabled only for a research question that requires visual evidence.
+
+The DAIR source-group collector does **not** automatically run ASR or image/video interpretation. If local ASR is later run, retain timestamps, model/version, language detection, parameters and machine-generated status. Do not use an ASR passage as an exact quotation before human verification.
+
+For PeerTube, the collector first discovers channels owned by the configured `dair` account. It does not assume that every video visible on the instance is DAIR-authored. For each selected video it retrieves metadata and checks the public caption endpoint, preferring creator captions over automatically generated captions.
 
 ## Canonical mapping and provenance
 
-Platform IDs map to `native_id`; DID/ActivityPub identity, relations, thread/root/parent IDs, facets, media, and public engagement remain metadata; canonical URL maps to `source_url`; original-language text maps to `raw_text`; project maps to ingestion `dataset_id`. Every item records collector/version, collection time, raw-capture reference, project `ai26`, arena `elites`, source group, source key, and `classification_state: unjudged`. Cross-posts remain distinct records so platform provenance is not collapsed.
+All inputs converge on the existing `CollectRecord -> SourceItem / IngestionRecord` model. No DAIR-specific document ontology is added.
 
-Podcast records use `source_modality: audio`, `text_origin: creator_transcript`, `transcription_method: publisher_supplied`, and `verification_state: creator_published`. This is not ASR. Multimodal processing is disabled. If a future item lacks creator captions, local ASR may be added only where permitted, retaining timestamps, model/version, parameters, detected language, and a machine-generated/unverified label.
+| Source fact | Canonical destination |
+| --- | --- |
+| platform-native stable identifier | `SourceItem.native_id` |
+| canonical/public URL | `SourceItem.source_url` |
+| platform and source type | `SourceItem.platform`, `SourceItem.source_type` |
+| actor/account label | `SourceItem.author_text` |
+| publication and collection time | `SourceItem.published_at`, `IngestionRecord.collected_at` |
+| original language | `SourceItem.language` |
+| source text / selected transcript | `SourceItem.raw_text` |
+| DID / ActivityPub identity / relation / thread IDs / captions / media metadata | `SourceItem.metadata` and ingestion metadata |
+| project | `IngestionRecord.dataset_id = ai26` |
+| raw capture | `IngestionRecord.raw_payload_ref` |
+| collector/version | `IngestionRecord.collector`, `collector_version` |
 
-## Ethics, recovery, and limitations
+Permitted raw API/page payloads are written under `raw/<platform>/` before normalized records are saved. Each record carries a safe configuration fingerprint, project, arena, source group and source key. Cross-posted material remains separate by platform so provenance is not collapsed.
 
-Only public posts and public publisher transcripts are requested. Followers, private posts, direct messages, Twitch chat, credentials, and automated LinkedIn login are out of scope. Original HTML is retained for Mastodon context; quoted/reported material must not be attributed as the author's own position without human review. Rate limiting and `Retry-After` are respected. Resolution errors, malformed responses, and unexpectedly empty enabled sources fail visibly. Re-run after transient failures: the dedup ledger and per-source checkpoint prevent ordinary duplication. Website selectors are deliberately isolated because the DAIR site exposes no suitable conventional RSS/Atom feed at the checked endpoints.
+## Incremental behaviour
+
+Mastodon resolves each configured public account and starts from the newest feed. Its persistent checkpoint is the newest status ID from the previous run (`since_id`); `max_id` is used only for bounded pagination inside one run.
+
+Bluesky resolves the handle to a stable DID on every run. The checkpoint is the newest AT URI previously seen, and the collector walks the newest-first author feed until it encounters that URI. Handles therefore remain human-readable labels while the DID and AT URI provide stable identity.
+
+PeerTube uses the newest collected publication timestamp as its source checkpoint. Each run discovers DAIR-owned channels from the `dair` account and retrieves only newer videos within bounded pagination.
+
+A valid incremental run with no new records is normal. A first run that resolves an enabled source but unexpectedly yields zero records fails visibly rather than silently reporting success.
+
+## Ethical boundaries
+
+Only public material is collected. The profile does not collect followers, private posts, direct messages, Twitch chat participants or unrelated prefetched user content. It does not bypass CAPTCHAs, authentication barriers or access controls.
+
+LinkedIn stays disabled unless a separately reviewed authorized/manual workflow is used. Twitch stays disabled until a reliable authorized transcript/caption route, or an approved audio-only VOD workflow, exists. The rest of the source group works without either platform.
+
+Website collection does not treat third-party papers linked from the publications index as DAIR-authored material and does not republish copyrighted full text when only metadata, abstracts or links are supplied.
+
+## Tests
+
+The DAIR tests are offline and use synthetic platform-shaped payloads. CI must not call live DAIR, Mastodon, Bluesky or PeerTube services.
+
+```bash
+python -m pytest -q tests/test_collect_dair.py tests/test_collect.py
+```
+
+The tests cover account resolution, relation mapping, stable Bluesky identity, incremental checkpoints, PeerTube channel discovery and caption priority, transcript provenance, raw-capture linkage, deduplication, configuration switches, malformed configuration and public-config hygiene.
