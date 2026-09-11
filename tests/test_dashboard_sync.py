@@ -6,12 +6,30 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD = ROOT / "laclaugpt" / "visualization" / "dashboard.py"
+LIVE_DASHBOARD = ROOT / "laclaugpt" / "visualization" / "live_dashboard.py"
 LAUNCHER = ROOT / "laclaugpt" / "visualization" / "launcher.py"
 
 
-def test_launcher_uses_current_dashboard_entry_point() -> None:
+def test_launcher_uses_live_dashboard_entry_point() -> None:
     source = LAUNCHER.read_text(encoding="utf-8")
-    assert 'with_name("dashboard.py")' in source
+    assert 'with_name("live_dashboard.py")' in source
+
+
+def test_live_dashboard_polls_canonical_export_without_parallel_schema() -> None:
+    source = LIVE_DASHBOARD.read_text(encoding="utf-8")
+    assert "@st.fragment(run_every=run_every)" in source
+    assert "load_annotations" in source
+    assert "graph_projection_data" in source
+    assert "Candidate formations" in source
+    assert "No canonical annotations are available yet" in source
+    assert "Evidence inspector & researcher review" in source
+
+
+def test_live_dashboard_preserves_blind_coding_boundary() -> None:
+    source = LIVE_DASHBOARD.read_text(encoding="utf-8")
+    assert "if blind_initial:" in source
+    assert "formation/signifier filters are hidden in blind mode" in source
+    assert "Blind initial-coding mode hides model-derived" in source
 
 
 def test_dashboard_uses_project_switches_and_canonical_graphs() -> None:
