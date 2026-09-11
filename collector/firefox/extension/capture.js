@@ -27,8 +27,13 @@
       backendUrl = stored.startsWith("http") ? stored : DEFAULT_BACKEND_URL;
     })
     .catch(() => {});
+
+  // Keep this list aligned with the endpoint families accepted by the
+  // LaclauGPT-native Python parsers. The extension only captures candidate
+  // response bodies; the backend remains responsible for deciding whether a
+  // payload actually contains collectable posts.
   const MATCHERS = {
-    tiktok: /api\.tiktokv\.com|\/api\/post\/item_list|\/api\/search\/(?:item_list|general\/full)|\/api\/preload\/item_list/,
+    tiktok: /api\.tiktokv\.com|\/api\/(?:post|challenge)\/item_list|\/api\/user\/playlist|\/api\/search\/(?:item_list|general\/full)|\/api\/preload\/item_list/,
     x: /(?:^|\.)x\.com\/i\/api\/graphql|(?:^|\.)twitter\.com\/i\/api\/graphql|\/i\/api\/graphql(?:\/|\?|$)/,
     instagram: /\/api\/v1\/|\/graphql\/query(?:[/?]|$)/,
   };
@@ -80,8 +85,11 @@
     }
   }
 
-  async function sendCapture(details, platform, body) {
-    const platformUrl = await tabUrlFor(details.tabId);
+  async function sendCapture(details, platform, body, capturedPlatformUrl = "") {
+    // Prefer the page URL captured when interception started. Looking the tab
+    // up only after the response finishes is racy on SPA navigation and when
+    // the automated tour closes a tab while requests are still draining.
+    const platformUrl = capturedPlatformUrl || details.documentUrl || details.originUrl || "";
     return postCapture({
       platform,
       apiUrl: details.url,
@@ -93,6 +101,11 @@
   function captureResponse(details) {
     const platform = platformFor(details.url);
     if (!platform || ["HEAD", "OPTIONS"].includes(details.method)) return;
+
+    // Snapshot the visited page immediately, before the response stream and
+    // any later navigation can change the tab URL. This is also the provenance
+    // URL the Python backend uses for account attribution and parser context.
+    const platformUrlPromise = tabUrlFor(details.tabId);
 
     let filter;
     try {
@@ -128,7 +141,8 @@
       // All bytes have already been forwarded in ondata. close() finishes the
       // filtered stream cleanly without changing the website response.
       try { filter.close(); } catch {}
-      await sendCapture(details, platform, chunks.join(""));
+      const platformUrl = await platformUrlPromise;
+      await sendCapture(details, platform, chunks.join(""), platformUrl);
     };
   }
 
