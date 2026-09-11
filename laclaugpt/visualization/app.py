@@ -233,7 +233,7 @@ def _review_panel(
             "id", "record_type", "reviewer_id", "target_type", "target_id", "review_status",
             "note", "tags", "supersedes_id", "linked_assessment_ids", "blind_initial", "created_at",
         ]
-        st.dataframe(pd.DataFrame(history)[display_columns], use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(history)[display_columns], width="stretch", hide_index=True)
     else:
         st.caption("No assessment history for this exact run/artifact/target yet.")
 
@@ -316,7 +316,7 @@ def _display_document(
                     "evidence": item.evidence,
                 }
                 for item in annotation.signifier_roles
-            ]), use_container_width=True, hide_index=True)
+            ]), width="stretch", hide_index=True)
         if annotation.articulations:
             st.write("**Articulations**")
             st.dataframe(pd.DataFrame([
@@ -330,7 +330,7 @@ def _display_document(
                     "evidence": item.evidence,
                 }
                 for item in annotation.articulations
-            ]), use_container_width=True, hide_index=True)
+            ]), width="stretch", hide_index=True)
         if annotation.imaginaries:
             st.write("**Sociotechnical-imaginary candidates:**", ", ".join(item.label for item in annotation.imaginaries))
         st.caption(
@@ -356,7 +356,7 @@ def _display_document(
                     "evidence": item.evidence,
                 }
                 for item in annotation.affects
-            ]), use_container_width=True, hide_index=True)
+            ]), width="stretch", hide_index=True)
     with tabs[2]:
         for quote in annotation.evidence_quotes:
             st.quote(quote)
@@ -452,7 +452,7 @@ def main() -> None:
         ):
             chart = _bar(px, top_values(filtered, column), title, label)
             if chart is not None:
-                col.plotly_chart(chart, use_container_width=True)
+                col.plotly_chart(chart, width="stretch")
 
         selected_annotations = [row.annotation for row in filtered.itertuples(index=False)]
         edges = articulation_edges(selected_annotations, limit=80)
@@ -464,7 +464,7 @@ def main() -> None:
             )
             figure = _articulation_figure(go, nx, selected_annotations)
             if figure is not None:
-                st.plotly_chart(figure, use_container_width=True)
+                st.plotly_chart(figure, width="stretch")
 
         labels = [str(row.document_id) for row in filtered.itertuples(index=False)]
         selected = st.selectbox("Document", labels)

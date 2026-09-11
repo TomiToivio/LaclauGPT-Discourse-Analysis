@@ -2,12 +2,20 @@
 from __future__ import annotations
 
 from collections import Counter
+import hashlib
+import json
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
 import pandas as pd
 
-from laclaugpt_interchange import DocumentAnnotation, from_jsonl
+from laclaugpt_interchange import (
+    Articulation,
+    DocumentAnnotation,
+    FormationAssessment,
+    MemoryRef,
+    SignifierRole,
+)
 
 
 def _get(value: Any, key: str, default: Any = None) -> Any:
@@ -88,6 +96,8 @@ def _sentiment_rows(annotation: DocumentAnnotation) -> list[dict[str, Any]]:
 def annotation_to_row(annotation: DocumentAnnotation) -> dict[str, Any]:
     """Flatten one current interchange annotation without discarding the raw record."""
     provenance = annotation.collection_provenance or {}
+    transformations = annotation.transformations or {}
+    source_title = str(transformations.get("source_title", ""))
     timestamp = annotation.source_timestamp or annotation.created_at
     entities = _labels(annotation.entities)
     topics = _labels(annotation.topics)
@@ -123,6 +133,7 @@ def annotation_to_row(annotation: DocumentAnnotation) -> dict[str, Any]:
         for value in (
             annotation.document_id,
             annotation.source_author,
+            source_title,
             annotation.summary,
             annotation.relevance_reason,
             annotation.discourse_applicability_reason,
@@ -154,6 +165,7 @@ def annotation_to_row(annotation: DocumentAnnotation) -> dict[str, Any]:
         "source_country": annotation.source_country,
         "language": annotation.language,
         "source_author": annotation.source_author,
+        "source_title": source_title,
         "source_timestamp": timestamp,
         "source_url": annotation.source_url,
         "source_modalities": list(annotation.source_modalities or []),
@@ -201,16 +213,223 @@ def flatten_annotations(annotations: Sequence[DocumentAnnotation]) -> pd.DataFra
     return frame
 
 
-def load_annotations(path: str | Path) -> list[DocumentAnnotation]:
-    """Load canonical current-schema JSONL/NDJSON annotations."""
+def _collection_bundle_annotation(
+    payload: dict[str, Any], *, project: str = "", arena: str = ""
+) -> DocumentAnnotation:
+    """Expose a canonical collection bundle without inventing analysis."""
+    source = payload.get("source") or {}
+    ingestion = payload.get("ingestion") or {}
+    metadata = source.get("metadata") or {}
+    document_id = str(
+        source.get("native_id")
+        or source.get("source_id")
+        or ingestion.get("source_id")
+        or ingestion.get("ingestion_id")
+        or ""
+    )
+    if not document_id:
+        raise ValueError("collection bundle has no stable source or ingestion identifier")
+    platform = str(source.get("platform") or source.get("source_type") or "")
+    collected_at = source.get("collected_at") or ingestion.get("collected_at")
+    return DocumentAnnotation(
+        document_id=document_id,
+        source_platform=platform,
+        language=str(source.get("language") or ""),
+        source_author=str(source.get("author_text") or ""),
+        source_timestamp=str(source.get("published_at") or collected_at or ""),
+        source_url=str(source.get("source_url") or ""),
+        source_modalities=["text"] if source.get("raw_text") else [],
+        run_id=str(ingestion.get("ingestion_id") or ""),
+        analysis_stage="collection-only",
+        summary="",
+        relevance=None,
+        discourse_applicable=None,
+        collection_provenance={
+            "project": str(ingestion.get("dataset_id") or metadata.get("project") or project),
+            "arena_id": str(metadata.get("arena") or arena),
+            "collector": str(ingestion.get("collector") or ""),
+        },
+        transformations={
+            "collection_only": True,
+            "source_title": str(source.get("title") or ""),
+            "source_text": str(source.get("raw_text") or ""),
+        },
+    )
+
+
+def _export_ref(label: Any, kind: str) -> MemoryRef:
+    text = str(label or "").strip()
+    digest = hashlib.sha256(f"{kind}:{text.casefold()}".encode("utf-8")).hexdigest()[:16]
+    return MemoryRef(obj_id=f"export-{kind}-{digest}", label=text, kind=kind, raw=text)
+
+
+def _flat_source_annotation(
+    payload: dict[str, Any], *, project: str = "", arena: str = ""
+) -> DocumentAnnotation:
+    """Map an AI26 document export to an explicitly collection-only view."""
+    document_id = str(payload.get("event_id") or payload.get("url") or "")
+    if not document_id:
+        raise ValueError("AI26 document export has no event_id or URL")
+    return DocumentAnnotation(
+        document_id=document_id,
+        source_platform=str(payload.get("source") or payload.get("source_kind") or ""),
+        source_author=str(payload.get("actor_label") or ""),
+        source_timestamp=str(payload.get("published_at") or ""),
+        source_url=str(payload.get("url") or ""),
+        source_modalities=["text"] if payload.get("text") else [],
+        analysis_stage="collection-only",
+        collection_provenance={
+            "project": project,
+            "arena_id": arena,
+            "source_kind": str(payload.get("source_kind") or ""),
+            "adapter": "ai26-export-documents-v1",
+        },
+        transformations={
+            "collection_only": True,
+            "source_title": str(payload.get("title") or ""),
+            "source_text": str(payload.get("text") or ""),
+            "source_export_event_id": str(payload.get("event_id") or ""),
+        },
+    )
+
+
+def _ai26_export_annotation(
+    payload: dict[str, Any], *, project: str = "", arena: str = ""
+) -> DocumentAnnotation:
+    """Adapt the evidence-bearing AI26 export without inventing missing claims."""
+    signifiers: list[MemoryRef] = []
+    roles: list[SignifierRole] = []
+    refs: dict[str, MemoryRef] = {}
+    for item in payload.get("signifiers") or []:
+        if not isinstance(item, dict) or not str(item.get("label") or "").strip():
+            continue
+        ref = _export_ref(item["label"], "signifier")
+        refs[ref.label.casefold()] = ref
+        signifiers.append(ref)
+        roles.append(
+            SignifierRole(
+                signifier=ref,
+                role=str(item.get("role") or "candidate"),
+                evidence=str(item.get("evidence") or ""),
+                evidence_verified=bool(item.get("evidence_verified", False)),
+                needs_corpus_validation=str(item.get("role") or "").casefold()
+                in {"empty", "floating", "empty_signifier", "floating_signifier"},
+            )
+        )
+
+    articulations: list[Articulation] = []
+    for item in payload.get("articulations") or []:
+        if not isinstance(item, dict):
+            continue
+        source_label = str(item.get("source") or "").strip()
+        target_label = str(item.get("target") or "").strip()
+        evidence = str(item.get("evidence") or "").strip()
+        if not (source_label and target_label and evidence):
+            continue
+        source_ref = refs.get(source_label.casefold()) or _export_ref(source_label, "signifier")
+        target_ref = refs.get(target_label.casefold()) or _export_ref(target_label, "signifier")
+        articulations.append(
+            Articulation(
+                signifier=source_ref,
+                related_to=[target_ref],
+                relation=str(item.get("relation") or "articulates"),
+                evidence=evidence,
+                evidence_verified=bool(item.get("evidence_verified", False)),
+                claim_status="uncertain",
+            )
+        )
+
+    formations: list[FormationAssessment] = []
+    for item in payload.get("formation_candidates") or []:
+        if not isinstance(item, dict) or not str(item.get("formation") or "").strip():
+            continue
+        supporting = []
+        if item.get("subflavor"):
+            supporting.append(str(item["subflavor"]))
+        formations.append(
+            FormationAssessment(
+                formation=_export_ref(item["formation"], "formation"),
+                supporting_features=supporting,
+                evidence=str(item.get("evidence") or ""),
+                confidence=float(item.get("confidence") or 0.0),
+                evidence_verified=False,
+            )
+        )
+
+    missing_affect_targets = bool(payload.get("affects"))
+    uncertainties = []
+    if missing_affect_targets:
+        uncertainties.append(
+            "AI26 export affects retained in transformations only because the export "
+            "does not identify their canonical target."
+        )
+    run = payload.get("analysis_run") or {}
+    return DocumentAnnotation(
+        document_id=str(payload.get("document_id") or payload.get("event_id") or ""),
+        source_platform=str(payload.get("source") or ""),
+        source_author=str(payload.get("actor_label") or ""),
+        source_timestamp=str(payload.get("published_at") or ""),
+        source_url=str(payload.get("url") or ""),
+        source_modalities=["text"],
+        run_id=str(run.get("at") or payload.get("event_id") or ""),
+        model=str(payload.get("model") or run.get("model") or ""),
+        review_status=str(payload.get("review_status") or "PROVISIONAL"),
+        requires_human_review=True,
+        signifiers=signifiers,
+        signifier_roles=roles,
+        articulations=articulations,
+        formation_candidates=formations,
+        affects=[],
+        populist=payload.get("populist"),
+        non_populist_reason=str(payload.get("non_populist_reason") or ""),
+        prompt_versions=dict(payload.get("prompt_versions") or {}),
+        uncertainties=uncertainties,
+        collection_provenance={
+            "project": project,
+            "arena_id": arena,
+            "adapter": "ai26-export-annotations-v1",
+            "analysis_method": str(run.get("method") or ""),
+        },
+        transformations={
+            "source_title": str(payload.get("title") or ""),
+            "source_export_event_id": str(payload.get("event_id") or ""),
+            "unmapped_affects": payload.get("affects") or [],
+        },
+    )
+
+def load_annotations(
+    path: str | Path, *, project: str = "", arena: str = ""
+) -> list[DocumentAnnotation]:
+    """Load annotations or canonical collection bundles for honest preview."""
     suffix = Path(path).suffix.casefold()
     if suffix not in {".jsonl", ".ndjson"}:
         raise ValueError(
             "dashboard input must be canonical LaclauGPT .jsonl or .ndjson output"
         )
-    return from_jsonl(str(path))
-
-
+    records: list[DocumentAnnotation] = []
+    with Path(path).open(encoding="utf-8") as handle:
+        for line_number, line in enumerate(handle, 1):
+            if not line.strip():
+                continue
+            try:
+                payload = json.loads(line)
+                if isinstance(payload, dict) and "source" in payload and "ingestion" in payload:
+                    records.append(
+                        _collection_bundle_annotation(payload, project=project, arena=arena)
+                    )
+                elif isinstance(payload, dict) and {"event_id", "text", "source_kind"} <= payload.keys():
+                    records.append(
+                        _flat_source_annotation(payload, project=project, arena=arena)
+                    )
+                elif isinstance(payload, dict) and "event_id" in payload and "analysis_run" in payload:
+                    records.append(
+                        _ai26_export_annotation(payload, project=project, arena=arena)
+                    )
+                else:
+                    records.append(DocumentAnnotation.model_validate(payload))
+            except (json.JSONDecodeError, ValueError, TypeError) as exc:
+                raise ValueError(f"invalid dashboard record at line {line_number}: {exc}") from exc
+    return records
 def _matches_list(value: Any, selected: set[str]) -> bool:
     if not selected:
         return True

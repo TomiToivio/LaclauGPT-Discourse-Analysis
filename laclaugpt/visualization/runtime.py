@@ -34,10 +34,22 @@ def dashboard_runtime_violation(
     return None
 
 
-def require_dashboard_runtime() -> None:
+def require_dashboard_runtime():
+    """Validate the host and return lazily imported visualization libraries."""
     reason = dashboard_runtime_violation()
     if reason:
         raise RuntimeError(
             f"{reason}; run the dashboard locally or on a persistent Linux web server "
             "such as CSC Pouta instead"
         )
+    try:
+        import networkx as nx
+        import plotly.express as px
+        import plotly.graph_objects as go
+        import streamlit as st
+    except ImportError as exc:
+        raise RuntimeError(
+            "visualization dependencies are not installed; run "
+            '`python -m pip install -e ".[visualization]"`'
+        ) from exc
+    return st, px, go, nx
