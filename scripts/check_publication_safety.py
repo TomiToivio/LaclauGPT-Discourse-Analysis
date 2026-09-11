@@ -53,39 +53,11 @@ FORBIDDEN_ROOT_PREFIXES = (
 )
 
 FORBIDDEN_EXTENSIONS = {
-    ".sqlite",
-    ".sqlite3",
-    ".duckdb",
-    ".db",
-    ".bson",
-    ".rdb",
-    ".aof",
-    ".dump",
-    ".backup",
-    ".bak",
-    ".parquet",
-    ".mp4",
-    ".mov",
-    ".avi",
-    ".mkv",
-    ".wav",
-    ".mp3",
-    ".m4a",
-    ".session",
-    ".pem",
-    ".key",
-    ".p12",
-    ".pfx",
-    ".jks",
-    ".keystore",
-    ".kdbx",
-    ".har",
-    ".zip",
-    ".tar",
-    ".gz",
-    ".tgz",
-    ".7z",
-    ".rar",
+    ".sqlite", ".sqlite3", ".duckdb", ".db", ".bson", ".rdb", ".aof",
+    ".dump", ".backup", ".bak", ".parquet", ".mp4", ".mov", ".avi",
+    ".mkv", ".wav", ".mp3", ".m4a", ".session", ".pem", ".key",
+    ".p12", ".pfx", ".jks", ".keystore", ".kdbx", ".har", ".zip",
+    ".tar", ".gz", ".tgz", ".7z", ".rar",
 }
 
 FORBIDDEN_FILENAMES = {
@@ -111,31 +83,20 @@ _PLACEHOLDER_NEGATIVE = (
 )
 _LINE_END = r"(?=\s*(?:#.*)?$)"
 
-# High-signal production/research-storage and credential patterns. Safe examples
-# may be explicitly marked with PUBLICATION-SAFETY: allow on the same line.
 SUSPICIOUS_CONTENT = (
     re.compile(r"https?://a3s\.fi/swift/v1/", re.IGNORECASE),
-    # Quoted generic credential assignments. Environment substitutions and
-    # conspicuous placeholders are deliberately excluded. Requiring the literal
-    # to end the logical line avoids mistaking source expressions or test strings
-    # for published credentials.
     re.compile(
         rf"(?i)\b({_CREDENTIAL_NAMES})\b\s*[:=]\s*['\"]"
         rf"{_PLACEHOLDER_NEGATIVE}[^'\"]{{8,}}['\"]{_LINE_END}"
     ),
-    # Unquoted literal credentials; environment substitutions/placeholders are
-    # excluded. Keep this line-oriented so code such as os.environ.get(...) and
-    # helper calls such as _setting(...) are not interpreted as secret values.
     re.compile(
         rf"(?i)\b({_CREDENTIAL_NAMES})\b\s*[:=]\s*{_PLACEHOLDER_NEGATIVE}"
         rf"[A-Za-z0-9_./+=:@-]{{8,}}{_LINE_END}"
     ),
-    # Connection strings that embed username/password material.
     re.compile(
         r"(?i)\b(?:mongodb(?:\+srv)?|postgres(?:ql)?|mysql|mariadb|redis|rediss)://"
         r"[^\s:/@]+:[^\s/@]+@"
     ),
-    # Common high-confidence token/key formats.
     re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b"),
     re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"),
     re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b"),
@@ -143,12 +104,18 @@ SUSPICIOUS_CONTENT = (
     re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
     re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{20,}\b"),
     re.compile(r"\b\d{8,10}:[A-Za-z0-9_-]{30,}\b"),
-    # Private-key material. PUBLICATION-SAFETY: allow
     re.compile(r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"),
-    # User-specific absolute paths should not be baked into public files.
-    re.compile(r"(?<![A-Za-z0-9])(?:/home|/Users)/(?!user/|username/|example/)[A-Za-z0-9._-]+/"),
+    # User-specific home/check-out paths, including CSC-style /users/<account>/.
+    re.compile(
+        r"(?<![A-Za-z0-9])(?:/home|/Users|/users)/"
+        r"(?!user/|username/|example/)[A-Za-z0-9._-]+/"
+    ),
     re.compile(r"(?i)\b[A-Z]:\\Users\\(?!user\\|username\\|example\\)[^\\\s]+\\"),
-    # Non-loopback RFC1918 addresses are normally private infrastructure details.
+    # Project-specific HPC storage paths reveal allocation identifiers and layout.
+    re.compile(
+        r"(?<![A-Za-z0-9])/(?:scratch|projappl|project)/"
+        r"project_[A-Za-z0-9._-]+(?:/|$)"
+    ),
     re.compile(
         r"(?<!\d)(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|"
         r"172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})(?!\d)"
@@ -163,11 +130,7 @@ TEXT_EXTENSIONS = {
 
 def tracked_files() -> list[str]:
     proc = subprocess.run(
-        ["git", "ls-files"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
+        ["git", "ls-files"], cwd=ROOT, check=True, capture_output=True, text=True,
     )
     return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
 
@@ -241,8 +204,7 @@ def content_violations(paths: list[str]) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--paths-only",
-        action="store_true",
+        "--paths-only", action="store_true",
         help="skip content indicators and check tracked paths/extensions only",
     )
     args = parser.parse_args()

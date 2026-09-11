@@ -26,6 +26,7 @@ The public repository should **not** contain live operational collection setting
 - social-media account watch lists for ordinary research subjects;
 - API keys, tokens, cookies, session files, phone numbers or authentication material;
 - private endpoints, database credentials or controlled-storage locations;
+- user-specific checkout paths, storage-project/allocation IDs, private hostnames or internal corpus/database names;
 - operational schedules whose combination with source lists exposes active monitoring;
 - researcher-maintained source-selection notes;
 - source lists that contain or imply sensitive attributes about identifiable people.
@@ -118,7 +119,3 @@ This document complements:
 - [`DATA_PUBLICATION_POLICY.md`](DATA_PUBLICATION_POLICY.md)
 - [`DATA_LIFECYCLE.md`](DATA_LIFECYCLE.md)
 - [`../collector/README.md`](../collector/README.md)
-
-The governing principle is the same throughout LaclauGPT:
-
-**Open machinery, private live collection configuration, controlled research data.**
