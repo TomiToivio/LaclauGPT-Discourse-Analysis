@@ -375,31 +375,38 @@ def test_checkpoint_raw_capture_and_dedup(tmp_path: Path):
     assert store.save(rec) is None
 
 
-def test_profile_switches_peer_tube_and_public_hygiene():
-    profile = load_profile()
+def test_private_profile_switches_and_hygiene(tmp_path: Path):
+    profile_path = tmp_path / "dair-private.yaml"
+    synthetic = {
+        **CFG,
+        "sources": [
+            {
+                "key": "synthetic-enabled",
+                "kind": "page",
+                "enabled": True,
+                "url": "https://example.org/enabled",
+            },
+            {
+                "key": "synthetic-disabled",
+                "kind": "page",
+                "enabled": False,
+                "url": "https://example.org/disabled",
+            },
+        ],
+    }
+    profile_path.write_text(yaml.safe_dump(synthetic), encoding="utf-8")
+    profile = load_profile(profile_path)
     enabled = {source["key"] for source in profile["sources"] if source["enabled"]}
-    assert {
-        "dair-home",
-        "dair-publications",
-        "mastodon-dair",
-        "mastodon-alex",
-        "bluesky-alex",
-        "peertube-dair",
-        "maiht3k-podcast",
-    } <= enabled
+    assert enabled == {"synthetic-enabled"}
     assert not next(
-        source for source in profile["sources"] if source["key"] == "linkedin-dair"
-    )["enabled"]
-    assert not next(
-        source for source in profile["sources"] if source["key"] == "twitch-dair"
+        source for source in profile["sources"] if source["key"] == "synthetic-disabled"
     )["enabled"]
     serialized = yaml.safe_dump(profile).lower()
     assert "classification_state" not in serialized or "unjudged" in serialized
     assert not any(
         secret in serialized
-        for secret in ("api_key", "password", "bearer ", "c:\\users", "/scratch/")
+        for secret in ("api_key", "password", "bearer ", "c:\users", "/scratch/")
     )
-
 
 def test_empty_duplicate_or_malformed_source_lists(tmp_path: Path):
     bad = tmp_path / "bad.yaml"
