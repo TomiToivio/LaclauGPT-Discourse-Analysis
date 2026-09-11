@@ -124,10 +124,14 @@ def _common(record: CollectRecord, cfg: dict, source: dict) -> CollectRecord:
         {
             "configuration_fingerprint": _configuration_fingerprint(cfg),
             "project": cfg["project"],
-            "arena": cfg["arena"],
-            "source_group": cfg["source_group"],
+            "arena": cfg.get("arena", ""),
+            "source_group": cfg.get("source_group", ""),
             "source_key": source["key"],
-            "selection_rationale": cfg["selection_rationale"],
+            # sampling provenance: why the researcher collected this source —
+            # NEVER an analytical label; strata are heuristics (PAPER.md §2.2)
+            "selection_rationale": cfg.get("selection_rationale", ""),
+            "sampling_stratum": source.get("sampling_stratum", ""),
+            "sampling_rationale": source.get("sampling_rationale", ""),
             "classification_state": "unjudged",
             "multimodal_enabled": False,
         }

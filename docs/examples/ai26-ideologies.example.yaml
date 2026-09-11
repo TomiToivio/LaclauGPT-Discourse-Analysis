@@ -1,0 +1,51 @@
+# AI26 cross-platform sampling profile — SYNTHETIC EXAMPLE
+#
+# Copy to ~/.config/laclaugpt/sources/ai26-ideologies.yaml and edit with
+# real sources. NEVER commit the real profile: it contains the live
+# watch list (see docs/DAIR_COLLECTION.md, publication-safety guard).
+#
+# Sampling strata (accelerationist / xrisk_control / critical_ai /
+# anti_ai / contested_arena) are SENSITISING HEURISTICS only
+# (paper/PAPER.md §2.2). LaclauGPT infers ideological articulations
+# from text; the stratum never labels a document.
+
+project: ai26
+arena: elites
+source_group: ai26-ideologies
+selection_rationale: >-
+  Stratified cross-platform sampling of competing AI sociotechnical
+  imaginaries; strata are sampling heuristics, never ground-truth labels.
+window_start: "2026-01-01"
+strata_documented:
+  - accelerationist
+  - xrisk_control
+  - critical_ai
+  - anti_ai
+  - contested_arena
+
+sources:
+  - key: bluesky-example-org
+    kind: bluesky
+    handle: example-org.example
+    max_pages: 2
+    enabled: false
+    sampling_stratum: xrisk_control
+    platform: bluesky
+    sampling_rationale: "Synthetic example: official org account for pause/prohibition advocacy."
+
+  - key: mastodon-example-scholar
+    kind: mastodon
+    account: example.social/@scholar
+    max_pages: 2
+    enabled: false
+    sampling_stratum: critical_ai
+    platform: mastodon
+    sampling_rationale: "Synthetic example: named scholar criticising AI power relations."
+
+  - key: page-example-index
+    kind: page
+    url: "https://example.org/resistance-index"
+    section: index
+    enabled: false
+    sampling_stratum: anti_ai
+    sampling_rationale: "Synthetic example: discovery index for resistance organizations."
