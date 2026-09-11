@@ -313,3 +313,17 @@ data/csv/ep24_finland.csv
 # Keep these outside the public repository.
 /config/sources/
 /deploy/systemd/
+
+# Historical EP24/LEGACY research materials live only in local research checkouts.
+# Kept out of git per PR #121/#122 privacy ruling; content synced to Laskin copy.
+/config/arenas/legacy-*.yaml
+/config/projects/legacy.yaml
+/run_configs/legacy*.yaml
+/legacy_*.py
+/scripts/legacy/
+/scripts/legacy_*.py
+/scripts/legacy_*.sh
+/scripts/prepare_legacy_reprocessing.py
+/tests/test_legacy_*.py
+/tests/test_prepare_legacy_reprocessing.py
+/sources/codebooks/legacy_*.md
