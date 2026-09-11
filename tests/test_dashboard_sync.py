@@ -54,3 +54,9 @@ def test_dashboard_preserves_theory_separations() -> None:
 def test_review_sidecar_name_preserves_input_suffix() -> None:
     source = DASHBOARD.read_text(encoding="utf-8")
     assert 'Path(f"{data_path}.reviews.sqlite3")' in source
+
+
+def test_dashboard_uses_current_streamlit_width_api() -> None:
+    source = DASHBOARD.read_text(encoding="utf-8")
+    assert "use_container_width" not in source
+    assert 'width="stretch"' in source

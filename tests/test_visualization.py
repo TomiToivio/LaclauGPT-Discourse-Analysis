@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from laclaugpt.visualization import (
     dashboard_runtime_violation,
     filter_frame,
     flatten_annotations,
+    load_annotations,
     top_values,
 )
 from laclaugpt_interchange import (
@@ -194,3 +196,71 @@ def test_review_store_is_separate_and_persistent() -> None:
             assert loaded["review_status"] == "accepted"
         finally:
             reopened.close()
+
+def test_dashboard_loads_ai26_document_export_without_inventing_analysis() -> None:
+    payload = {
+        "event_id": "rss::synthetic-1",
+        "source": "example-feed",
+        "source_kind": "elite-blog",
+        "actor_label": "Synthetic Author",
+        "published_at": "2026-09-11T00:00:00Z",
+        "title": "Synthetic AI document",
+        "text": "Source material for human-reviewed analysis.",
+        "url": "https://example.test/item/1",
+    }
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "documents.jsonl"
+        path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+        annotation = load_annotations(path, project="ai26", arena="elites")[0]
+    assert annotation.analysis_stage == "collection-only"
+    assert annotation.collection_provenance["project"] == "ai26"
+    assert annotation.transformations["source_text"] == payload["text"]
+    assert annotation.signifiers == []
+    assert annotation.discourse_applicable is None
+
+
+def test_dashboard_loads_ai26_annotation_export_with_evidence() -> None:
+    payload = {
+        "event_id": "rss::synthetic-2",
+        "document_id": "https://example.test/item/2",
+        "url": "https://example.test/item/2",
+        "source": "example-feed",
+        "actor_label": "Synthetic Author",
+        "published_at": "2026-09-11T00:00:00Z",
+        "title": "Synthetic AI analysis",
+        "signifiers": [{
+            "label": "AI",
+            "role": "nodal",
+            "evidence": "AI is articulated as infrastructure.",
+            "evidence_verified": True,
+        }],
+        "articulations": [{
+            "source": "AI",
+            "target": "infrastructure",
+            "relation": "articulates",
+            "evidence": "AI is articulated as infrastructure.",
+            "evidence_verified": True,
+        }],
+        "formation_candidates": [{
+            "formation": "synthetic formation",
+            "confidence": 0.5,
+            "evidence": "Candidate evidence.",
+        }],
+        "affects": [{"affect": "concern", "evidence": "Concern is expressed."}],
+        "populist": False,
+        "non_populist_reason": "No evidenced Us and Frontier construction.",
+        "review_status": "PROVISIONAL",
+        "model": "local-test-model",
+        "prompt_versions": {"discourse": "test"},
+        "analysis_run": {"method": "synthetic", "at": "2026-09-11T01:00:00Z"},
+    }
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "annotations.jsonl"
+        path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+        annotation = load_annotations(path, project="ai26", arena="elites")[0]
+    assert annotation.signifier_roles[0].evidence_verified is True
+    assert annotation.articulations[0].evidence
+    assert annotation.formation_candidates[0].formation.kind == "formation"
+    assert annotation.affects == []
+    assert "canonical target" in annotation.uncertainties[0]
+    assert annotation.requires_human_review is True
