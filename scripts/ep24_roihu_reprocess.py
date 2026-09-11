@@ -5,14 +5,15 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 from collections import defaultdict
 from pathlib import Path
 
 import ep24_asr
 import ep24_fetch
 
-REPO_ROOT = "/users/totoivio/LaclauGPT-Discourse-Analysis"
-DATA_ROOT = "/scratch/project_2009497/laclaugpt2"
+REPO_ROOT = os.environ.get("LACLAUGPT_REPO_ROOT", str(Path(__file__).resolve().parents[1]))
+DATA_ROOT = os.environ.get("LACLAUGPT_DATA_DIR", str(Path(REPO_ROOT) / "data"))
 COUNTRIES = {
     "finland": {"label": "Finland", "arena": "ep24-finland"},
     "poland": {"label": "Poland", "arena": "ep24-poland"},
@@ -54,7 +55,6 @@ def _document_id(row: dict[str, str], row_number: int) -> str:
 
 def prepare_inputs(source_csv: str | Path, country: str, manifest: str | Path,
                    roster: str | Path, sample_size: int = 0) -> dict[str, int]:
-    """Create one row per video and exclude all prior model-output columns."""
     grouped: dict[str, list[dict[str, str]]] = defaultdict(list)
     source_fields: list[str] = []
     with Path(source_csv).open(encoding="utf-8-sig", newline="") as handle:
