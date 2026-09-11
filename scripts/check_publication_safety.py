@@ -109,21 +109,26 @@ _PLACEHOLDER_NEGATIVE = (
     r"(?!\$\{)(?!<)(?!example\b)(?!changeme\b)(?!placeholder\b)"
     r"(?!dummy\b)(?!test\b)(?!synthetic\b)(?!none\b)(?!null\b)"
 )
+_LINE_END = r"(?=\s*(?:#.*)?$)"
 
 # High-signal production/research-storage and credential patterns. Safe examples
 # may be explicitly marked with PUBLICATION-SAFETY: allow on the same line.
 SUSPICIOUS_CONTENT = (
     re.compile(r"https?://a3s\.fi/swift/v1/", re.IGNORECASE),
     # Quoted generic credential assignments. Environment substitutions and
-    # conspicuous placeholders are deliberately excluded.
+    # conspicuous placeholders are deliberately excluded. Requiring the literal
+    # to end the logical line avoids mistaking source expressions or test strings
+    # for published credentials.
     re.compile(
         rf"(?i)\b({_CREDENTIAL_NAMES})\b\s*[:=]\s*['\"]"
-        rf"{_PLACEHOLDER_NEGATIVE}[^'\"]{{8,}}['\"]"
+        rf"{_PLACEHOLDER_NEGATIVE}[^'\"]{{8,}}['\"]{_LINE_END}"
     ),
-    # Unquoted literal credentials; environment substitutions/placeholders are excluded.
+    # Unquoted literal credentials; environment substitutions/placeholders are
+    # excluded. Keep this line-oriented so code such as os.environ.get(...) and
+    # helper calls such as _setting(...) are not interpreted as secret values.
     re.compile(
         rf"(?i)\b({_CREDENTIAL_NAMES})\b\s*[:=]\s*{_PLACEHOLDER_NEGATIVE}"
-        r"[A-Za-z0-9_./+=:@-]{8,}"
+        rf"[A-Za-z0-9_./+=:@-]{{8,}}{_LINE_END}"
     ),
     # Connection strings that embed username/password material.
     re.compile(
