@@ -71,6 +71,37 @@ def test_backend_roundtrip(server, tiktok_item):
     assert rec["collection_provenance"]["account"] == "Candidate Alpha:candidate_alpha"
 
 
+def test_backend_accepts_extension_embedded_object_body(server, tiktok_item):
+    """content.js sends embedded page-state as a nested JSON object, not text."""
+    capture = {
+        "platform": "tiktok",
+        "api_url": "https://www.tiktok.com/@synthetic_user#embedded:UNIVERSAL_DATA",
+        "platform_url": "https://www.tiktok.com/@synthetic_user",
+        "captured_at": "2026-09-07T10:00:00Z",
+        "body": {"itemList": [tiktok_item]},
+    }
+    with _post_json(server, "/capture", capture) as resp:
+        assert resp.status == 200
+        reply = json.loads(resp.read())
+    assert reply["new_posts"] == 1
+    assert server.store.seen_count("tiktok") == 1
+
+
+def test_backend_accepts_tiktok_challenge_route(server, tiktok_item):
+    """Firefox matcher and native parser both support challenge item lists."""
+    capture = {
+        "platform": "tiktok",
+        "api_url": "https://www.tiktok.com/api/challenge/item_list/?challengeID=synthetic",
+        "platform_url": "https://www.tiktok.com/tag/synthetic",
+        "captured_at": "2026-09-07T10:00:00Z",
+        "body": {"itemList": [tiktok_item]},
+    }
+    with _post_json(server, "/capture", capture) as resp:
+        assert resp.status == 200
+        reply = json.loads(resp.read())
+    assert reply["new_posts"] == 1
+
+
 def test_backend_accepts_instagram_anti_json_prefix(server, instagram_itemlist_item):
     """Instagram-style `for (;;);` JSON prefix is stripped by the backend."""
     envelope = {"items": [instagram_itemlist_item]}
@@ -84,6 +115,36 @@ def test_backend_accepts_instagram_anti_json_prefix(server, instagram_itemlist_i
     with _post_json(server, "/capture", capture) as resp:
         assert resp.status == 200
     assert server.stats["errors"] == 0
+
+
+def test_backend_roundtrip_instagram_extension_shape(server, instagram_itemlist_item):
+    capture = {
+        "platform": "instagram",
+        "api_url": "https://www.instagram.com/api/v1/feed/user/9876543210/",
+        "platform_url": "https://www.instagram.com/synthetic_user/",
+        "captured_at": "2026-09-07T10:00:00Z",
+        "body": {"items": [instagram_itemlist_item]},
+    }
+    with _post_json(server, "/capture", capture) as resp:
+        assert resp.status == 200
+        reply = json.loads(resp.read())
+    assert reply["new_posts"] == 1
+    assert server.store.seen_count("instagram") == 1
+
+
+def test_backend_roundtrip_x_extension_shape(server, x_graphql_envelope):
+    capture = {
+        "platform": "x",
+        "api_url": "https://x.com/i/api/graphql/abc123/UserOriginalsTimeline?variables=1",
+        "platform_url": "https://x.com/synthetic_user",
+        "captured_at": "2026-09-07T10:00:00Z",
+        "body": x_graphql_envelope,
+    }
+    with _post_json(server, "/capture", capture) as resp:
+        assert resp.status == 200
+        reply = json.loads(resp.read())
+    assert reply["new_posts"] == 1
+    assert server.store.seen_count("x") == 1
 
 
 def test_tour_endpoint_expands_all_configured_urls(server):
