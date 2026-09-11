@@ -9,6 +9,7 @@ def test_path_guard_blocks_common_private_artifacts() -> None:
     problems = safety.path_violations([
         "credentials.json",
         "cookies.sqlite-wal",
+        "research.sqlite-wal",
         "exports/ai26.jsonl",
         "config/sources/live-watchlist.yaml",
         "deploy/systemd/ai26/live.service",
@@ -22,6 +23,7 @@ def test_path_guard_blocks_common_private_artifacts() -> None:
     rendered = "\n".join(problems)
     assert "credentials.json" in rendered
     assert "cookies.sqlite-wal" in rendered
+    assert "research.sqlite-wal" in rendered
     assert "exports/ai26.jsonl" in rendered
     assert "config/sources/live-watchlist.yaml" in rendered
     assert "deploy/systemd/ai26/live.service" in rendered

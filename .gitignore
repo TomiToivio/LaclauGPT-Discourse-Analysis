@@ -218,7 +218,9 @@ deploy/**/*.local.*
 # synthetic test-fixture directory and add a narrowly scoped exception after
 # publication-safety review rather than weakening these defaults.
 *.sqlite
+*.sqlite-*
 *.sqlite3
+*.sqlite3-*
 *.duckdb
 *.db
 *.db-*
