@@ -107,11 +107,12 @@ dataset:
     terms: [party, election, parliament]
 ```
 
-EP24 uses this mode. The vocabulary lives in `config/projects/ep24.yaml`, not in
-the generic `pipeline.py`. An empty keyword list fails open by retaining the
-row as unjudged rather than silently excluding it. Explicitly irrelevant rows
-remain queryable in annotations but are excluded from normal corpus-synthesis
-counts; the synthesis also reports total and excluded-document counts.
+Historical projects may use this mode in a restricted local configuration; it
+is not part of the public project profiles. An empty keyword list fails open by
+retaining the row as unjudged rather than silently excluding it. Explicitly
+irrelevant rows remain queryable in annotations but are excluded from normal
+corpus-synthesis counts; the synthesis also reports total and
+excluded-document counts.
 
 ## CLI
 

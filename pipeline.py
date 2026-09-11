@@ -86,8 +86,8 @@ def _cleanup_staged(paths: list[Path]) -> None:
 
 
 MACHINE_CSV_COLUMNS = (
-    # Legacy-dashboard parity subset: one flat row per document so the EP24
-    # review workflow (and pandas) can load results without JSONL parsing.
+    # Legacy-dashboard parity subset: one flat row per document so review
+    # workflows (and pandas) can load results without JSONL parsing.
     "document_id", "relevance", "relevance_reason", "review_status",
     "populist", "language", "source_platform", "source_country",
     "summary", "evidence_quotes", "signifiers", "nodal_points",

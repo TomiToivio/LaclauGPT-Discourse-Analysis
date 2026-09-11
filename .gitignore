@@ -288,11 +288,31 @@ cython_debug/
 !/sources/README.md
 !/data/README.md
 
-# EP24 codebooks are public research-method artifacts. Their publication is
-# governed by docs/DATA_PUBLICATION_POLICY.md; subject-level inferred
-# attributes must never be added here.
-!/sources/codebooks/
-!/sources/codebooks/*.md
+# Historical EP24 materials are retained only in the local research checkout.
+# Do not re-add their code, configs, tests, or codebooks to the public repo.
+/config/arenas/ep24-*.yaml
+/config/projects/ep24.yaml
+/run_configs/arena_ep24*.yaml
+/run_configs/ep24_codebooks.yaml
+/ep24_*.py
+/scripts/ep24/
+/scripts/ep24_*.py
+/scripts/ep24_*.sh
+/scripts/prepare_ep24_reprocessing.py
+/tests/test_ep24_*.py
+/tests/test_prepare_ep24_reprocessing.py
+/sources/codebooks/ep24_*.md
+/config/arenas/legacy-*.yaml
+/config/projects/legacy.yaml
+/run_configs/legacy*.yaml
+/legacy_*.py
+/scripts/legacy/
+/scripts/legacy_*.py
+/scripts/legacy_*.sh
+/scripts/prepare_legacy_reprocessing.py
+/tests/test_legacy_*.py
+/tests/test_prepare_legacy_*.py
+/sources/codebooks/legacy_*.md
 
 # LaclauGPT collector runtime data roots
 laclaugpt-brasil-data/

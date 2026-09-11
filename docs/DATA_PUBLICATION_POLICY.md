@@ -118,19 +118,16 @@ Do not publish mappings such as `person -> ideology`, `person -> political prefe
 
 Public political figures may appear in a public codebook when the entries are limited to non-inferred factual public information needed for reproducibility. This is a narrow exception, not blanket permission to publish analytical labels about people.
 
-### EP24 Finland and Poland seed codebooks
+### Historical EP24 materials
 
-Current `sources/codebooks/ep24_finland.md` and `sources/codebooks/ep24_poland.md` contain:
+EP24 Finland and Poland materials, including codebooks, configurations,
+pipelines and tests, are retained only in a restricted local research checkout
+and are excluded from the public repository. This precaution applies even to
+materials based on public sources because institutional privacy requirements
+may be stricter than the ordinary public-source threshold.
 
-- public party/institution names and legacy party-family buckets;
-- public political figures with factual party/office context;
-- conceptual seed signifiers;
-- country/election context; and
-- provenance references to legacy internal workbooks/research diaries without publishing those source records.
-
-Assessment: **appropriate to remain public after human review**, provided they remain factual/sensitising metadata and are not presented as validated findings about individuals. The legacy party-family buckets must stay explicitly marked as legacy descriptive metadata, not model-validated ideology. Any future subject-level inference fields must live in restricted storage rather than these public files.
-
-If future codebooks mix public concepts with subject-level inferred attributes, split them into public and private layers. Private codebooks must be stored outside Git and protected by the same access controls as the research data.
+Public documentation may describe the historical project at a high level, but
+must not restore its operational artefacts or person-level analytical context.
 
 ## FAIR without publishing the corpus
 
