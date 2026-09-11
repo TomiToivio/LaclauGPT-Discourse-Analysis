@@ -50,6 +50,8 @@ FORBIDDEN_ROOT_PREFIXES = (
     "media_downloads/",
     "browser-profiles/",
     "browser_profiles/",
+    "config/sources/",
+    "deploy/systemd/",
 )
 
 FORBIDDEN_EXTENSIONS = {
@@ -118,7 +120,8 @@ SUSPICIOUS_CONTENT = (
     ),
     re.compile(
         r"(?<!\d)(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|"
-        r"172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})(?!\d)"
+        r"172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}|"
+        r"100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])(?:\.\d{1,3}){2})(?!\d)"
     ),
 )
 

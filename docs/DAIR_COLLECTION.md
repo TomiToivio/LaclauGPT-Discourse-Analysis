@@ -1,109 +1,79 @@
-# DAIR critical-AI public-source collection
+# DAIR collection adapter
 
-This is the canonical public collection profile for DAIR material in AI26. `dair-critical-ai` is a provisional sampling/source-selection rationale, **not** an ideological classification. Every collected item enters the canonical corpus with `classification_state: unjudged`; discourse and ideology interpretation happens later under `THEORY.md` with human review.
+LaclauGPT contains public collector code for DAIR-related research material, but the **live source profile is private operational configuration**. The repository documents the collection mechanics without publishing the current watch list, account identifiers, enabled/disabled source set, schedules, credentials, or deployment details.
 
-The source configuration is `config/sources/dair-critical-ai.yaml`. It contains only reviewed factual identifiers for a public institution and public researchers. Runtime data, credentials, cookies, private paths and operational secrets stay outside Git.
+Collected items enter the canonical corpus with `classification_state: unjudged`. Source selection is not itself an ideological classification; discourse and ideology interpretation happen later under `THEORY.md` with human review.
 
-## Source matrix
+## Private configuration
 
-| Source | Method | Default content | Status |
-| --- | --- | --- | --- |
-| DAIR website | direct public page | permitted page text/metadata | Enabled |
-| DAIR publications | RSS/Atom if a suitable feed is verified, otherwise conservative same-site index | metadata and permitted text | Enabled |
-| DAIR blog | RSS/Atom if a suitable feed is verified, otherwise conservative same-site index | article text | Enabled |
-| Mastodon (DAIR, Bender, Hanna) | public REST API | public statuses | Enabled |
-| Bluesky (DAIR, Bender, Hanna) | public AT Protocol AppView | public author feeds | Enabled |
-| DAIR PeerTube | public REST API, DAIR-owned channels only | metadata and existing captions first | Enabled |
-| Mystery AI Hype Theater 3000 | Buzzsprout RSS + publisher transcript | audio metadata and creator transcript | Enabled |
-| X (`alexhanna`) | existing researcher-operated browser collector | public posts | Configured separately |
-| Twitch | authorized captions or separately reviewed audio-only VOD path | transcript + metadata | Optional/disabled |
-| LinkedIn | authorized/manual browser capture only | public company posts | Optional/disabled |
+The collector expects its source profile outside the public repository. By default it resolves:
 
-DAIR's public PeerTube material identifies the account as `dair`, and DAIR's own PeerTube description links to `dair-community.social/@DAIR`; these factual identifiers are used only for source resolution, not interpretation.
-
-## Run
-
-Install the collection extras, then validate the plan without network collection or writes:
-
-```bash
-laclaugpt collect dair --project ai26 --source-group dair-critical-ai --dry-run
+```text
+~/.config/laclaugpt/sources/dair-critical-ai.yaml
 ```
 
-Run all enabled sources:
+or the path supplied through:
 
 ```bash
-laclaugpt collect dair --project ai26 --source-group dair-critical-ai
+export LACLAUGPT_DAIR_CONFIG=/path/to/private/dair-critical-ai.yaml
 ```
 
-Select individual configured sources when needed:
+An explicit path may also be supplied with `--config`.
+
+The public repository intentionally does not contain `config/sources/`. That path is ignored by Git and rejected by the publication-safety guard.
+
+## Supported collection mechanisms
+
+The DAIR collector can work with text-native websites, RSS/Atom feeds, public social APIs, public video-platform metadata/captions, podcast feeds and researcher-operated browser capture. Which concrete sources are enabled belongs to the private profile.
+
+The modality order is transcript-first:
+
+1. collect text-native source text where permitted;
+2. prefer creator/publisher captions or transcripts;
+3. retain machine-generated captions with explicit provenance;
+4. mark uncaptioned audio/video as requiring a separate local ASR workflow where permitted;
+5. use multimodal interpretation only when a research question requires visual evidence.
+
+The collector does not automatically treat media appearance as authorship and does not infer ideology from source identity.
+
+## Running
+
+Validate a private configuration without collecting:
 
 ```bash
-laclaugpt collect dair --source mastodon-alex
-laclaugpt collect dair --source bluesky-alex
-laclaugpt collect dair --source peertube-dair
-laclaugpt collect dair --source maiht3k-podcast
+laclaugpt collect dair --dry-run
 ```
 
-Use `--data-root` for a controlled runtime location. The default `collection-data/` is ignored by Git.
+Run the configured source profile:
 
-## Transcript-first modality policy
+```bash
+laclaugpt collect dair
+```
 
-The acquisition order is explicit:
-
-1. text-native source -> collect source text;
-2. creator/publisher captions or transcripts -> collect those first;
-3. platform-generated captions -> collect with `machine_generated_unverified` provenance;
-4. uncaptioned audio/video -> leave `asr_required=true` for a separate local ASR workflow where permitted;
-5. multimodal interpretation -> disabled by default and enabled only for a research question that requires visual evidence.
-
-The DAIR source-group collector does **not** automatically run ASR or image/video interpretation. If local ASR is later run, retain timestamps, model/version, language detection, parameters and machine-generated status. Do not use an ASR passage as an exact quotation before human verification.
-
-For PeerTube, the collector first discovers channels owned by the configured `dair` account. It does not assume that every video visible on the instance is DAIR-authored. For each selected video it retrieves metadata and checks the public caption endpoint, preferring creator captions over automatically generated captions.
+Use `--config` to override the private config path and `--data-root` for a controlled runtime collection directory.
 
 ## Canonical mapping and provenance
 
-All inputs converge on the existing `CollectRecord -> SourceItem / IngestionRecord` model. No DAIR-specific document ontology is added.
+All inputs converge on the existing `CollectRecord -> SourceItem / IngestionRecord` model. Platform-native identifiers, canonical URLs, publication times, source text, transcript provenance and collection metadata are retained in the canonical model.
 
-| Source fact | Canonical destination |
-| --- | --- |
-| platform-native stable identifier | `SourceItem.native_id` |
-| canonical/public URL | `SourceItem.source_url` |
-| platform and source type | `SourceItem.platform`, `SourceItem.source_type` |
-| actor/account label | `SourceItem.author_text` |
-| publication and collection time | `SourceItem.published_at`, `IngestionRecord.collected_at` |
-| original language | `SourceItem.language` |
-| source text / selected transcript | `SourceItem.raw_text` |
-| DID / ActivityPub identity / relation / thread IDs / captions / media metadata | `SourceItem.metadata` and ingestion metadata |
-| project | `IngestionRecord.dataset_id = ai26` |
-| raw capture | `IngestionRecord.raw_payload_ref` |
-| collector/version | `IngestionRecord.collector`, `collector_version` |
-
-Permitted raw API/page payloads are written under `raw/<platform>/` before normalized records are saved. Each record carries a safe configuration fingerprint, project, arena, source group and source key. Cross-posted material remains separate by platform so provenance is not collapsed.
+Runtime raw payloads and normalized records remain outside Git. Public outputs should contain only reviewed provenance fields and safe configuration fingerprints, never the private source list itself.
 
 ## Incremental behaviour
 
-Mastodon resolves each configured public account and starts from the newest feed. Its persistent checkpoint is the newest status ID from the previous run (`since_id`); `max_id` is used only for bounded pagination inside one run.
-
-Bluesky resolves the handle to a stable DID on every run. The checkpoint is the newest AT URI previously seen, and the collector walks the newest-first author feed until it encounters that URI. Handles therefore remain human-readable labels while the DID and AT URI provide stable identity.
-
-PeerTube uses the newest collected publication timestamp as its source checkpoint. Each run discovers DAIR-owned channels from the `dair` account and retrieves only newer videos within bounded pagination.
-
-A valid incremental run with no new records is normal. A first run that resolves an enabled source but unexpectedly yields zero records fails visibly rather than silently reporting success.
+Platform adapters use stable native identifiers and persistent checkpoints where available. A valid incremental run with no new records is normal. Unexpected zero-result first runs should fail visibly rather than silently report success.
 
 ## Ethical boundaries
 
-Only public material is collected. The profile does not collect followers, private posts, direct messages, Twitch chat participants or unrelated prefetched user content. It does not bypass CAPTCHAs, authentication barriers or access controls.
+Collection is limited to material accessible through the configured, permitted collection route. The collector does not bypass authentication barriers, CAPTCHAs or access controls, and it does not treat private messages, follower lists or unrelated user data as default research inputs.
 
-LinkedIn stays disabled unless a separately reviewed authorized/manual workflow is used. Twitch stays disabled until a reliable authorized transcript/caption route, or an approved audio-only VOD workflow, exists. The rest of the source group works without either platform.
-
-Website collection does not treat third-party papers linked from the publications index as DAIR-authored material and does not republish copyrighted full text when only metadata, abstracts or links are supplied.
+Copyright, platform terms, research ethics and data-protection requirements apply independently of technical accessibility.
 
 ## Tests
 
-The DAIR tests are offline and use synthetic platform-shaped payloads. CI must not call live DAIR, Mastodon, Bluesky or PeerTube services.
+DAIR collector tests are offline and use synthetic platform-shaped payloads. CI must not call live source services.
 
 ```bash
 python -m pytest -q tests/test_collect_dair.py tests/test_collect.py
 ```
 
-The tests cover account resolution, relation mapping, stable Bluesky identity, incremental checkpoints, PeerTube channel discovery and caption priority, transcript provenance, raw-capture linkage, deduplication, configuration switches, malformed configuration and public-config hygiene.
+The tests cover adapter behaviour, incremental checkpoints, transcript provenance, raw-capture linkage, deduplication, configuration validation and privacy-safe operation without requiring the private source profile.
