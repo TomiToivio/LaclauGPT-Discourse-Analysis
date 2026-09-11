@@ -254,7 +254,7 @@ class Memory:
     """Persistent analytical memory. Instantiate once per job/CLI session.
 
     Same file works on laptop and Roihu:
-        LACLAUGPT_MEMORY_DIR=/scratch/project_2009497/laclaugpt2/memory
+        LACLAUGPT_MEMORY_DIR=${LACLAUGPT_DATA_DIR}/memory
     """
 
     def __init__(self, memory_dir: Optional[str] = None,
