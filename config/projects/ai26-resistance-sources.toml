@@ -1,0 +1,148 @@
+# AI26 resistance-source manifest — verified 2026-09-11
+#
+# Organized AI-resistance sources for the AI26 corpus (TASK2).
+# This family INTENTIONALLY OVERSAMPLES organized AI resistance:
+# existing AI26 sources already carry substantial elite, industry,
+# techno-optimist and x-risk material (see ai26-rss-sources.toml).
+#
+# RESEARCH PRINCIPLE (paper/PAPER.md): source families below are SAMPLING
+# HEURISTICS, never ideological ground truth. critical AI / anti-AI /
+# pause / safety / x-risk / anti-AGI / labour / environmental resistance
+# are kept analytically DISTINCT — whether they articulate one political
+# formation is an empirical question for LaclauGPT, not an assumption.
+#
+# Types: rss = canonical RSS collector; web = canonical web collector;
+# discovery_index = collect as provenance for finding further orgs.
+# Run RSS entries:  laclaugpt collect rss config/projects/ai26-resistance-sources.toml
+# Run web entries:  laclaugpt collect web <url> (see docs/AI26_RSS_SOURCES.md)
+
+[[feed]]
+name = "pauseai_news"
+organization = "PauseAI"
+homepage = "https://pauseai.info/"
+feed_url = "https://pauseai.info/rss.xml"
+source_type = "rss"
+source_family = "pause_ai / xrisk_mobilization"
+sampling_rationale = "International pause movement: campaign posts, protest announcements, policy demands; AI labs and the AI race constructed as antagonist; links x-risk to immediate social harms."
+country = "global"
+scope = "movement"
+priority = "P1"
+active = true
+discovered_via = "task specification"
+last_verified = "2026-09-11"
+
+[[feed]]
+name = "controlai_blog"
+organization = "ControlAI"
+homepage = "https://controlai.org/"
+feed_url = "https://blog.controlai.org/feed"
+source_type = "rss"
+source_family = "anti_agi / democratic_control"
+sampling_rationale = "Superintelligence prohibition + democratic control advocacy; AI-safety discourse moving into mainstream politics (policymakers, parliament). Kept analytically SEPARATE from PauseAI."
+country = "UK"
+scope = "movement"
+priority = "P1"
+active = true
+discovered_via = "task specification"
+last_verified = "2026-09-11"
+
+# ── web-only sources (no RSS/Atom found; verified 2026-09-11) ──────────
+
+[[web_source]]
+name = "ai_resist_list"
+organization = "AI Resist List"
+homepage = "https://airesistlist.org/"
+source_type = "discovery_index"
+source_family = "anti_ai / infrastructure_resistance"
+sampling_rationale = "Maps AI resistance across narrative, funding, data, data-centres, extraction, labour, adoption, surveillance, policy. Treated as a discovery index for further AI26 organizations AND as a document in its own right. Store org-links as provenance."
+country = "global"
+scope = "index"
+priority = "P1"
+active = true
+collection_command = "laclaugpt collect web https://airesistlist.org/"
+discovered_via = "task specification"
+last_verified = "2026-09-11"
+
+[[web_source]]
+name = "stopai"
+organization = "Stop AI"
+homepage = "https://www.stopai.info/"
+source_type = "web"
+source_family = "anti_agi / anti_transhumanism"
+sampling_rationale = "Permanent AI/AGI/ASI prohibition, human autonomy, labour replacement, anti-transhumanism, direct action; explicit rejection of technological inevitability. No feed (404 on common endpoints)."
+country = "US"
+scope = "movement"
+priority = "P2"
+active = true
+collection_command = "laclaugpt collect web https://www.stopai.info/"
+discovered_via = "task specification"
+last_verified = "2026-09-11"
+
+[[web_source]]
+name = "stop_the_ai_race"
+organization = "Stop The AI Race"
+homepage = "https://stoptherace.ai/"
+source_type = "web"
+source_family = "pause_ai / democratic_control"
+sampling_rationale = "Frontier-AI race as antagonist; protest/occupation reports; conditional pause demands; names OpenAI/Anthropic/Google DeepMind as political targets. No feed (404)."
+country = "global"
+scope = "campaign"
+priority = "P2"
+active = true
+collection_command = "laclaugpt collect web https://stoptherace.ai/"
+discovered_via = "task specification"
+last_verified = "2026-09-11"
+
+[[web_source]]
+name = "evitable_in_the_news"
+organization = "Evitable"
+homepage = "https://evitable.com/"
+feed_url = "https://evitable.com/in-the-news"
+source_type = "web"
+source_family = "anti_agi / infrastructure_resistance"
+sampling_rationale = "\"AI is not inevitable\" framing; superintelligence, social choice, labour replacement, governance; data-centre opposition report + extensive news coverage index (Canadian Parliament testimony etc.). No feed (404)."
+country = "CA"
+scope = "org + news index"
+priority = "P2"
+active = true
+collection_command = "laclaugpt collect web https://evitable.com/in-the-news https://evitable.com/projects/data-center-opposition-report"
+discovered_via = "task specification"
+last_verified = "2026-09-11"
+
+[[web_source]]
+name = "caes"
+organization = "Collective Action for Existential Safety"
+homepage = "https://existentialsafety.org/"
+source_type = "unsupported"
+source_family = "xrisk_mobilization"
+sampling_rationale = "Citizen collective-action platform for existential-safety mobilisation. No usable feed: /feed.xml is a 301 redirect loop (www <-> apex, verified twice). Re-check at next verification round."
+country = "global"
+scope = "campaign"
+priority = "P2"
+active = false
+discovered_via = "task specification"
+last_verified = "2026-09-11"
+
+[[web_source]]
+name = "the_ai_protest"
+organization = "The AI Protest"
+homepage = "https://theprotest.ai/"
+source_type = "discovery_index"
+source_family = "coalition"
+sampling_rationale = "Coalition/discovery hub linking labour displacement, surveillance, bias, copyright, x-risk, democratic-consent actors (links e.g. to Stop The AI Race media kit). Do NOT auto-ingest participants; evaluate each independently."
+country = "global"
+scope = "index"
+priority = "P2"
+active = true
+collection_command = "laclaugpt collect web https://theprotest.ai/"
+discovered_via = "task specification"
+last_verified = "2026-09-11"
+
+# ── Sampling gaps (explicit, per task) ─────────────────────────────────
+# RSS/organizational sites give UNEVEN coverage. Contemporary:
+#   e/acc grassroots discourse; anti-AI protest; labour mobilisation;
+#   data-centre opposition; populist/Luddite discourse;
+#   left-wing techno-optimist discourse
+# are under-represented by dedicated RSS publishers. These gaps belong to
+# the existing social/web/Telegram/Zeeschuimer/Minet collectors and to
+# future targeted sources. Do NOT pretend one general news feed covers them.

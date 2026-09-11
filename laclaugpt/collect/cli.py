@@ -75,6 +75,47 @@ def _urls_from_file(path: str) -> list[str]:
             if u.strip() and not u.strip().startswith("#")]
 
 
+def load_rss_manifest(path: str) -> list[dict]:
+    """Load an RSS source manifest for `laclaugpt collect rss <file>`.
+
+    Two formats are accepted and may NOT be mixed in one file:
+    - one feed URL per line (legacy: `#` comment lines are skipped);
+    - a TOML manifest of [[feed]] tables carrying sampling provenance
+      (name, feed_url, homepage, source_family, sampling_rationale,
+      priority, active, last_verified). Inactive entries are skipped.
+    Both are consumed by the same canonical collect_rss pipeline; no
+    parallel RSS architecture is introduced.
+    """
+    text = Path(path).read_text(encoding="utf-8")
+    stripped = [line.strip() for line in text.splitlines()]
+    is_toml = "[[feed]]" in text or "[feed]" in text
+    if not is_toml:
+        return [{"feed_url": u} for u in _urls_from_file(path)]
+    try:
+        import tomllib
+    except ModuleNotFoundError:  # pragma: no cover - py<3.11 fallback
+        import tomli as tomllib  # type: ignore
+    data = tomllib.loads(text)
+    feeds = [f for f in data.get("feed", []) if f.get("active", True)]
+    # resistance-style manifests may also carry [[web_source]] tables; these
+    # are web/discovery sources, not feeds — surfaced for tooling, skipped
+    # by the RSS pipeline itself (they run through `collect web`).
+    web_sources = [w for w in data.get("web_source", []) if w.get("active", True)]
+    return [
+        {
+            "name": f.get("name") or "",
+            "feed_url": f.get("feed_url") or "",
+            "source_family": f.get("source_family") or "",
+            "sampling_rationale": f.get("sampling_rationale") or "",
+            "priority": f.get("priority") or "",
+            "last_verified": f.get("last_verified") or "",
+            "homepage": f.get("homepage") or "",
+        }
+        for f in feeds
+        if f.get("feed_url")
+    ]
+
+
 def _read_payload(path: str) -> dict:
     if path == "-":
         return json.load(__import__("sys").stdin)
@@ -135,12 +176,36 @@ def run(args: argparse.Namespace) -> int:
                 feed_records = collect_rss(feed, fetch_article=args.fetch_article)
                 records.extend(_enrich_rss_articles(feed_records)
                                if args.fetch_article else feed_records)
-            else:
-                for feed_url in _urls_from_file(feed):
-                    feed_records = collect_rss(feed_url,
-                                               fetch_article=args.fetch_article)
-                    records.extend(_enrich_rss_articles(feed_records)
-                                   if args.fetch_article else feed_records)
+                continue
+            if not Path(feed).exists():
+                print(json.dumps({"skipped": feed,
+                                  "reason": "manifest file not found"}))
+                continue
+            manifest = load_rss_manifest(feed)
+            if not manifest:
+                # dead/empty config file: emit a line but never fail the run
+                print(json.dumps({"skipped": feed,
+                                  "reason": "no active feeds in manifest"}))
+                continue
+            for entry in manifest:
+                feed_url = entry["feed_url"]
+                feed_name = entry.get("name") or feed_url
+                try:
+                    feed_records = collect_rss(
+                        feed_url, feed_name=feed_name,
+                        fetch_article=args.fetch_article)
+                except Exception as exc:  # one dead feed must not kill the run
+                    print(json.dumps({"skipped": feed_name, "feed": feed_url,
+                                      "reason": str(exc)[:200]}))
+                    continue
+                for rec in feed_records:
+                    # sampling provenance rides on every record (never truth)
+                    for key in ("source_family", "sampling_rationale",
+                                "priority", "last_verified", "homepage"):
+                        if entry.get(key):
+                            rec.metadata[f"source_{key}"] = entry[key]
+                records.extend(_enrich_rss_articles(feed_records)
+                               if args.fetch_article else feed_records)
         saved, skipped = store.save_many(records)
 
     elif args.collect_target == "web":
