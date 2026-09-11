@@ -164,8 +164,16 @@ def _graph_edges(graph_data: dict) -> pd.DataFrame:
                 "relation": edge.get("relation", ""),
                 "target": nodes[target],
                 "claim_status": edge.get("claim_status", ""),
-                MODEL_CONFIDENCE_LABEL: edge.get("confidence", ""),
-                "evidence_verified": edge.get("evidence_verified", ""),
+                MODEL_CONFIDENCE_LABEL: (
+                    float(edge["confidence"])
+                    if edge.get("confidence") not in (None, "")
+                    else None
+                ),
+                "evidence_verified": (
+                    bool(edge["evidence_verified"])
+                    if edge.get("evidence_verified") is not None
+                    else None
+                ),
             }
         )
     return pd.DataFrame(rows)
@@ -183,7 +191,31 @@ def _document_view(
     modules: dict[str, bool],
 ) -> None:
     st.subheader(annotation.document_id)
+    source_title = (annotation.transformations or {}).get("source_title", "")
+    if source_title:
+        st.markdown(f"#### {source_title}")
 
+    collection_only = bool((annotation.transformations or {}).get("collection_only"))
+    if collection_only:
+        source_text = (annotation.transformations or {}).get("source_text", "")
+        st.info(
+            "Collection-only source: no model analysis or discourse-theoretical coding "
+            "has been produced for this item."
+        )
+        if annotation.source_url:
+            st.markdown(f"[Open source]({annotation.source_url})")
+        if annotation.source_author:
+            st.caption(f"Author: {annotation.source_author}")
+        st.markdown("#### Source text")
+        st.text_area(
+            "Collected source text",
+            value=source_text or "No collected text available.",
+            height=420,
+            disabled=True,
+            key=f"collection-source-{annotation.document_id}",
+        )
+        st.caption("Analytical fields remain empty until the canonical analysis pipeline runs.")
+        return
     if blind_initial:
         cols = st.columns(3)
         cols[0].metric("Platform", annotation.source_platform or "unknown")
@@ -292,7 +324,7 @@ def _document_view(
                             for item in annotation.discourses
                         ]
                     ),
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
             if annotation.formation_candidates:
@@ -315,7 +347,7 @@ def _document_view(
                             for item in annotation.formation_candidates
                         ]
                     ),
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
             if annotation.signifier_roles:
@@ -336,7 +368,7 @@ def _document_view(
                             for item in annotation.signifier_roles
                         ]
                     ),
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
             if annotation.articulations:
@@ -358,7 +390,7 @@ def _document_view(
                             for item in annotation.articulations
                         ]
                     ),
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
             st.caption(
@@ -401,7 +433,7 @@ def _document_view(
                             for item in annotation.populism_elements
                         ]
                     ),
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
             if annotation.affects:
@@ -420,7 +452,7 @@ def _document_view(
                             for item in annotation.affects
                         ]
                     ),
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
 
@@ -445,7 +477,7 @@ def _document_view(
                             for item in annotation.imaginaries
                         ]
                     ),
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
             else:
@@ -474,7 +506,7 @@ def _document_view(
                             for item in annotation.sentiment_observations
                         ]
                     ),
-                    use_container_width=True,
+                    width="stretch",
                     hide_index=True,
                 )
             else:
@@ -539,7 +571,7 @@ def _review_export(
             st.caption("No assessment records available.")
             return
         frame = pd.DataFrame(rows)
-        st.dataframe(frame, use_container_width=True, hide_index=True)
+        st.dataframe(frame, width="stretch", hide_index=True)
         st.download_button(
             "Download assessment history CSV",
             frame.to_csv(index=False).encode("utf-8"),
@@ -575,7 +607,11 @@ def main() -> None:
         st.info("Provide canonical LaclauGPT JSONL/NDJSON output.")
         return
     try:
-        annotations = load_annotations(data_path)
+        annotations = load_annotations(
+            data_path,
+            project=args.project.strip(),
+            arena=args.arena.strip(),
+        )
     except (OSError, ValueError) as exc:
         st.error(f"Could not load canonical interchange output: {exc}")
         return
@@ -777,7 +813,7 @@ def main() -> None:
                     if chart is not None:
                         columns[index % len(columns)].plotly_chart(
                             chart,
-                            use_container_width=True,
+                            width="stretch",
                         )
 
             if (
@@ -803,7 +839,7 @@ def main() -> None:
                         markers=True,
                         title="Documents over time",
                     ),
-                    use_container_width=True,
+                    width="stretch",
                 )
 
             projections = graph_projection_options(
@@ -833,7 +869,7 @@ def main() -> None:
                     )
                     st.plotly_chart(
                         figure,
-                        use_container_width=True,
+                        width="stretch",
                     )
                     edge_frame = _graph_edges(graph_data)
                     if not edge_frame.empty:
@@ -842,7 +878,7 @@ def main() -> None:
                         ):
                             st.dataframe(
                                 edge_frame,
-                                use_container_width=True,
+                                width="stretch",
                                 hide_index=True,
                             )
 

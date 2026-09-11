@@ -56,7 +56,7 @@ services = [
   "chromadb>=0.5",
 ]
 visualization = [
-  "streamlit>=1.40",
+  "streamlit>=1.57",
   "plotly>=5.24",
 ]
 parquet = [
