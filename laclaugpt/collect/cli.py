@@ -61,8 +61,8 @@ def register(sub) -> None:
                              help="comma-separated probe keys for text extraction")
     zeeschuimer.add_argument("--platform", help="platform tag override")
 
-    dair = csub.add_parser("dair", help="collect the public DAIR AI26 source profile")
-    dair.add_argument("--config", default="config/sources/dair-critical-ai.yaml")
+    dair = csub.add_parser("dair", help="collect a privately configured DAIR AI26 source profile")
+    dair.add_argument("--config", default=None, help="private source config; defaults to LACLAUGPT_DAIR_CONFIG or ~/.config/laclaugpt/sources/dair-critical-ai.yaml")
     dair.add_argument("--project", default="ai26")
     dair.add_argument("--source-group", default="dair-critical-ai")
     dair.add_argument("--source", action="append", help="configured source key; repeatable")
@@ -183,10 +183,10 @@ def run(args: argparse.Namespace) -> int:
         saved, skipped = store.save_many(records)
 
     elif args.collect_target == "dair":
-        from laclaugpt.collect.dair import collect_profile
+        from laclaugpt.collect.dair import DEFAULT_CONFIG, collect_profile
         if args.project != "ai26" or args.source_group != "dair-critical-ai":
             raise SystemExit("the public DAIR profile is fixed to project ai26 and source group dair-critical-ai")
-        result = collect_profile(args.config, selected=args.source,
+        result = collect_profile(args.config or DEFAULT_CONFIG, selected=args.source,
                                  root=Path(args.data_root) if args.data_root else None,
                                  dry_run=args.dry_run)
         print(json.dumps({"collector_version": COLLECTOR_VERSION, **result}))
