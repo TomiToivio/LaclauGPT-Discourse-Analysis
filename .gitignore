@@ -182,6 +182,7 @@ deploy/**/*.local.*
 /private_data/
 /restricted/
 /scratch/
+/private_projects/
 
 # Default-deny runtime/output roots. Public aggregate outputs should be copied
 # into a deliberately reviewed publication location rather than unignored here.
@@ -280,28 +281,34 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-# Research data roots are never committed, but the directory READMEs are
-# tracked so the convention ships with the repo. Ignore the *contents* (/*)
-# instead of the directory itself, or git cannot re-include anything under it.
+# Research data/source roots are never committed, but the directory READMEs are
+# tracked so the convention ships with the repo. Project-specific codebooks and
+# source registries stay local unless separately reviewed for publication.
 /sources/*
 /data/*
 !/sources/README.md
 !/data/README.md
-
-# EP24 codebooks are public research-method artifacts. Their publication is
-# governed by docs/DATA_PUBLICATION_POLICY.md; subject-level inferred
-# attributes must never be added here.
-!/sources/codebooks/
-!/sources/codebooks/*.md
 
 # LaclauGPT collector runtime data roots
 laclaugpt-brasil-data/
 collection-data/
 *.har
 
-# Explicit EP24 runtime inputs (redundant with /data/*, kept as defence in depth)
-data/csv/ep24_poland.csv
-data/csv/ep24_finland.csv
+# Private University-project implementation. Historical references may remain
+# in Markdown, but project-specific code, configs, tests, scripts and codebooks
+# stay in a local/private checkout rather than the public repository.
+/ep24_*.py
+/scripts/ep24/
+/scripts/ep24_*
+/scripts/prepare_ep24_reprocessing.py
+/config/projects/ep24.yaml
+/config/arenas/ep24-*.yaml
+/run_configs/*ep24*
+/tests/test_ep24_*.py
+/tests/test_prepare_ep24_reprocessing.py
+/sources/codebooks/ep24_*.md
+/data/csv/ep24_poland.csv
+/data/csv/ep24_finland.csv
 /.venv-ep24
 
 # Agent-specific local permissions
