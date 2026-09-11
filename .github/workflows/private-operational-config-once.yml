@@ -1,0 +1,90 @@
+name: One-time operational privacy cleanup
+
+on:
+  push:
+    branches: [fix/private-operational-config-2026-09-11]
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/private-operational-config-2026-09-11
+
+      - name: Remove public operational configs and harden privacy guard
+        run: |
+          git rm -r config/sources deploy/systemd
+
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"expected target missing in {path}: {old!r}")
+              p.write_text(text.replace(old, new), encoding="utf-8")
+
+          # Private operational directories must never be committed again.
+          gi = Path('.gitignore')
+          text = gi.read_text(encoding='utf-8')
+          marker = '''\n# Private operational source-selection and deployment configuration.\n# Keep these outside the public repository.\n/config/sources/\n/deploy/systemd/\n'''
+          if '/config/sources/' not in text:
+              text += marker
+          gi.write_text(text, encoding='utf-8')
+
+          # DAIR collector uses a private config outside the repository by default.
+          replace('laclaugpt/collect/dair.py',
+                  'import json\nimport re\n',
+                  'import json\nimport os\nimport re\n')
+          replace('laclaugpt/collect/dair.py',
+                  'DEFAULT_CONFIG = Path("config/sources/dair-critical-ai.yaml")',
+                  'DEFAULT_CONFIG = Path(os.environ.get("LACLAUGPT_DAIR_CONFIG", "~/.config/laclaugpt/sources/dair-critical-ai.yaml")).expanduser()')
+          replace('laclaugpt/collect/dair.py',
+                  'This module is the canonical source-group collector for the reviewed public\nDAIR/AI26 profile.',
+                  'This module is the canonical source-group collector for a privately configured\nDAIR/AI26 source profile.')
+
+          replace('laclaugpt/collect/cli.py',
+                  'dair = csub.add_parser("dair", help="collect the public DAIR AI26 source profile")\n    dair.add_argument("--config", default="config/sources/dair-critical-ai.yaml")',
+                  'dair = csub.add_parser("dair", help="collect a privately configured DAIR AI26 source profile")\n    dair.add_argument("--config", default=None, help="private source config; defaults to LACLAUGPT_DAIR_CONFIG or ~/.config/laclaugpt/sources/dair-critical-ai.yaml")')
+          replace('laclaugpt/collect/cli.py',
+                  'from laclaugpt.collect.dair import collect_profile\n',
+                  'from laclaugpt.collect.dair import DEFAULT_CONFIG, collect_profile\n')
+          replace('laclaugpt/collect/cli.py',
+                  'result = collect_profile(args.config, selected=args.source,',
+                  'result = collect_profile(args.config or DEFAULT_CONFIG, selected=args.source,')
+
+          # CI guard: whole operational trees are forbidden in the public repository.
+          replace('scripts/check_publication_safety.py',
+                  '    "browser_profiles/",\n)',
+                  '    "browser_profiles/",\n    "config/sources/",\n    "deploy/systemd/",\n)')
+          replace('scripts/check_publication_safety.py',
+                  'r"172\\.(?:1[6-9]|2\\d|3[01])(?:\\.\\d{1,3}){2})(?!\\d)"',
+                  'r"172\\.(?:1[6-9]|2\\d|3[01])(?:\\.\\d{1,3}){2}|"\n        r"100\\.(?:6[4-9]|[7-9]\\d|1[01]\\d|12[0-7])(?:\\.\\d{1,3}){2})(?!\\d)"')
+
+          # Regression tests for both private trees and Tailscale/CGNAT addresses.
+          replace('tests/test_publication_safety.py',
+                  '        "exports/ai26.jsonl",\n',
+                  '        "exports/ai26.jsonl",\n        "config/sources/live-watchlist.yaml",\n        "deploy/systemd/ai26/live.service",\n')
+          replace('tests/test_publication_safety.py',
+                  '    assert "exports/ai26.jsonl" in rendered\n',
+                  '    assert "exports/ai26.jsonl" in rendered\n    assert "config/sources/live-watchlist.yaml" in rendered\n    assert "deploy/systemd/ai26/live.service" in rendered\n')
+          replace('tests/test_publication_safety.py',
+                  '    assert _suspicious("host: 192.168.254.42")  # PUBLICATION-SAFETY: allow\n',
+                  '    assert _suspicious("host: 192.168.254.42")  # PUBLICATION-SAFETY: allow\n    assert _suspicious("host: 100.64.0.10")  # PUBLICATION-SAFETY: allow\n')
+
+          # Remove this transient workflow from the resulting commit.
+          Path('.github/workflows/private-operational-config-once.yml').unlink()
+          PY
+
+      - name: Commit cleanup and remove one-time workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "privacy: keep source selection and systemd deployment private"
+          git push origin HEAD:fix/private-operational-config-2026-09-11
