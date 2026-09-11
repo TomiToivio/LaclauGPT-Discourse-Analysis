@@ -33,6 +33,27 @@ def test_path_guard_blocks_common_private_artifacts() -> None:
     assert "tests/fixtures/synthetic_ai.csv" not in rendered
 
 
+def test_ep24_operational_material_is_private_but_markdown_history_is_allowed() -> None:
+    marker = "ep" + "24"
+    problems = safety.path_violations([
+        f"config/projects/{marker}.yaml",
+        f"run_configs/arena_{marker}.yaml",
+        f"tests/test_{marker}_pipeline.py",
+        "legacy_pipeline.py",
+        "scripts/legacy_roihu_reprocess.py",
+        f"sources/codebooks/{marker}_finland.md",
+        f"docs/{marker.upper()}_HISTORY.md",
+    ])
+    rendered = "\n".join(problems)
+    assert f"config/projects/{marker}.yaml" in rendered
+    assert f"run_configs/arena_{marker}.yaml" in rendered
+    assert f"tests/test_{marker}_pipeline.py" in rendered
+    assert "legacy_pipeline.py" in rendered
+    assert "scripts/legacy_roihu_reprocess.py" in rendered
+    assert f"sources/codebooks/{marker}_finland.md" in rendered
+    assert f"docs/{marker.upper()}_HISTORY.md" not in rendered
+
+
 def test_content_guard_catches_high_signal_secrets_and_private_infra() -> None:
     assert _suspicious('password: "correct-horse-battery-staple"')  # PUBLICATION-SAFETY: allow
     assert _suspicious("api_key: abcdefghijklmnopqrstuvwxyz")  # PUBLICATION-SAFETY: allow
