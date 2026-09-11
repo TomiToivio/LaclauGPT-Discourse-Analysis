@@ -10,14 +10,10 @@ response, raw object, collector build and platform parser module.
 """
 from __future__ import annotations
 
-from typing import Any
-
 MODULE_VERSIONS = {
-    # These names describe the Python parser implementation lineage. They do
-    # not describe the browser capture mechanism, which is LaclauGPT-native.
-    "tiktok": "zeeschuimer-tiktok-2026-09",
-    "instagram": "zeeschuimer-instagram-2026-09",
-    "x": "zeeschuimer-twitter-2026-09",
+    "tiktok": "laclaugpt-native-tiktok-2026-09",
+    "instagram": "laclaugpt-native-instagram-2026-09",
+    "x": "laclaugpt-native-twitter-2026-09",
 }
 
 CANONICAL_FIELDS = (

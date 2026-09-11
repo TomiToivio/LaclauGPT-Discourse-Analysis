@@ -1,7 +1,7 @@
 """Shared synthetic fixtures for collector tests.
 
-Sanitised synthetic platform payloads only — no real research data.
-Shapes mirror what the Zeeschuimer-derived parsers consume.
+Sanitised synthetic platform payloads only; no real research data. Shapes mirror
+platform payloads consumed by the LaclauGPT-native parsers.
 """
 from __future__ import annotations
 

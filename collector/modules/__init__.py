@@ -1,4 +1,4 @@
-"""Platform parsing modules (Zeeschuimer-derived, MPL-2.0)."""
+"""LaclauGPT-native platform parsing modules."""
 from __future__ import annotations
 
 from . import instagram, tiktok, twitter  # noqa: F401

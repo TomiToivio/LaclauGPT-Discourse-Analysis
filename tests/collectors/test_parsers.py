@@ -1,9 +1,7 @@
-"""Parser tests — collector platform modules on synthetic fixtures."""
+"""Parser tests — LaclauGPT-native platform modules on synthetic fixtures."""
 from __future__ import annotations
 
 import json
-
-import pytest
 
 from collector.modules import instagram, tiktok, twitter
 
@@ -50,7 +48,6 @@ def test_tiktok_preload_ignored():
 
 
 def test_tiktok_search_accepts_list_shaped_data(tiktok_item):
-    """Real TikTok search responses may expose data as a list, not a dict."""
     payload = {"data": [{"type": 1, "item": dict(tiktok_item)}]}
     items = tiktok.capture(
         payload,
@@ -107,7 +104,7 @@ def test_instagram_capture_user_page(instagram_itemlist_item):
                             "https://www.instagram.com/api/graphql/query/")
     assert len(out) == 1
     assert out[0]["code"] == "SynPost001"
-    assert out[0]["_zs_instagram_view"] == "user_posts"
+    assert out[0]["_laclaugpt_instagram_view"] == "user_posts"
 
 
 def test_instagram_capture_drops_prefetch(instagram_itemlist_item):
@@ -120,9 +117,9 @@ def test_instagram_capture_drops_prefetch(instagram_itemlist_item):
 
 def test_instagram_partial_full_upgrade():
     partial = {"id": "1", "user": {"username": "u"}, "media_type": 2,
-               "_zs_partial": True}
+               "_laclaugpt_partial": True}
     full = {**partial, "caption": {"text": "x"}, "video_versions": [{"url": "v"}],
-            "_zs_partial": False}
+            "_laclaugpt_partial": False}
     assert instagram.overwrite_partial(full, partial) is True
     assert instagram.overwrite_partial(partial, full) is False
 
@@ -196,6 +193,7 @@ def test_normalise_record_provenance(tiktok_item):
     assert rec["source_url"] == f"https://www.tiktok.com/@synthetic_user/video/{tiktok_item['id']}"
     prov = rec["collection_provenance"]
     assert prov["collector_version"] == "0.1.0"
+    assert prov["module"] == "laclaugpt-native-tiktok-2026-09"
     assert prov["git_commit"] == "abc1234"
     assert prov["visited_url"] == "https://www.tiktok.com/@synthetic_user"
     assert prov["api_url"] == "https://api.example/item_list"

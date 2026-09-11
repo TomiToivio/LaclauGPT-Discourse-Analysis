@@ -1,19 +1,16 @@
-"""Instagram parsing module.
+"""LaclauGPT-native Instagram parser.
 
-Adapted from Zeeschuimer's modules/instagram.js
-(https://github.com/digitalmethodsinitiative/zeeschuimer),
-Copyright (c) Stijn Peeters, Mozilla Public License 2.0.
+This parser follows the original LaclauGPT-TikTok-Scraper style: identify the
+visited view and captured request, collect native media objects, then normalise
+one object at a time. It supports several current Instagram API/GraphQL shapes
+without mirroring another collector's parser structure.
 
-Modifications for LaclauGPT (2026):
-- translated capture() (view allowlist, edge traversal, ad filters,
-  requested-reel scoping) and the three map_item parsers (Polaris /
-  Graph / itemlist) from JavaScript to Python;
-- map_item() emits plain dicts; MissingMappedField sentinel mirrors the
-  upstream 4CAT sentinel so exports keep stable shapes;
-- overwrite_partial() (partial→full upgrade, full→partial protection)
-  is ported for the store layer.
+Zeeschuimer is an architectural inspiration for browser/API-response capture,
+but this module is an independent LaclauGPT implementation and is not a port of
+Zeeschuimer source code.
 
-This file is MPL-2.0 like the upstream it adapts; see modules/README.md.
+Author: Tomi Toivio / LaclauGPT
+License: CC0 1.0 Universal
 """
 from __future__ import annotations
 
@@ -23,630 +20,363 @@ from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlparse
 
-from .common import MissingMappedField, py_get
+from .common import as_string, first_value, unique
 
 MODULE_NAME = "Instagram (posts & reels)"
 DOMAIN = "instagram.com"
 
-# Instagram serves a view's real content AND prefetch over the same
-# /graphql/query endpoint; only the open view tells them apart. Upstream
-# allowlist (each entry verified upstream 2026-08): responses kept only
-# when the visited view is listed here.
-VIEWS_SERVING_OWN_POSTS = [
-    "frontpage", "explore", "location", "search", "user_posts",
-    "user_reels", "user_tagged", "user_reposts",
-]
-
-_POSSIBLE_ITEM_LISTS = (
-    "items", "edges", "repost_grid_items", "medias", "feed_items",
-    "fill_items", "two_by_two_item",
-)
-_MEDIA_TYPENAMES = ("XIGPolarisVideoMedia", "XIGPolarisImageMedia")
-_HASHTAG_RE = re.compile(r"#([^\s!@#$%ˆ&*()_+{}:\"|<>?\[\];',./`~'‘’]+)")
-
-MEDIA_TYPE_PHOTO = 1
-MEDIA_TYPE_VIDEO = 2
-MEDIA_TYPE_CAROUSEL = 8
+_HASHTAG_RE = re.compile(r"#([\wÀ-ÖØ-öø-ÿ]+)", re.UNICODE)
+_RESERVED_PATHS = {
+    "p", "reel", "reels", "explore", "stories", "direct", "accounts",
+    "popular", "about", "legal", "developer", "web",
+}
 
 
-def _detect_view(path: list[str], source_url: str) -> str | None:
-    """Upstream view classification; None means "drop response"."""
-    if path and path[0] in ("direct", "account", "directory", "lite", "legal",
-                            "static_resources", "logging_client_events"):
-        return None
-    if "injected_story_units" in source_url:
-        return None
+def _host(url: str) -> str:
+    try:
+        return urlparse(url).netloc.lower().removeprefix("www.")
+    except (TypeError, ValueError):
+        return ""
+
+
+def _page_context(url: str) -> tuple[str, str | None, str | None]:
+    """Return (view, profile_handle, requested_shortcode)."""
+    try:
+        path = [part for part in urlparse(url).path.split("/") if part]
+    except (TypeError, ValueError):
+        return "unknown", None, None
     if not path:
-        return "frontpage"
-    if path[0] == "explore":
-        if len(path) > 1 and path[1] == "locations":
-            return "location"
-        if len(path) > 1 and path[1] == "search":
-            return "search"
-        return "explore"
-    if path[0] == "popular":
-        return "popular"
-    if path[0] == "reels":
-        return "reels_audio" if len(path) > 1 and path[1] == "audio" else "reels"
-    if path[0] == "stories":
-        # highlight objects are misleading/incomplete upstream; skipped
-        return None
-    if path[0] in ("reel", "p"):
-        return "single_reel" if path[0] == "reel" else "single_post"
-    if len(path) == 1:
-        return "user_posts"
-    sub = path[1] if len(path) > 1 else ""
-    if sub == "tagged":
-        return "user_tagged"
-    if sub == "reels":
-        return "user_reels"
-    if sub == "reposts":
-        return "user_reposts"
-    if sub == "saved":
-        return "user_saved"
-    if sub == "p":
-        return "single_post"
-    if sub == "reel":
-        return "single_reel"
-    return "unknown"
+        return "frontpage", None, None
+    head = path[0].lower()
+    if head == "explore":
+        return "explore", None, None
+    if head == "p" and len(path) > 1:
+        return "single_post", None, path[1]
+    if head in {"reel", "reels"} and len(path) > 1:
+        return "single_reel", None, path[1]
+    if head not in _RESERVED_PATHS:
+        if len(path) > 1 and path[1].lower() == "reels":
+            return "user_reels", head, None
+        if len(path) > 1 and path[1].lower() == "tagged":
+            return "user_tagged", head, None
+        return "user_posts", head, None
+    return head, None, None
+
+
+def _caption_text(item: dict) -> str:
+    caption = item.get("caption")
+    if isinstance(caption, str):
+        return caption
+    if isinstance(caption, dict):
+        return as_string(caption.get("text"))
+    if isinstance(caption, list) and caption and isinstance(caption[0], dict):
+        return as_string(caption[0].get("text"))
+    try:
+        return as_string(item["edge_media_to_caption"]["edges"][0]["node"]["text"])
+    except (KeyError, IndexError, TypeError):
+        return ""
+
+
+def _looks_like_media(item: Any) -> bool:
+    if not isinstance(item, dict):
+        return False
+    identity = first_value(item.get("pk"), item.get("id"), item.get("code"), item.get("shortcode"))
+    if not identity:
+        return False
+    typename = as_string(item.get("__typename"))
+    return bool(
+        item.get("media_type")
+        or item.get("code")
+        or item.get("shortcode")
+        or item.get("image_versions2")
+        or item.get("video_versions")
+        or item.get("display_url")
+        or item.get("display_uri")
+        or item.get("edge_media_to_caption")
+        or "Polaris" in typename
+    )
+
+
+def _collect_media(root: Any) -> list[dict]:
+    """Collect post/reel objects while treating carousel children as media assets."""
+    found: list[dict] = []
+    seen_objects: set[int] = set()
+
+    def walk(node: Any) -> None:
+        if isinstance(node, list):
+            for child in node:
+                walk(child)
+            return
+        if not isinstance(node, dict):
+            return
+        marker = id(node)
+        if marker in seen_objects:
+            return
+        seen_objects.add(marker)
+
+        if _looks_like_media(node):
+            found.append(node)
+            return
+
+        for key, value in node.items():
+            if key in {
+                "user", "owner", "caption", "audio", "music_metadata", "image_versions2",
+                "video_versions", "carousel_media", "edge_sidecar_to_children",
+            }:
+                continue
+            if isinstance(value, (dict, list)):
+                walk(value)
+
+    walk(root)
+    return found
+
+
+def _parse_html(text: str) -> list[dict]:
+    payloads: list[dict] = []
+    for match in re.finditer(
+        r"<script[^>]*type=[\"']application/json[\"'][^>]*>([\s\S]*?)</script>",
+        text,
+        re.IGNORECASE,
+    ):
+        try:
+            value = json.loads(match.group(1))
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if isinstance(value, dict):
+            payloads.append(value)
+    return [item for payload in payloads for item in _collect_media(payload)]
+
+
+def _is_ad(item: dict) -> bool:
+    link = item.get("link")
+    return bool(
+        item.get("product_type") == "ad"
+        or item.get("ad_action") is not None
+        or (isinstance(link, str) and link.startswith("https://www.facebook.com/ads/"))
+    )
+
+
+def _author_name(item: dict) -> str:
+    user = item.get("user") if isinstance(item.get("user"), dict) else {}
+    owner = item.get("owner") if isinstance(item.get("owner"), dict) else {}
+    return as_string(first_value(user.get("username"), owner.get("username"), item.get("owner_username")))
+
+
+def _decorate(item: dict, view: str, embedded: bool) -> dict:
+    copied = dict(item)
+    copied["_laclaugpt_partial"] = not bool(
+        _caption_text(item)
+        and (
+            item.get("video_versions")
+            or item.get("image_versions2")
+            or item.get("display_url")
+            or item.get("display_uri")
+        )
+    )
+    copied["_laclaugpt_instagram_view"] = view
+    copied["_laclaugpt_embedded_json"] = embedded
+    return copied
+
+
+def _deduplicate(items: list[dict]) -> list[dict]:
+    by_id: dict[str, dict] = {}
+    for item in items:
+        item_id = as_string(first_value(item.get("pk"), item.get("id"), item.get("code"), item.get("shortcode")))
+        if not item_id:
+            continue
+        previous = by_id.get(item_id)
+        if previous is None or (previous.get("_laclaugpt_partial") and not item.get("_laclaugpt_partial")):
+            by_id[item_id] = item
+    return list(by_id.values())
 
 
 def capture(response: Any, source_platform_url: str, source_url: str) -> list[dict]:
-    """Extract Instagram media objects from one captured response."""
-    try:
-        domain = urlparse(source_platform_url).netloc.lower().replace("www.", "")
-    except ValueError:
-        return []
-    if domain != "instagram.com":
+    """Extract native Instagram post/reel objects from one captured response."""
+    if _host(source_platform_url) != DOMAIN:
         return []
 
-    path = [p for p in urlparse(source_platform_url).path.split("/") if p]
-    view = _detect_view(path, source_url)
-    if view is None:
+    view, visited_handle, requested_shortcode = _page_context(source_platform_url)
+    request_url = source_url or ""
+    if re.search(r"logging_client_events|lightspeed_web_request_for_igd|injected_story_units", request_url):
         return []
 
-    # graphql responses are only trusted for views that serve their own
-    # posts (prefetch otherwise) — upstream allowlist logic
-    if view not in VIEWS_SERVING_OWN_POSTS and (
-            source_url.endswith("graphql") or source_url.endswith("graphql/query")):
-        return []
-
-    if "/api/v1/discover/web/explore_grid/" in source_url and view != "explore":
-        return []
-
+    embedded = False
     if isinstance(response, dict):
-        datas: list[Any] = [response]
-        response_is_json = True
-    else:
-        if isinstance(response, str) and response.startswith("for (;;);"):
-            response = response[len("for (;;);"):]
-        datas = []
-        response_is_json = False
+        items = _collect_media(response)
+    elif isinstance(response, str):
+        body = response.strip()
+        if not body:
+            return []
+        if body.startswith("for (;;);"):
+            body = body[len("for (;;);"):]
         try:
-            datas.append(json.loads(response))
-            response_is_json = True
-        except (json.JSONDecodeError, TypeError):
-            datas = _extract_embedded_json(response or "")
-
-    if not datas:
-        return []
-    if (len(datas) == 1 and isinstance(datas[0], dict)
-            and "lightspeed_web_request_for_igd" in datas[0]
-            and source_url.endswith("graphql")):
-        datas = []
-
-    edges: list[dict] = []
-
-    def _take_items(prop: str, holder: dict) -> list | None:
-        """Upstream per-property item extraction. Returns item list or None."""
-        val: Any = holder[prop]
-        if prop in ("edges", "repost_grid_items"):
-            nodes = [e.get("node") if isinstance(e, dict) else None
-                     for e in (val or [])]
-            medias = [n["media"] for n in nodes
-                      if isinstance(n, dict) and n.get("media")]
-            if medias:
-                return medias
-            node_media_like = [n for n in nodes
-                               if isinstance(n, dict) and "id" in n
-                               and ("media_type" in n
-                                    or n.get("__typename") in _MEDIA_TYPENAMES)]
-            if node_media_like:
-                return node_media_like
-            nested = [it for n in nodes
-                      if isinstance(n, dict) and isinstance(n.get("items"), list)
-                      for it in n["items"]]
-            if nested:
-                return nested
-            return val
-        if prop in ("medias", "fill_items"):
-            if view in ("explore", "search"):
-                found: list[Any] = []
-                for wrapper in val or []:
-                    if not isinstance(wrapper, dict):
-                        continue
-                    if wrapper.get("media"):
-                        found.append(wrapper["media"])
-                    clips = wrapper.get("clips")
-                    if isinstance(clips, dict) and isinstance(clips.get("items"), list):
-                        found.extend(c["media"] for c in clips["items"]
-                                     if isinstance(c, dict) and c.get("media"))
-                return found
-            return None
-        if prop == "feed_items":
-            return [m.get("media_or_ad") for m in val if isinstance(m, dict)]
-        if prop == "items" and isinstance(val, list) and val and all(
-                isinstance(i, dict) and "media" in i for i in val):
-            if view == "explore" or any(ep in source_url for ep in
-                                        ("api/v1/clips/music/", "api/v1/feed/saved/")):
-                return [m["media"] for m in val]
-            return None
-        if prop == "two_by_two_item":
-            return [(val.get("channel") or {}).get("media")]
-        return val  # generic single-reel popup etc.
-
-    def traverse(obj: Any) -> None:
-        if not isinstance(obj, dict):
-            return
-        for prop, val in obj.items():
-            if prop == "xdt_api__v1__feed__timeline__connection":
-                if view == "frontpage":
-                    for edge in (val or {}).get("edges") or []:
-                        node = edge.get("node") if isinstance(edge, dict) else None
-                        if not isinstance(node, dict):
-                            continue
-                        if (node.get("media") is None
-                                and isinstance(node.get("explore_story"), dict)
-                                and node["explore_story"].get("media")):
-                            node = node["explore_story"]
-                        media = node.get("media")
-                        if (isinstance(media, dict) and "id" in media
-                                and isinstance(media.get("user"), dict)
-                                and media["user"]):
-                            edges.append(media)
-                # non-frontpage = background feed request; drop
-                continue
-            if prop in _POSSIBLE_ITEM_LISTS:
-                if isinstance(val, list) and not val:
-                    continue
-                items = _take_items(prop, obj)
-                if not items:
-                    continue
-                for item in items:
-                    if (isinstance(item, dict) and "id" in item
-                            and ("media_type" in item
-                                 or item.get("__typename") in _MEDIA_TYPENAMES)
-                            and "user" in item
-                            and ("is_seen" not in item or item["is_seen"] is not False)
-                            and item.get("product_type") != "ad"
-                            and not (isinstance(item.get("link"), str)
-                                     and item["link"].startswith(
-                                         "https://www.facebook.com/ads/"))):
-                        edges.append(item)
-            elif prop in ("xdt_api__v1__feed__user_timeline_graphql_connection",
-                          "xdt_location_get_web_info_tab"):
-                for edge in (val or {}).get("edges") or []:
-                    node = edge.get("node") if isinstance(edge, dict) else None
-                    if (isinstance(node, dict) and "id" in node
-                            and isinstance(node.get("user"), dict) and node["user"]
-                            and node.get("product_type") != "ad"
-                            and node.get("ad_action") is None
-                            and not (isinstance(node.get("link"), str)
-                                     and node["link"].startswith(
-                                         "https://www.facebook.com/ads/"))):
-                        edges.append(node)
-            elif isinstance(val, dict):
-                traverse(val)
-
-    for data in datas:
-        if data:
-            traverse(data)
-
-    if not edges:
+            payload = json.loads(body)
+        except json.JSONDecodeError:
+            embedded = True
+            items = _parse_html(body)
+        else:
+            items = _collect_media(payload)
+    else:
         return []
 
-    collected = []
-    for edge in edges:
-        edge = dict(edge)
-        edge["_zs_partial"] = not all(k in edge for k in
-                                      ("caption", "video_versions", "media_type"))
-        edge["_zs_instagram_view"] = view
-        edge["_zs_html_embedded_json"] = not response_is_json
-        if edge.get("product_type") != "ad":
-            collected.append(edge)
-
-    # a URL naming one specific reel yields only that reel (upstream)
-    requested_reel = None
-    if path and path[0] == "reel" and len(path) > 1:
-        requested_reel = path[1]
-    elif path and path[0] == "reels" and len(path) > 1 and path[1] != "audio":
-        requested_reel = path[1]
-    if requested_reel:
-        collected = [e for e in collected if e.get("code") == requested_reel]
-    return collected
-
-
-def _extract_embedded_json(response: str) -> list:
-    """Port of upstream extractEmbeddedInstagramJSON (HTML-embedded JSON)."""
-    datas: list[Any] = []
-    js_prefixes = [
-        "{\"require\":[[\"ScheduledServerJS\",\"handle\",null,[{\"__bbox\":{\"require\":[[\"RelayPrefetchedStreamCache\",\"next\",[],[",
-        "{\"require\":[[\"ScheduledServerJS\",\"handle\",null,[{\"__bbox\":{\"require\":[[\"PolarisQueryPreloaderCache\",\"add\",[],[",
-    ]
-    while js_prefixes:
-        prefix = js_prefixes.pop(0)
-        for line in (response or "").split("\n"):
-            if prefix not in line:
-                continue
-            json_bit = line.split(prefix[:-1])[1].split("</script>")[0].strip()
-            if json_bit.endswith(";"):
-                json_bit = json_bit[:-1]
-            if "adp_PolarisDesktopPostPageRelatedMediaGrid" in json_bit:
-                continue
-            if "additionalDataLoaded" in prefix:
-                json_bit = json_bit[:-1]
-            elif not js_prefixes:
-                json_bit = json_bit.split("]]}}")[0]
-            json_bit = json_bit.split('],["CometResourceScheduler"')[0]
-            try:
-                extracted = json.loads(json_bit)
-
-                def _unwrap(obj: Any) -> Any:
-                    if not isinstance(obj, dict):
-                        return None
-                    for prop, val in obj.items():
-                        if prop == "result" and isinstance(val, dict) and "response" in val:
-                            try:
-                                return json.loads(val["response"])
-                            except (json.JSONDecodeError, TypeError):
-                                return None
-                        if isinstance(val, dict):
-                            res = _unwrap(val)
-                            if res is not None:
-                                return res
-                    return None
-
-                explorer = _unwrap(extracted)
-                datas.append(explorer if explorer is not None else extracted)
-            except json.JSONDecodeError:
-                continue
-    return datas
+    collected: list[dict] = []
+    for item in items:
+        if _is_ad(item):
+            continue
+        shortcode = as_string(first_value(item.get("code"), item.get("shortcode")))
+        if requested_shortcode and shortcode != requested_shortcode:
+            continue
+        author = _author_name(item).lower()
+        if visited_handle and author and author != visited_handle.lower():
+            continue
+        collected.append(_decorate(item, view, embedded))
+    return _deduplicate(collected)
 
 
 def overwrite_partial(incoming: dict, existing: dict | None) -> bool:
-    """Upstream overwrite_partial: partial→full upgrade, never downgrade."""
+    """Allow a full payload to replace an earlier partial payload, never reverse."""
     if not existing:
         return False
-    existing_partial = existing.get("_zs_partial") is True
-    incoming_partial = incoming.get("_zs_partial") is True
-    return existing_partial and not incoming_partial
+    return bool(existing.get("_laclaugpt_partial")) and not bool(
+        incoming.get("_laclaugpt_partial")
+    )
 
 
-def _extract_hashtags(caption: Any) -> str:
-    if isinstance(caption, MissingMappedField):
-        return ""
-    return ",".join(m.group(1) for m in _HASHTAG_RE.finditer(caption or ""))
+def _media_type(item: dict) -> str:
+    typename = as_string(item.get("__typename"))
+    if item.get("media_type") == 8 or item.get("carousel_media") or item.get("edge_sidecar_to_children"):
+        return "carousel"
+    if item.get("media_type") == 2 or item.get("is_video") or "VideoMedia" in typename:
+        return "video"
+    return "photo"
 
 
-def _get_author(node: dict) -> dict:
-    user = node.get("user") or {}
-    owner = node.get("owner") or {}
-    if (user.get("username") and owner.get("username")
-            and user["username"] != owner["username"]):
-        raise ValueError("Unable to parse item: different user and owner")
-    author = dict(owner)
-    for key, val in user.items():
-        if val is not None:
-            author[key] = val
-    return author
+def _image_urls(item: dict) -> list[str]:
+    urls: list[str] = []
+    for key in ("display_url", "display_uri", "display_src"):
+        if item.get(key):
+            urls.append(as_string(item[key]))
+    image_versions = item.get("image_versions2")
+    if isinstance(image_versions, dict):
+        for candidate in image_versions.get("candidates") or []:
+            if isinstance(candidate, dict) and candidate.get("url"):
+                urls.append(as_string(candidate["url"]))
+
+    children = item.get("carousel_media") or []
+    if isinstance(children, list):
+        for child in children:
+            if isinstance(child, dict):
+                urls.extend(_image_urls(child))
+    return unique(urls)
 
 
-def _get_author_id(node: dict, author: dict) -> Any:
-    author_id = author.get("id") or author.get("pk")
-    if author_id:
-        return author_id
-    item_id = node.get("id")
-    if isinstance(item_id, str) and "_" in item_id:
-        return item_id.split("_")[1]
-    return MissingMappedField("")
+def _video_urls(item: dict) -> list[str]:
+    urls: list[str] = []
+    if item.get("video_url"):
+        urls.append(as_string(item["video_url"]))
+    for version in item.get("video_versions") or []:
+        if isinstance(version, dict) and version.get("url"):
+            urls.append(as_string(version["url"]))
+    children = item.get("carousel_media") or []
+    if isinstance(children, list):
+        for child in children:
+            if isinstance(child, dict):
+                urls.extend(_video_urls(child))
+    return unique(urls)
 
 
-def _get_image_url(candidates: Any) -> str:
-    if not isinstance(candidates, list):
-        return ""
-    for candidate in candidates:
-        if isinstance(candidate, dict) and candidate.get("url"):
-            return candidate["url"]
-    return ""
-
-
-def _fmt_ts(unix: Any) -> Any:
+def _timestamp(item: dict) -> tuple[str, int]:
+    value = first_value(item.get("taken_at"), item.get("taken_at_timestamp"), item.get("created_time"))
     try:
-        return datetime.fromtimestamp(int(unix), timezone.utc).strftime(
-            "%Y-%m-%dT%H:%M:%SZ")
-    except (TypeError, ValueError, OSError):
-        return MissingMappedField(0)
-
-
-def _value_or_missing(obj: dict, key: str, default: Any) -> Any:
-    val = obj.get(key)
-    return val if val is not None else MissingMappedField(default)
-
-
-def _location_fields(node: dict, taken_style: str) -> dict:
-    """Shared location extraction for the Graph and itemlist parsers."""
-    out = {"name": "", "latlong": "", "city": "", "location_id": ""}
-    if node.get("location"):
-        loc = node["location"]
-        out = {
-            "name": loc.get("name") or "",
-            "location_id": str(loc.get("pk") or ""),
-            "latlong": (f"{loc['lat']},{loc['lng']}" if loc.get("lat") else ""),
-            "city": loc.get("city") or "",
-        }
-    return out
-
-
-def _parse_polaris_item(node: dict) -> dict:
-    caption: Any
-    if "caption" not in node:
-        caption = MissingMappedField("")
-    elif not node["caption"]:
-        caption = ""
-    else:
-        caption = node["caption"].get("text", "")
-    author = _get_author(node)
-    if author.get("is_verified") is None:
-        is_verified: Any = MissingMappedField(False)
-    else:
-        is_verified = bool(author.get("is_verified"))
-    type_map = {"XIGPolarisPhotoMedia": "photo", "XIGPolarisVideoMedia": "video",
-                "XIGPolarisImageMedia": "photo", "XIGPolarisCarouselMedia": "photo"}
-    media_type = type_map.get(node.get("__typename") or "", "unknown")
-    num_media = (1 if node.get("__typename") != "XIGPolarisCarouselMedia"
-                 else len(node.get("carousel_media") or []))
-    video_versions = node.get("video_versions") or []
-    if video_versions and isinstance(video_versions[0], dict):
-        media_urls: Any = video_versions[0].get("url", "")
-    else:
-        media_urls = MissingMappedField("")
-    return {
-        "collected_from_url": py_get(node, "__import_meta.source_platform_url", ""),
-        "collected_from_view": node.get("_zs_instagram_view", ""),
-        "partial_item": node.get("_zs_partial", False),
-        "id": node.get("code"),
-        "timestamp": MissingMappedField(0),
-        "thread_id": node.get("code"),
-        "parent_id": node.get("code"),
-        "url": f"https://www.instagram.com/p/{node.get('code', '')}",
-        "body": caption,
-        "author_id": _get_author_id(node, author),
-        "author": _value_or_missing(author, "username", ""),
-        "author_fullname": _value_or_missing(author, "full_name", ""),
-        "verified": is_verified,
-        "author_avatar_url": _value_or_missing(author, "profile_pic_url", ""),
-        "media_type": media_type,
-        "num_media": num_media,
-        "image_urls": _value_or_missing(node, "display_uri", ""),
-        "media_urls": media_urls,
-        "hashtags": _extract_hashtags(caption),
-        "play_count": _value_or_missing(node, "play_count", -1),
-        "likes_hidden": MissingMappedField(""),
-        "num_likes": MissingMappedField(-1),
-        "num_comments": MissingMappedField(-1),
-        "location_name": MissingMappedField(""),
-        "location_id": MissingMappedField(""),
-        "location_latlong": MissingMappedField(""),
-        "location_city": MissingMappedField(""),
-        "unix_timestamp": MissingMappedField(0),
-        "missing_media": None,
-    }
-
-
-def _parse_graph_item(node: dict) -> dict:
-    caption: Any = MissingMappedField("")
+        unix_ts = int(str(value))
+    except (TypeError, ValueError):
+        return "", 0
+    if unix_ts <= 0:
+        return "", unix_ts
     try:
-        caption = node["edge_media_to_caption"]["edges"][0]["node"]["text"]
-    except (KeyError, IndexError, TypeError):
-        pass
-    sidecar = node.get("edge_sidecar_to_children")
-    num_media = ((len(sidecar["edges"]) if sidecar else 0)
-                 if node.get("__typename") == "GraphSidecar" else 1)
-    media_node = sidecar["edges"][0]["node"] if sidecar else node
-    if media_node.get("__typename") == "GraphVideo":
-        media_url = media_node.get("video_url") or ""
-    elif media_node.get("__typename") == "GraphImage":
-        resources = media_node.get("display_resources") or media_node.get(
-            "thumbnail_resources") or []
-        media_url = (resources[-1].get("src", "") if resources
-                     else media_node.get("display_url") or "")
-    else:
-        media_url = media_node.get("display_url") or ""
-    type_map = {"GraphSidecar": "photo", "GraphVideo": "video"}
-    if node.get("__typename") != "GraphSidecar":
-        media_type = type_map.get(node.get("__typename"), "unknown")
-    else:
-        types = {e["node"].get("__typename") for e in (sidecar or {}).get("edges", [])
-                 if isinstance(e, dict) and isinstance(e.get("node"), dict)}
-        media_type = ("mixed" if len(types) > 1
-                      else type_map.get(next(iter(types), ""), "unknown"))
-    location = _location_fields(node, "graph")
-    no_likes = bool(node.get("like_and_view_counts_disabled"))
-    author = _get_author(node)
-    if node.get("view_count") is not None:
-        play_count: Any = node["view_count"]
-    elif node.get("play_count") is not None:
-        play_count = node["play_count"]
-    else:
-        play_count = MissingMappedField(-1)
-    preview_like = node.get("edge_media_preview_like") or {}
-    preview_comment = node.get("edge_media_preview_comment") or {}
-    return {
-        "id": node.get("shortcode"),
-        "collected_from_url": py_get(node, "__import_meta.source_platform_url", ""),
-        "collected_from_view": _value_or_missing(node, "_zs_instagram_view", ""),
-        "partial_item": _value_or_missing(node, "_zs_partial", ""),
-        "timestamp": _fmt_ts(node.get("taken_at_timestamp")),
-        "thread_id": node.get("shortcode"),
-        "parent_id": node.get("shortcode"),
-        "url": f"https://www.instagram.com/p/{node.get('shortcode', '')}",
-        "body": caption,
-        "author_id": _get_author_id(node, author),
-        "author": _value_or_missing(author, "username", ""),
-        "author_fullname": _value_or_missing(author, "full_name", ""),
-        "verified": bool(author.get("is_verified")),
-        "author_avatar_url": _value_or_missing(author, "profile_pic_url", ""),
-        "media_type": media_type,
-        "num_media": num_media,
-        "image_urls": node.get("display_url") or "",
-        "media_urls": media_url,
-        "hashtags": _extract_hashtags(caption),
-        "usertags": ",".join(
-            e["node"]["user"]["username"]
-            for e in (node.get("edge_media_to_tagged_user") or {}).get("edges", [])
-            if isinstance(e, dict) and isinstance(e.get("node"), dict)
-            and e["node"].get("user", {}).get("username")),
-        "play_count": play_count,
-        "likes_hidden": "yes" if no_likes else "no",
-        "num_likes": preview_like.get("count", -1) if not no_likes
-        else MissingMappedField(-1),
-        "num_comments": preview_comment.get("count", -1),
-        "location_name": location["name"],
-        "location_id": location["location_id"],
-        "location_latlong": location["latlong"],
-        "location_city": location["city"],
-        "unix_timestamp": node.get("taken_at_timestamp"),
-        "missing_media": None,
-    }
+        return datetime.fromtimestamp(unix_ts, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), unix_ts
+    except (OverflowError, OSError, ValueError):
+        return "", 0
 
 
-def _parse_itemlist_item(node: dict) -> dict:
-    code = node.get("code")
-    if not code:
-        raise ValueError("Unable to parse item: no post code to identify the post by")
-    caption: Any
-    if "caption" not in node:
-        caption = MissingMappedField("")
-    elif not node["caption"]:
-        caption = ""
-    else:
-        caption = node["caption"].get("text", "")
-    display_urls: list[str] = []
-    media_urls: list[str] = []
-    missing_media: Any = None
-    type_map = {MEDIA_TYPE_PHOTO: "photo", MEDIA_TYPE_VIDEO: "video"}
-    media_types: set[str] = set()
-    carousel = node.get("carousel_media") or []
-    if node.get("media_type") == MEDIA_TYPE_CAROUSEL:
-        num_media = len(carousel) or py_get(node, "carousel_media_count") or 1
-    else:
-        num_media = 1
-    media_nodes = carousel or [node]
-    for media_node in media_nodes:
-        thumbnail = _get_image_url((media_node.get("image_versions2") or {}).get("candidates"))
-        video_versions = media_node.get("video_versions") or []
-        video_url = (video_versions[0].get("url", "")
-                     if video_versions and isinstance(video_versions[0], dict) else "")
-        mtype = media_node.get("media_type")
-        if mtype == MEDIA_TYPE_VIDEO:
-            if thumbnail:
-                display_urls.append(thumbnail)
-            elif video_url:
-                display_urls.append(video_url)
-            if video_url:
-                media_urls.append(video_url)
-            else:
-                missing_media = MissingMappedField("")
-        elif mtype == MEDIA_TYPE_PHOTO and thumbnail:
-            display_urls.append(thumbnail)
-            media_urls.append(thumbnail)
-        else:
-            missing_media = MissingMappedField("")
-        media_types.add({MEDIA_TYPE_PHOTO: "photo",
-                         MEDIA_TYPE_VIDEO: "video"}.get(mtype, "unknown"))
-    media_type = ("mixed" if len(media_types) > 1
-                  else (next(iter(media_types), "unknown")))
-    if node.get("comment_count") is not None:
-        num_comments: Any = node["comment_count"]
-    elif isinstance(node.get("comments"), list):
-        num_comments = len(node["comments"])
-    else:
-        num_comments = MissingMappedField(-1)
-    location = _location_fields(node, "itemlist")
-    author = _get_author(node)
-    if author.get("is_verified") is None:
-        is_verified = MissingMappedField(False)
-    else:
-        is_verified = bool(author.get("is_verified"))
-    coauthors, coauthor_fullnames, coauthor_ids = [], [], []
-    for co in (node.get("coauthor_producers") or []):
-        coauthors.append(co.get("username") or "")
-        coauthor_fullnames.append(co.get("full_name") or "")
-        coauthor_ids.append(co.get("id") or "")
-    no_likes = bool(node.get("like_and_view_counts_disabled"))
-    if not no_likes and node.get("like_count") is not None:
-        num_likes: Any = node["like_count"]
-    else:
-        num_likes = MissingMappedField(-1)
-    if node.get("view_count") is not None:
-        play_count = node["view_count"]
-    elif node.get("play_count") is not None:
-        play_count = node["play_count"]
-    else:
-        play_count = MissingMappedField(-1)
-    usertags = ""
-    if "usertags" in node:
-        usertags = ",".join(
-            t["user"]["username"]
-            for t in ((node.get("usertags") or {}).get("in") or [])
-            if isinstance(t, dict) and isinstance(t.get("user"), dict)
-            and t["user"].get("username"))
-    return {
-        "collected_from_url": py_get(node, "__import_meta.source_platform_url", ""),
-        "collected_from_view": node.get("_zs_instagram_view", ""),
-        "partial_item": node.get("_zs_partial", ""),
-        "id": code,
-        "timestamp": _fmt_ts(node.get("taken_at")),
-        "thread_id": code,
-        "parent_id": code,
-        "url": f"https://www.instagram.com/p/{code}",
-        "body": caption,
-        "author_id": _get_author_id(node, author),
-        "author": _value_or_missing(author, "username", ""),
-        "author_fullname": _value_or_missing(author, "full_name", ""),
-        "verified": is_verified,
-        "author_avatar_url": _value_or_missing(author, "profile_pic_url", ""),
-        "coauthors": ",".join(c for c in coauthors if c),
-        "coauthor_fullnames": ",".join(c for c in coauthor_fullnames if c),
-        "coauthor_ids": ",".join(c for c in coauthor_ids if c),
-        "media_type": media_type,
-        "num_media": num_media,
-        "image_urls": ",".join(display_urls),
-        "media_urls": ",".join(media_urls),
-        "hashtags": _extract_hashtags(caption),
-        "usertags": usertags,
-        "play_count": play_count,
-        "likes_hidden": "yes" if no_likes else "no",
-        "num_likes": num_likes,
-        "num_comments": num_comments,
-        "location_name": location["name"],
-        "location_id": location["location_id"],
-        "location_latlong": location["latlong"],
-        "location_city": location["city"],
-        "unix_timestamp": _fmt_ts(node.get("taken_at")),
-        "missing_media": missing_media,
-    }
+def _location(item: dict) -> tuple[str, str, str, str]:
+    loc = item.get("location") if isinstance(item.get("location"), dict) else {}
+    name = as_string(loc.get("name"))
+    city = as_string(first_value(loc.get("city"), loc.get("city_name")))
+    location_id = as_string(first_value(loc.get("pk"), loc.get("id")))
+    lat = first_value(loc.get("lat"), loc.get("latitude"))
+    lng = first_value(loc.get("lng"), loc.get("longitude"))
+    latlong = f"{lat},{lng}" if lat is not None and lng is not None else ""
+    return name, latlong, city, location_id
 
 
 def map_item(item: dict, metadata: dict | None = None) -> dict:
-    """Route one Instagram media object to the correct parser (upstream)."""
-    link = py_get(item, "link", "")
-    if item.get("product_type") == "ad" or (
-            link and str(link).startswith("https://www.facebook.com/ads/ig_redirect")):
-        raise ValueError("appears to be Instagram ad; raw data kept for audit")
-    typename = py_get(item, "__typename", "")
-    if typename and "polaris" in typename.lower():
-        return _parse_polaris_item(item)
-    if typename and typename.startswith("Graph"):
-        return _parse_graph_item(item)
-    return _parse_itemlist_item(item)
+    """Map one native Instagram object to the stable collector record shape."""
+    metadata = metadata or {}
+    user = item.get("user") if isinstance(item.get("user"), dict) else {}
+    owner = item.get("owner") if isinstance(item.get("owner"), dict) else {}
+    author = {**owner, **{key: value for key, value in user.items() if value is not None}}
+
+    shortcode = as_string(first_value(item.get("code"), item.get("shortcode")))
+    native_id = as_string(first_value(item.get("pk"), item.get("id"), shortcode))
+    record_id = shortcode or native_id
+    media_type = _media_type(item)
+    caption = _caption_text(item)
+    timestamp, unix_ts = _timestamp(item)
+    image_urls = _image_urls(item)
+    video_urls = _video_urls(item)
+    location_name, location_latlong, location_city, location_id = _location(item)
+
+    if shortcode:
+        route = "reel" if media_type == "video" else "p"
+        permalink = f"https://www.instagram.com/{route}/{shortcode}"
+    else:
+        permalink = as_string(first_value(item.get("permalink"), item.get("link")))
+
+    hashtags = unique(match.group(1) for match in _HASHTAG_RE.finditer(caption))
+    likes = first_value(
+        item.get("like_count"),
+        (item.get("edge_media_preview_like") or {}).get("count"),
+        (item.get("edge_liked_by") or {}).get("count"),
+    )
+    comments = first_value(
+        item.get("comment_count"),
+        (item.get("edge_media_to_comment") or {}).get("count"),
+        (item.get("edge_media_to_parent_comment") or {}).get("count"),
+    )
+    plays = first_value(item.get("play_count"), item.get("view_count"), item.get("video_view_count"))
+
+    return {
+        "collected_from_url": metadata.get("source_platform_url", ""),
+        "id": record_id,
+        "native_id": native_id,
+        "thread_id": record_id,
+        "parent_id": "",
+        "author": as_string(first_value(author.get("username"), item.get("owner_username"))),
+        "author_full": as_string(first_value(author.get("full_name"), author.get("name"))),
+        "author_id": as_string(first_value(author.get("pk"), author.get("id"))),
+        "author_avatar": as_string(
+            first_value(author.get("profile_pic_url"), author.get("profile_pic_url_hd"))
+        ),
+        "verified": author.get("is_verified", ""),
+        "body": caption,
+        "timestamp": timestamp,
+        "unix_timestamp": unix_ts,
+        "url": permalink,
+        "media_type": media_type,
+        "media_urls": ",".join(video_urls),
+        "image_urls": ",".join(image_urls),
+        "hashtags": ",".join(hashtags),
+        "num_likes": likes if likes is not None else -1,
+        "num_comments": comments if comments is not None else -1,
+        "like_count": likes if likes is not None else -1,
+        "comment_count": comments if comments is not None else -1,
+        "play_count": plays if plays is not None else -1,
+        "location_name": location_name,
+        "location_latlong": location_latlong,
+        "location_city": location_city,
+        "location_id": location_id,
+        "product_type": as_string(item.get("product_type")),
+        "partial": bool(item.get("_laclaugpt_partial")),
+        "instagram_view": as_string(item.get("_laclaugpt_instagram_view")),
+    }
