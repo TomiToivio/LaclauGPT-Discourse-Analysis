@@ -327,3 +327,10 @@ data/csv/ep24_finland.csv
 /tests/test_legacy_*.py
 /tests/test_prepare_legacy_reprocessing.py
 /sources/codebooks/legacy_*.md
+
+# Live collection manifests and operational feed lists stay private (issue #20
+# boundary: no live watch lists / enabled source combinations in public).
+config/projects/*-sources.toml
+config/projects/*-sources.yaml
+docs/AI26_RSS_SOURCES.md
+docs/*_FEEDS*.md
