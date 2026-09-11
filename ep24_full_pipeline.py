@@ -1,22 +1,9 @@
 # -*- coding: utf-8 -*-
 """EP24 full-country reprocessing pipeline (Finland + Poland).
 
-Issue #73 follow-up: reprocess the FULL Finnish and Polish EP24 samples
-(2 498 + 2 214 videos, dashboard_9_1_2026.csv) with the new LaclauGPT
-canonical pipeline. Chain per country:
-
-1. fetch      — Allas videos -> $DATA_ROOT/ep24/videos (dedup by URL,
-                resume-safe; ~4 308 unique URLs across both countries)
-2. asr        — faster-whisper large-v3 + vad_filter -> transcripts JSONL
-3. canon      — canonical CSV join (transcript = source text; legacy
-                dashboard columns only as identity metadata)
-4. analysis   — LLM stages (summary/discourse/populism/postprocess)
-                via pipeline.run_pipeline -> annotations.jsonl
-
-The screen-metadata OCR stage of the sample runs is NOT part of the
-default chain here (kept optional via --with-ocr).
-
-Runs INSIDE a SLURM GPU job. Submission is Tomi's (CSC account).
+Issue #73 follow-up: reprocess the full Finnish and Polish EP24 samples with
+the canonical LaclauGPT pipeline. Repository and research-data roots are supplied
+through runtime configuration rather than embedded machine/user paths.
 """
 from __future__ import annotations
 
@@ -28,8 +15,8 @@ from pathlib import Path
 import ep24_asr
 import ep24_fetch
 
-REPO_ROOT = "LACLAUGPT_REPO_ROOT"
-DATA_ROOT = "LACLAUGPT_DATA_DIR"
+REPO_ROOT = os.environ.get("LACLAUGPT_REPO_ROOT", str(Path(__file__).resolve().parent))
+DATA_ROOT = os.environ.get("LACLAUGPT_DATA_DIR", str(Path(__file__).resolve().parent / "data"))
 
 COUNTRIES = {
     "finland": {"manifest": "finland_manifest.csv", "legacy": "ep24_finland.csv",
@@ -41,7 +28,6 @@ COUNTRIES = {
 
 def paths(country: str, *, data_root: str = DATA_ROOT,
           repo_root: str = REPO_ROOT) -> dict[str, Path]:
-    """Full-run scratch layout for one country."""
     base = Path(data_root)
     cfg = COUNTRIES[country]
     return {
@@ -59,30 +45,24 @@ def run_country(country: str, *, data_root: str = DATA_ROOT,
                 repo_root: str = REPO_ROOT, run_config: str | None = None,
                 model_size: str = ep24_asr.DEFAULT_MODEL, model=None,
                 dry_run: bool = False) -> dict:
-    """Full chain for one country inside the SLURM job."""
     p = paths(country, data_root=data_root, repo_root=repo_root)
     status: dict = {"country": country}
-
-    # 1. fetch (resume-safe; skips existing files)
     fetched = ep24_fetch.fetch_all(p["manifest"], p["videos"])
     status["fetched"] = len(fetched)
     if dry_run:
         status["dry_run"] = True
         return status
 
-    # 2. ASR (resume-safe JSONL, GPU)
     n = ep24_asr.transcribe_manifest(p["manifest"], p["videos"],
                                      p["transcripts"], model_size=model_size,
                                      model=model)
     status["transcribed"] = n
 
-    # 3. canonical CSV join (identity from legacy roster, text from ASR)
     from ep24_pipeline import build_canonical_csv
     written = build_canonical_csv(p["manifest"], p["transcripts"],
                                   p["legacy_csv"], p["canonical_csv"])
     status["canonical_rows"] = written
 
-    # 4. LLM stages via Ollama Cloud (same config as the sample pilot)
     if not run_config:
         run_config = str(Path(repo_root) / "run_configs" /
                          "arena_ep24_roihu_sample.yaml")
@@ -108,8 +88,10 @@ def _slurm_script(country: str, *, time_limit: str = "48:00:00",
 #SBATCH --output=ep24_full_{country}_%j.out
 
 set -euo pipefail
-REPO_ROOT={REPO_ROOT}
-DATA_ROOT={DATA_ROOT}
+: "${{LACLAUGPT_REPO_ROOT:?set LACLAUGPT_REPO_ROOT to the checked-out repository}}"
+: "${{LACLAUGPT_DATA_DIR:?set LACLAUGPT_DATA_DIR to the controlled research-data root}}"
+REPO_ROOT=$LACLAUGPT_REPO_ROOT
+DATA_ROOT=$LACLAUGPT_DATA_DIR
 cd "$REPO_ROOT"
 
 module load python-pytorch/2.10
@@ -119,7 +101,6 @@ export LACLAUGPT_MEMORY_DIR=$DATA_ROOT/memory
 export LACLAUGPT_DATA_DIR=$DATA_ROOT
 export TMPDIR=${{TMPDIR:-/tmp}}
 
-# faster-whisper is local (GPU); LLM stages talk to Ollama Cloud
 python ep24_full_pipeline.py --country {country} \\
     --data-root "$DATA_ROOT" --repo-root "$REPO_ROOT"
 """
@@ -133,8 +114,7 @@ def write_slurm_scripts(directory: str | Path, *,
         path = Path(directory) / f"ep24_full_{country}.sh"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(_slurm_script(country, time_limit=time_limit,
-                                      partition=partition),
-                        encoding="utf-8")
+                                      partition=partition), encoding="utf-8")
         out.append(path)
     return out
 
@@ -154,6 +134,5 @@ if __name__ == "__main__":
     print(json.dumps(status, ensure_ascii=False, indent=2))
 
 
-# Local test hook: make the module importable without the Roihu modules
 if os.environ.get("EP24_OFFLINE_TEST") == "1":  # pragma: no cover
     pass

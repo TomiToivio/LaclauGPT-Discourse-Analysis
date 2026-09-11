@@ -1,12 +1,13 @@
 # AI26 source registry — recent sources batch (maintainer directive 2026-09-11)
 #
 # Registry of AI26 corpus additions: recent priority sources + theoretical
-# anchors. Publication date, URL, actor, source type, ideological prior and
-# tags are preserved. "ideological_prior" is a SAMPLING HINT (analytical code),
-# never a document-level ideology assignment (paper §2.3).
+# anchors. Publication date, URL, actor, source type, neutral sampling stratum
+# and topic tags are preserved. `sampling_stratum` describes the source/topic
+# context for corpus coverage; it is never an ideological attribute assigned to
+# an identifiable person or a document-level classification.
 #
-# Full texts live in the private collection runtime (DEPLOYMENT_HOST, laclaugpt_ai26 corpus);
-# this registry is the auditable public record of the sampling frame.
+# Full texts live in controlled private collection storage; this registry is the
+# auditable public record of the sampling frame and contains no runtime location.
 
 project: ai26
 registry_version: "2026-09-11"
@@ -17,7 +18,7 @@ priority_sources:
     actor: OpenAI
     source_type: frontier_lab_announcement
     url: https://openai.com/index/paul-christiano-joins-openai-foundation-board/
-    ideological_prior: frontier_lab_institutional
+    sampling_stratum: frontier_lab_governance
     tags: [ai_safety, frontier_lab, governance, x_risk]
 
   - key: sanders-casar-asi-ban
@@ -25,15 +26,15 @@ priority_sources:
     actor: "Sanders & Casar (US Senate/House)"
     source_type: parliamentary_release
     url: https://www.sanders.senate.gov/press-releases/news-sanders-casar-introduce-legislation-to-ban-artificial-superintelligence-and-temporarily-pause-advanced-ai-development/
-    ideological_prior: anti_asi_populist_left
-    tags: [anti_asi, populist, democratic_control, ai_oligarchy, pause]
+    sampling_stratum: asi_policy_intervention
+    tags: [anti_asi, democratic_control, ai_oligarchy, pause]
 
   - key: richter-hype-2026
     date: "2026"
     actor: Richter et al.
     source_type: journal_article
     url: https://link.springer.com/article/10.1007/s00146-026-03079-6
-    ideological_prior: critical_ai
+    sampling_stratum: ai_hype_studies
     tags: [hype, actors, imaginaries, longitudinal_discourse]
 
   - key: yudkowsky-superintelligence-that
@@ -41,15 +42,15 @@ priority_sources:
     actor: Eliezer Yudkowsky
     source_type: forum_post
     url: https://www.lesswrong.com/posts/hXozGp2rsbZgXnH3o/can-a-superintelligence-do-that
-    ideological_prior: x_risk_doomer
-    tags: [doomer, x_risk, superintelligence]
+    sampling_stratum: x_risk_discourse
+    tags: [x_risk, superintelligence]
 
   - key: wildeford-scramble
     date: "2026-09-07"
     actor: Peter Wildeford
     source_type: forum_post
     url: https://www.lesswrong.com/posts/S7e7swkWDyKdtvRqM/the-scramble-getting-in-position-to-pace-the-frontier
-    ideological_prior: ai_safety_governance
+    sampling_stratum: ai_safety_governance
     tags: [ai_safety, governance, compute, geopolitics]
 
   - key: g20-carolina-principles
@@ -57,15 +58,15 @@ priority_sources:
     actor: "G20 Innovation Ministerial / White House"
     source_type: government_release
     url: https://www.whitehouse.gov/releases/2026/09/g20-innovation-ministerial-concludes-with-consensus-statement/
-    ideological_prior: mainstream_institutional
-    tags: [mainstream_institutional, innovation, governance, adoption]
+    sampling_stratum: institutional_ai_governance
+    tags: [innovation, governance, adoption]
 
   - key: uschina-safety-dialogue
     date: "2026-09-04"
     actor: Reuters (US-China AI safety dialogue)
     source_type: news
     url: https://www.reuters.com/legal/litigation/us-china-gear-up-mid-september-ai-safety-dialogue-2026-09-04/
-    ideological_prior: securitization_mainstream
+    sampling_stratum: geopolitical_ai_safety
     tags: [geopolitics, ai_safety, securitization, china_us]
 
   - key: kapoor-narayanan-agents
@@ -73,7 +74,7 @@ priority_sources:
     actor: Kapoor & Narayanan (NormalTech)
     source_type: blog_post
     url: https://www.normaltech.ai/p/ai-agents-cant-yet-do-open-ended
-    ideological_prior: anti_hype_normal_technology
+    sampling_stratum: ai_capabilities_critique
     tags: [normal_technology, anti_hype, agents, rsi]
 
   - key: asmolov-sovereignty
@@ -81,7 +82,7 @@ priority_sources:
     actor: Gregory Asmolov
     source_type: journal_article
     url: https://journals.sagepub.com/doi/10.1177/20539517261426455
-    ideological_prior: sovereignty_geopolitical
+    sampling_stratum: ai_sovereignty_discourse
     tags: [ai_sovereignty, geopolitics, imaginaries, russia]
 
   - key: may-paris-sargent-commonsense
@@ -89,7 +90,7 @@ priority_sources:
     actor: "May, Paris & Sargent"
     source_type: journal_article
     url: https://journals.sagepub.com/doi/abs/10.1177/20539517261421466
-    ideological_prior: counter_hegemony_labor
+    sampling_stratum: labor_ai_discourse
     tags: [labor, counter_hegemony, unions, inevitability]
 
   - key: choroszewicz-rannisto-finland
@@ -97,7 +98,7 @@ priority_sources:
     actor: Choroszewicz & Rannisto
     source_type: journal_article
     url: https://journals.sagepub.com/doi/10.1177/20539517261424159
-    ideological_prior: legitimation_public_sector
+    sampling_stratum: public_sector_ai_governance
     tags: [finland, public_sector, legitimation, governance]
 
   - key: zu-talking-politics
@@ -105,7 +106,7 @@ priority_sources:
     actor: Ziwen Zu
     source_type: preprint
     url: https://arxiv.org/abs/2607.00551
-    ideological_prior: computational_social_science
+    sampling_stratum: computational_political_discourse
     tags: [human_llm, political_discourse, ideology, computational_social_science]
 
   - key: harcourt-eu-usa-regulation
@@ -113,7 +114,7 @@ priority_sources:
     actor: Harcourt, Radaelli & Trein
     source_type: journal_article
     url: https://journals.sagepub.com/doi/10.1177/20539517261461461
-    ideological_prior: institutional_comparative
+    sampling_stratum: comparative_ai_regulation
     tags: [regulation, eu, usa, institutional_discourse]
 
 theoretical_anchors:
@@ -122,7 +123,7 @@ theoretical_anchors:
     actor: Oldenburg & Papyshev
     source_type: conference_paper
     url: https://ojs.aaai.org/index.php/AIES/article/view/36686
-    ideological_prior: imaginary_framework
+    sampling_stratum: sociotechnical_imaginaries
     tags: [imaginaries, accelerationism, x_risk, critical_ai, governance]
 
   - key: belsunces-deephype
@@ -130,7 +131,7 @@ theoretical_anchors:
     actor: Andreu Belsunces Gonçalves
     source_type: preprint
     url: https://arxiv.org/abs/2508.19749
-    ideological_prior: critical_hype_studies
+    sampling_stratum: hype_studies
     tags: [agi, deep_hype, sociotechnical_fictions, longtermism, cyberlibertarianism]
 
   - key: grba-insidious
@@ -138,7 +139,7 @@ theoretical_anchors:
     actor: Dejan Grba
     source_type: preprint
     url: https://arxiv.org/abs/2602.17383
-    ideological_prior: critical_speculation
+    sampling_stratum: ai_imaginaries
     tags: [imaginaries, agi, asi, singularity, longtermism, transhumanism]
 
 fetch_status:
@@ -153,6 +154,6 @@ fetch_status:
                             yudkowsky-superintelligence-that, wildeford-scramble]
   note: >
     Full texts behind bot-blocks/paywalls are retried by the hourly media pass;
-    registry preserves URL + metadata + tags so the corpus record is complete
-    even before a successful fetch. Sources are sampling-frame entries, not
-    ideological labels.
+    registry preserves URL + metadata + topic tags so the corpus record is complete
+    even before a successful fetch. Sampling strata describe corpus coverage, not
+    ideological attributes of named actors.

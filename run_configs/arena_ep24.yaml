@@ -1,28 +1,27 @@
 # EP24 pilot arena config — Finland + Poland reprocessing (issue #73)
 # Uses the country codebooks in run_configs/ep24_codebooks.yaml.
-# Stages: summary/discourse/postprocess on the FRESH multimodal transcripts
-# (re-derived from Allas videos per the revised plan), legacy columns ride
-# only as provenance metadata.
+# Runtime paths are intentionally supplied by CLI/environment; public configs
+# must not encode researcher usernames, storage-project IDs or private hosts.
 
 name: ep24-pilot
 paper_section: "3.3"
-topic_key: ep24-finland        # per-country override: ep24-poland
-source_platform: video         # Allas HEPP24 videos (Instagram/TikTok)
-languages: [fi, pl, en, pt, es]  # legacy whisper_language values vary (auto-detected)
-countries: [FI]                # [PL] for the Poland job
+topic_key: ep24-finland
+source_platform: video
+languages: [fi, pl, en, pt, es]
+countries: [FI]
 
-memory_dir: null               # localhost: LACLAUGPT_DATA_DIR -> ./data/memory (Roihu-ajo: LACLAUGPT_DATA_DIR/memory)
-data_root: LACLAUGPT_DATA_DIR           # phase-0 landing root (Roihu)
-csv_dir: LACLAUGPT_DATA_DIR/ep24/csv    # fetched subset CSVs + manifests (Roihu)
-videos_dir: LACLAUGPT_DATA_DIR/ep24/videos  # fetch-stage workdir override ($TMPDIR preferred for streaming)
-output_dir: LACLAUGPT_DATA_DIR/ep24/annotations  # annotations.jsonl + provenance land here (Roihu)
-repo_root: LACLAUGPT_REPO_ROOT  # checked-out repo on Roihu (pipeline.py, prompts/, config/)
-model: gemma4:31b-cloud        # Ollama Cloud for ALL processing stages (2026-09-08 decision)
+memory_dir: null
+data_root: null
+csv_dir: null
+videos_dir: null
+output_dir: null
+repo_root: null
+model: gemma4:31b-cloud
 ollama_mode: cloud
-ollama_host: ""                # cloud endpoint resolved by llm.py routing
-allow_cloud_fallback: true     # cloud IS the primary path now (local = fallback)
+ollama_host: ""
+allow_cloud_fallback: true
 temperature: 0.0
-num_ctx: 24576                 # fresh faster-whisper transcripts are long
+num_ctx: 24576
 num_predict: 4096
 stages:
   summary: true
@@ -30,21 +29,18 @@ stages:
   populism: true
   postprocess: true
 
-# module switches (issue #48): authoritative, lossless
 analysis_switches:
-  sentiment: true              # descriptive only, separate from affect
+  sentiment: true
   context_memory: true
   temporal: true
 
-# codebook grounding (from run_configs/ep24_codebooks.yaml)
-codebook: ep24_finland         # ep24_poland for the Poland job
-seed_codebook_mode: human_curated   # never let model output feed seeds back
+codebook: ep24_finland
+seed_codebook_mode: human_curated
 
-# what beats the old pipeline (viritelmät, issue #73):
 improvements:
-  fresh_multimodal: true        # faster-whisper large-v3 + vad_filter (not legacy columns)
-  keyframes_v2: true            # duration÷6, >=10s gap (old: fixed 30 s)
-  evidence_gates: true          # verbatim gate on every coding family (issue #60)
-  abstention_allowed: true      # INV_ABSTAIN; partial evidence kept (issue #59)
-  neutral_priming: true         # no 'prefer EXISTING', alphabetical preview (issue #62)
-  review_sidecar: true          # SQLite review store, not researcher_notes.json
+  fresh_multimodal: true
+  keyframes_v2: true
+  evidence_gates: true
+  abstention_allowed: true
+  neutral_priming: true
+  review_sidecar: true

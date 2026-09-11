@@ -29,7 +29,7 @@ from laclaugpt_interchange import (
 from laclaugpt_memory import KINDS, Memory
 from llm import chat_structured, model_digest, resolve_endpoint
 
-try:  # stage-aware local model routing (DEPLOYMENT_HOST AI26); absent in older checkouts
+try:  # stage-aware local model routing (AI26 local GPU); absent in older checkouts
     from laclaugpt.model_routing import pick_model as _stage_pick_model
 except ImportError:  # pragma: no cover
     _stage_pick_model = None

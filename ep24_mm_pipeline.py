@@ -1,22 +1,14 @@
 # -*- coding: utf-8 -*-
-"""EP24 Roihu SAMPLE multimodal pipeline — one command, whole chain.
+"""EP24 SAMPLE multimodal pipeline — one command, whole chain.
 
-Issue #73 phase-1 pilot: 20+20 Finnish/Polish videos through
-  fetch (Allas -> scratch videos/) ->
-  ASR (faster-whisper large-v3, vad_filter on GPU) ->
-  screen-metadata OCR (poster @handle etc. from keyframes) ->
-  canonical CSV join (transcript = source text; legacy columns only as
-  identity metadata) ->
-  LLM stages (summary/discourse/populism/postprocess via Ollama Cloud) ->
-  dual-format exports (annotations.jsonl + .csv + .report.md).
-
-Runs INSIDE a SLURM GPU job (see sbatch scripts). The OCR model (paddle/
-tesseract-class) is lazy-imported so CPU-only test runs can mock it.
+Repository and controlled research-data roots are supplied through runtime
+configuration rather than embedded user- or project-specific paths.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 from pathlib import Path
 
@@ -24,8 +16,8 @@ import ep24_asr
 import ep24_fetch
 import ep24_screen_metadata
 
-REPO_ROOT = "LACLAUGPT_REPO_ROOT"
-DATA_ROOT = "LACLAUGPT_DATA_DIR"
+REPO_ROOT = os.environ.get("LACLAUGPT_REPO_ROOT", str(Path(__file__).resolve().parent))
+DATA_ROOT = os.environ.get("LACLAUGPT_DATA_DIR", str(Path(__file__).resolve().parent / "data"))
 
 COUNTRIES = {
     "finland": {"manifest": "finland_sample20.csv", "codebook": "ep24_finland",
@@ -51,21 +43,14 @@ def paths(country: str, *, data_root: str = DATA_ROOT,
 
 
 def ocr_video_frames(video_path: Path, *, max_frames: int = 3) -> str:
-    """OCR a few keyframes of one video for screen-metadata lifting.
-
-    Uses the keyframes module convention (duration/6, >=10 s gap — here
-    capped to max_frames for the sample run). Lazy import: OCR backends
-    (paddleocr / pytesseract) are Roihu module installs; CPU tests mock
-    this function.
-    """
-    import ep24_keyframes  # noqa: F401  (module expected on Roihu)
+    import ep24_keyframes
     frames = ep24_keyframes.extract_keyframes(str(video_path), max_frames=max_frames)
     texts = []
     for frame in frames:
         try:
-            import ep24_ocr  # OCR backend wrapper on Roihu
+            import ep24_ocr
             texts.append(ep24_ocr.ocr_image(frame))
-        except ImportError:  # OCR module unavailable -> skip frame
+        except ImportError:
             continue
     return "\n".join(t for t in texts if t)
 
@@ -74,26 +59,21 @@ def run_country(country: str, *, data_root: str = DATA_ROOT,
                 repo_root: str = REPO_ROOT, run_config: str | None = None,
                 model_size: str = ep24_asr.DEFAULT_MODEL, model=None,
                 ocr_fn=ocr_video_frames) -> dict:
-    """Whole chain for one country inside the SLURM job."""
     p = paths(country, data_root=data_root, repo_root=repo_root)
     status: dict = {"country": country}
-
-    # 1. fetch (resume-safe)
     fetched = ep24_fetch.fetch_all(p["manifest"], p["videos"])
     status["fetched"] = len(fetched)
 
-    # 2. ASR (resume-safe JSONL, GPU)
     n = ep24_asr.transcribe_manifest(p["manifest"], p["videos"],
                                      p["transcripts"], model_size=model_size,
                                      model=model)
     status["transcribed"] = n
 
-    # 3. screen-metadata OCR pass: enrich transcripts with UI identity
     enriched = 0
     transcripts = _load_jsonl(p["transcripts"])
     for rec in transcripts:
         if rec.get("screen_ocr"):
-            continue  # resume-safe
+            continue
         video = ep24_fetch._dest_for(Path(p["videos"]), rec["allas_url"])
         if not video.exists():
             continue
@@ -102,13 +82,11 @@ def run_country(country: str, *, data_root: str = DATA_ROOT,
     _write_jsonl(p["transcripts"], transcripts)
     status["ocr_enriched"] = enriched
 
-    # 4. canonical CSV join (identity from legacy roster, text from ASR)
     from ep24_pipeline import build_canonical_csv
     written = build_canonical_csv(p["manifest"], p["transcripts"],
                                   p["legacy_csv"], p["canonical_csv"])
     status["canonical_rows"] = written
 
-    # 5. LLM stages via Ollama Cloud
     if not run_config:
         run_config = str(Path(repo_root) / "run_configs" /
                          "arena_ep24_roihu_sample.yaml")
@@ -147,17 +125,16 @@ def _slurm_script(country: str, *, time_limit: str = "08:00:00") -> str:
 #SBATCH --output=ep24_mm_{country}_%j.out
 
 set -euo pipefail
-REPO_ROOT={REPO_ROOT}
-DATA_ROOT={DATA_ROOT}
+: "${{LACLAUGPT_REPO_ROOT:?set LACLAUGPT_REPO_ROOT to the checked-out repository}}"
+: "${{LACLAUGPT_DATA_DIR:?set LACLAUGPT_DATA_DIR to the controlled research-data root}}"
+REPO_ROOT=$LACLAUGPT_REPO_ROOT
+DATA_ROOT=$LACLAUGPT_DATA_DIR
 cd "$REPO_ROOT"
 
-# Scratch layout (issue #73): csv/, videos/, annotations/, memory/
 export LACLAUGPT_MEMORY_DIR=$DATA_ROOT/memory
 export LACLAUGPT_DATA_DIR=$DATA_ROOT
 export TMPDIR=${{TMPDIR:-/tmp}}
 
-# faster-whisper + OCR deps live in the Roihu module/venv; the LLM stages
-# talk to Ollama Cloud (gemma4:31b-cloud) — no local model server needed.
 python ep24_mm_pipeline.py --country {country} \\
     --data-root "$DATA_ROOT" --repo-root "$REPO_ROOT"
 """
@@ -169,8 +146,7 @@ def write_slurm_scripts(directory: str | Path, *,
     for country in COUNTRIES:
         path = Path(directory) / f"ep24_mm_{country}.sh"
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(_slurm_script(country, time_limit=time_limit),
-                        encoding="utf-8")
+        path.write_text(_slurm_script(country, time_limit=time_limit), encoding="utf-8")
         out.append(path)
     return out
 

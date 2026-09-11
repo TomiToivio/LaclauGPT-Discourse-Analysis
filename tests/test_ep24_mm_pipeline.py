@@ -1,4 +1,4 @@
-"""Issue #73 Roihu sample: offline tests for the mm-pipeline wiring."""
+"""Issue #73 sample: offline tests for the mm-pipeline wiring."""
 from __future__ import annotations
 
 import csv
@@ -8,9 +8,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import ep24_asr
 import ep24_fetch
 import ep24_mm_pipeline
-import ep24_asr
 
 
 def _manifest(path: Path, rows: list[tuple[str, str]]) -> None:
@@ -34,7 +34,6 @@ def _legacy(path: Path, ids: list[str]) -> None:
 
 
 class PathsTests(unittest.TestCase):
-
     def test_paths_use_roots(self) -> None:
         p = ep24_mm_pipeline.paths("finland")
         self.assertEqual(p["repo_root"], Path(ep24_mm_pipeline.REPO_ROOT))
@@ -43,7 +42,6 @@ class PathsTests(unittest.TestCase):
 
 
 class RunCountryTests(unittest.TestCase):
-
     def test_full_chain_with_mocks(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -54,10 +52,8 @@ class RunCountryTests(unittest.TestCase):
 
             class _Resp:
                 status = 200
-                def __init__(self):
-                    self._d = [b"vid", b""]
-                def read(self, n):
-                    return self._d.pop(0) if self._d else b""
+                def __init__(self): self._d = [b"vid", b""]
+                def read(self, n): return self._d.pop(0) if self._d else b""
                 def __enter__(self): return self
                 def __exit__(self, *a): return False
 
@@ -74,23 +70,16 @@ class RunCountryTests(unittest.TestCase):
                 out.write_text(json.dumps(rec) + "\n", encoding="utf-8")
                 return 1
 
-            with patch.object(ep24_fetch.urllib.request, "urlopen",
-                              return_value=_Resp()):
-                with patch.object(ep24_mm_pipeline.ep24_asr, "transcribe_manifest",
-                                  side_effect=fake_transcribe):
-                    with patch.object(ep24_mm_pipeline, "ocr_video_frames",
-                                      side_effect=fake_ocr):
-                        with patch.object(ep24_mm_pipeline, "_load_jsonl",
-                                          side_effect=[
-                                              [{"document_id": "ID1",
-                                                "allas_url": "https://a3s.fi/x/1.mp4",
-                                                "transcript": "x"}]]):
-                            with patch("pipeline.run_pipeline",
-                                       return_value=[]):
+            with patch.object(ep24_fetch.urllib.request, "urlopen", return_value=_Resp()):
+                with patch.object(ep24_mm_pipeline.ep24_asr, "transcribe_manifest", side_effect=fake_transcribe):
+                    with patch.object(ep24_mm_pipeline, "ocr_video_frames", side_effect=fake_ocr):
+                        with patch.object(ep24_mm_pipeline, "_load_jsonl", side_effect=[[
+                            {"document_id": "ID1", "allas_url": "https://a3s.fi/x/1.mp4", "transcript": "x"}
+                        ]]):
+                            with patch("pipeline.run_pipeline", return_value=[]):
                                 status = ep24_mm_pipeline.run_country(
-                                    "finland", data_root=str(root),
-                                    repo_root=str(root), model=fake_whisper,
-                                    ocr_fn=fake_ocr)
+                                    "finland", data_root=str(root), repo_root=str(root),
+                                    model=fake_whisper, ocr_fn=fake_ocr)
             self.assertEqual(status["fetched"], 1)
             self.assertEqual(status["canonical_rows"], 1)
 
@@ -110,13 +99,11 @@ def ep24_asr_tests_fake_model():
 
 
 def canon_module():
-    """Import target for run_pipeline mocking (pipeline.py lazily imported)."""
     import pipeline
     return pipeline
 
 
 class SlurmScriptTests(unittest.TestCase):
-
     def test_sample_scripts(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             scripts = ep24_mm_pipeline.write_slurm_scripts(tmp)
@@ -124,8 +111,10 @@ class SlurmScriptTests(unittest.TestCase):
                              {"ep24_mm_finland.sh", "ep24_mm_poland.sh"})
             text = scripts[0].read_text(encoding="utf-8")
             self.assertIn("ep24_mm_pipeline.py --country", text)
-            self.assertIn("LACLAUGPT_DATA_DIR", text)
             self.assertIn("LACLAUGPT_REPO_ROOT", text)
+            self.assertIn("LACLAUGPT_DATA_DIR", text)
+            self.assertNotIn("/users/", text)
+            self.assertNotIn("/scratch/project_", text)
 
 
 if __name__ == "__main__":

@@ -24,8 +24,6 @@ class FakeSegment:
 
 
 class FakeWhisper:
-    """Stands in for faster_whisper.WhisperModel."""
-
     model_size_or_path = "large-v3"
 
     def __init__(self, segments, info=None):
@@ -49,9 +47,7 @@ class _Manifest:
 
 
 class TranscribeTests(unittest.TestCase):
-
     def test_vad_filter_is_on(self) -> None:
-        # v1 lesson: vad_filter kills music hallucinations — must stay True.
         fake = FakeWhisper([FakeSegment("Hei vaalifanit"), FakeSegment("")])
         ep24_asr.transcribe_video("/tmp/whatever.mp4", model=fake)
         self.assertTrue(fake.last_kwargs["vad_filter"])
@@ -70,7 +66,6 @@ class TranscribeTests(unittest.TestCase):
 
 
 class ManifestTranscribeTests(unittest.TestCase):
-
     def _setup_videos(self, tmp: str, urls: list[str]) -> Path:
         videos = Path(tmp) / "videos"
         videos.mkdir(exist_ok=True)
@@ -87,7 +82,6 @@ class ManifestTranscribeTests(unittest.TestCase):
             videos = self._setup_videos(tmp, ["https://a3s.fi/x/1.mp4",
                                               "https://a3s.fi/x/2.mp4"])
             out = Path(tmp) / "out" / "finland_transcripts.jsonl"
-
             fake = FakeWhisper([FakeSegment("transkriptio")])
             n = ep24_asr.transcribe_manifest(mp, videos, out, model=fake)
             self.assertEqual(n, 2)
@@ -95,25 +89,21 @@ class ManifestTranscribeTests(unittest.TestCase):
             self.assertEqual({r["document_id"] for r in records}, {"ID1", "ID2"})
             self.assertEqual(records[0]["transcript_version"], ep24_asr.TRANSCRIPT_VERSION)
             self.assertTrue(records[0]["vad_filter"])
-
-            # resume: re-run skips everything (skip_already_processed)
-            n2 = ep24_asr.transcribe_manifest(mp, videos, out, model=fake)
-            self.assertEqual(n2, 0)
+            self.assertEqual(ep24_asr.transcribe_manifest(mp, videos, out, model=fake), 0)
 
     def test_missing_video_raises_clearly(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             mp = Path(tmp) / "poland_manifest.csv"
             _Manifest.write(mp, [("PL1", "https://a3s.fi/y/9.mp4")])
             videos = Path(tmp) / "videos"
-            videos.mkdir(exist_ok=True)  # empty: nothing fetched
+            videos.mkdir(exist_ok=True)
             fake = FakeWhisper([FakeSegment("x")])
             with self.assertRaises(FileNotFoundError):
                 ep24_asr.transcribe_manifest(mp, videos, Path(tmp) / "o.jsonl", model=fake)
 
 
 class SlurmScriptTests(unittest.TestCase):
-
-    def test_script_uses_repo_and_data_roots(self) -> None:
+    def test_script_uses_runtime_roots(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             p = ep24_asr.write_slurm_script(Path(tmp) / "asr_fi.sh", "finland")
             text = p.read_text(encoding="utf-8")
@@ -122,6 +112,8 @@ class SlurmScriptTests(unittest.TestCase):
             self.assertIn("finland_manifest.csv", text)
             self.assertIn("LACLAUGPT_MEMORY_DIR=$DATA_ROOT/memory", text)
             self.assertIn("#SBATCH --gpus=1", text)
+            self.assertNotIn("/users/", text)
+            self.assertNotIn("/scratch/project_", text)
 
 
 if __name__ == "__main__":

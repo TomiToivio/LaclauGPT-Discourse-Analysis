@@ -10,8 +10,10 @@
 #SBATCH --error=ep24_reprocess_%A_%a.err
 
 set -euo pipefail
-REPO_ROOT=${REPO_ROOT:-LACLAUGPT_REPO_ROOT}
-DATA_ROOT=${LACLAUGPT_DATA_DIR:-LACLAUGPT_DATA_DIR}
+: "${LACLAUGPT_REPO_ROOT:?set LACLAUGPT_REPO_ROOT to the checked-out repository}"
+: "${LACLAUGPT_DATA_DIR:?set LACLAUGPT_DATA_DIR to the controlled research-data root}"
+REPO_ROOT=$LACLAUGPT_REPO_ROOT
+DATA_ROOT=$LACLAUGPT_DATA_DIR
 SOURCE_CSV=${EP24_SOURCE_CSV:-$DATA_ROOT/ep24/source/dashboard_9_1_2026.csv}
 SAMPLE_SIZE=${EP24_SAMPLE_SIZE:-0}
 countries=(finland poland)

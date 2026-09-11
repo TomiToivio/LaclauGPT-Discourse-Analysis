@@ -11,8 +11,8 @@ Model lessons baked in (recorded 2026-09-06/08 sessions):
   HEPP24 corpus produced phantom transcripts in v1)
 - per-document output JSONL keeps provenance: model, version, fetch time
 
-Paths come from run_configs/arena_ep24.yaml: videos stream to $TMPDIR via
-ep24_fetch; transcripts land under data_root/ep24/annotations.
+Paths come from runtime configuration: videos stream to $TMPDIR via ep24_fetch;
+transcripts land under the configured data root.
 """
 from __future__ import annotations
 
@@ -22,33 +22,24 @@ import os
 import time
 from pathlib import Path
 
-DEFAULT_MODEL = "large-v3"          # faster-whisper large-v3
-DEFAULT_DEVICE = "auto"             # cuda on Roihu GPU nodes, cpu fallback
-DEFAULT_COMPUTE = "auto"            # float16 on cuda, int8 elsewhere
-TRANSCRIPT_VERSION = "ep24-asr-1.0" # bump when model/vad settings change
+DEFAULT_MODEL = "large-v3"
+DEFAULT_DEVICE = "auto"
+DEFAULT_COMPUTE = "auto"
+TRANSCRIPT_VERSION = "ep24-asr-1.0"
 
 
 def transcript_id(url: str) -> str:
-    """Stable per-video id, mirrors ep24_fetch._dest_for naming."""
     return hashlib.sha1(url.encode("utf-8")).hexdigest()[:16]
 
 
 def transcribe_video(video_path: str | Path, *, model_size: str = DEFAULT_MODEL,
                      device: str = DEFAULT_DEVICE, compute_type: str = DEFAULT_COMPUTE,
                      language: str | None = None, model=None):
-    """Transcribe one video file with faster-whisper (vad_filter on).
-
-    `model` accepts a pre-loaded WhisperModel for test injection; otherwise
-    faster_whisper.WhisperModel is constructed per call (Slurm jobs pass a
-    shared instance via the model argument to avoid reload cost).
-    """
     if model is None:
         from faster_whisper import WhisperModel
         model = WhisperModel(model_size, device=device, compute_type=compute_type)
     segments, info = model.transcribe(
-        str(video_path),
-        vad_filter=True,        # kills music hallucinations (v1 lesson)
-        language=language,      # None = auto-detect (FI/PL/... corpus)
+        str(video_path), vad_filter=True, language=language,
     )
     parts = []
     for seg in segments:
@@ -67,13 +58,6 @@ def transcribe_manifest(manifest_path: str | Path, videos_dir: str | Path,
                         out_path: str | Path, *, model_size: str = DEFAULT_MODEL,
                         device: str = DEFAULT_DEVICE, compute_type: str = DEFAULT_COMPUTE,
                         model=None) -> int:
-    """Transcribe every unique video in a country manifest.
-
-    Reads data/manifests/<country>_manifest.csv (document_id, allas_url),
-    locates the fetched file via ep24_fetch._dest_for, writes one JSONL line
-    per document to out_path. Resume-safe: existing document_ids are skipped
-    (checkpoint semantics per config/execution/slurm.yaml).
-    """
     import ep24_fetch
 
     pairs = ep24_fetch.load_manifest(manifest_path)
@@ -94,11 +78,10 @@ def transcribe_manifest(manifest_path: str | Path, videos_dir: str | Path,
     with open(out_path, "a", encoding="utf-8") as out:
         for doc_id, url in pairs:
             if doc_id in done:
-                continue  # skip_already_processed
+                continue
             video = ep24_fetch._dest_for(Path(videos_dir), url)
             if not video.exists():
-                raise FileNotFoundError(
-                    f"video for {doc_id} not fetched: expected {video}")
+                raise FileNotFoundError(f"video for {doc_id} not fetched: expected {video}")
             result = transcribe_video(video, model_size=model_size,
                                       device=device, compute_type=compute_type,
                                       model=model)
@@ -129,14 +112,12 @@ def _slurm_header(job_name: str, time_limit: str, manifest: str,
 #SBATCH --output=ep24_asr_%j.out
 
 set -euo pipefail
-REPO_ROOT=LACLAUGPT_REPO_ROOT
-DATA_ROOT=LACLAUGPT_DATA_DIR
+: "${{LACLAUGPT_REPO_ROOT:?set LACLAUGPT_REPO_ROOT to the checked-out repository}}"
+: "${{LACLAUGPT_DATA_DIR:?set LACLAUGPT_DATA_DIR to the controlled research-data root}}"
+REPO_ROOT=$LACLAUGPT_REPO_ROOT
+DATA_ROOT=$LACLAUGPT_DATA_DIR
 cd "$REPO_ROOT"
 
-# Scratch layout (issue #73 phase 0/1):
-#   $DATA_ROOT/ep24/csv/       manifests + subset CSVs (phase 0)
-#   $DATA_ROOT/ep24/videos/    fetched videos (fetch stage; $TMPDIR preferred)
-#   $DATA_ROOT/ep24/annotations/  transcripts + annotations land here
 export LACLAUGPT_MEMORY_DIR=$DATA_ROOT/memory
 export TMPDIR=${{TMPDIR:-/tmp}}
 python ep24_fetch.py --manifest "$DATA_ROOT/ep24/csv/{manifest}" --workdir "$DATA_ROOT/ep24/videos"
@@ -148,13 +129,11 @@ python ep24_asr.py --manifest "$DATA_ROOT/ep24/csv/{manifest}" \\
 
 def write_slurm_script(path: str | Path, country: str, *,
                        time_limit: str = "04:00:00") -> Path:
-    """Emit a ready-to-sbatch ASR job script for one country."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     manifest = f"{country}_manifest.csv"
-    path.write_text(
-        _slurm_header(f"ep24_asr_{country}", time_limit, manifest, country),
-        encoding="utf-8")
+    path.write_text(_slurm_header(f"ep24_asr_{country}", time_limit, manifest, country),
+                    encoding="utf-8")
     return path
 
 

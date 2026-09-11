@@ -1,23 +1,21 @@
-# EP24 Roihu SAMPLE run config — 20+20 videos, full multimodal chain.
-# Phase 1 pilot on CSC Roihu (issue #73): fetch -> faster-whisper ASR ->
-# screen-metadata OCR -> canonical join -> LLM stages on Ollama Cloud.
-# Data roots come from the sbatch scripts (scratch + /users checkout).
+# EP24 SAMPLE run config — 20+20 videos, full multimodal chain.
+# Runtime paths come from the launcher/environment. This public config contains
+# no user-specific checkout path, storage-project ID or private host detail.
 
 name: ep24-roihu-sample
 paper_section: "3.3"
-topic_key: ep24-finland        # per-country override: ep24-poland
-source_platform: video         # Allas HEPP24 videos (Instagram/TikTok)
-languages: [fi, pl, en, pt, es, it]  # legacy whisper_language values vary
+topic_key: ep24-finland
+source_platform: video
+languages: [fi, pl, en, pt, es, it]
 countries: [FI, PL]
 
-memory_dir: LACLAUGPT_DATA_DIR/memory   # shared codebook
-data_root: LACLAUGPT_DATA_DIR
-csv_dir: LACLAUGPT_DATA_DIR/ep24/csv
-videos_dir: LACLAUGPT_DATA_DIR/ep24/videos
-output_dir: LACLAUGPT_DATA_DIR/ep24/annotations
-repo_root: LACLAUGPT_REPO_ROOT
+memory_dir: null
+data_root: null
+csv_dir: null
+videos_dir: null
+output_dir: null
+repo_root: null
 
-# LLM stages on Ollama Cloud (2026-09-08 decision); ASR is local faster-whisper.
 model: gemma4:31b-cloud
 ollama_mode: cloud
 ollama_host: ""
@@ -36,15 +34,15 @@ analysis_switches:
   context_memory: true
   temporal: true
 
-codebook: ep24_finland         # ep24_poland for the Poland job
+codebook: ep24_finland
 seed_codebook_mode: human_curated
 
 improvements:
-  fresh_multimodal: true        # faster-whisper large-v3 + vad_filter
-  keyframes_v2: true            # duration/6, >=10s gap
-  screen_metadata_ocr: true     # poster @handle etc. from the UI (digital ethnography)
+  fresh_multimodal: true
+  keyframes_v2: true
+  screen_metadata_ocr: true
   evidence_gates: true
   abstention_allowed: true
   neutral_priming: true
   review_sidecar: true
-  mark_dont_drop: true          # relevance gate: mark irrelevant, never drop
+  mark_dont_drop: true

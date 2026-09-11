@@ -1,7 +1,7 @@
 # LaclauGPT Data Model 2.0 — Architecture Plan (2026-09-06)
 
 **Trigger:** maintainer directive — design the data model for LaclauGPT with:
-MongoDB/ArangoDB as the scraped-data store on GPU machines (DEPLOYMENT_HOST, CSC Pouta),
+MongoDB/ArangoDB as the scraped-data store on GPU machines (local GPU host, CSC Pouta),
 CSV+SQLite fallback and remote-DB connectivity on CSC Roihu, Context Memory
 (GraphRAG-style) for the analysis stage, Palonen's Formula of Populism and
 Laclau's core concepts in the schema, DNA compatibility with import/export,
@@ -44,7 +44,7 @@ The Pydantic model is the contract. Storage is pluggable behind it:
           ┌────────────────────┼───────────────────────┐
           ▼                    ▼                       ▼
    SqliteRepo            ArangoRepo                MongoRepo
-   (Roihu default,       (DEPLOYMENT_HOST/Pouta primary,    (optional, scrapers
+   (Roihu default,       (local GPU host/Pouta primary,    (optional, scrapers
    zero-dep fallback)     remote from Roihu)        already emit it)
           │                    │                       │
           ▼                    ▼                       ▼
@@ -70,7 +70,7 @@ Implementations ship in 2.0:
 1. **`SqliteRepo`** — today's `store.py` wrapped in the protocol. The
    canonical zero-dependency path: works on Roihu login/compute nodes,
    laptop, anywhere. Parquet/JSONL/CSV bulk export unchanged.
-2. **`ArangoRepo`** — primary for DEPLOYMENT_HOST and Pouta where the server
+2. **`ArangoRepo`** — primary for local GPU host and Pouta where the server
    already runs. Mapping:
    - collections: `documents`, `actors`, `concepts`, `annotations`,
      `statements`, `relations` (edge collection), `analysis_runs`,
@@ -88,7 +88,7 @@ Implementations ship in 2.0:
    (Zeeschuimer/4CAT exports land there on some deployments). Same
    protocol; the dedup index on `url` is a Mongo unique index.
 4. **`RemoteRepo`** — a thin HTTP/REST façade (FastAPI, stdlib client)
-   so a Roihu compute job talks to the DEPLOYMENT_HOST/Pouta ArangoDB without
+   so a Roihu compute job talks to the local GPU host/Pouta ArangoDB without
    installing `python-arango` in the Roihu venv: `RemoteRepo(base_url,
    token)` speaks the same Repo protocol over HTTPS. Fallback ladder
    on Roihu: RemoteRepo → SqliteRepo(local scratch) → CSV files.
@@ -326,7 +326,7 @@ Install profile (single command, per machine):
 ```bash
 # laptop / Roihu (CPU ok)
 pip install -e ".[analysis]"        # spacy+models, textnets, networkx, pathpy, minet, pandas<3
-# DEPLOYMENT_HOST / Pouta (GPU + servers)
+# local GPU host / Pouta (GPU + servers)
 pip install -e ".[analysis,server]" # + python-arango, pymongo, fastapi
 ```
 
@@ -527,13 +527,13 @@ Stage G  argdown_adapter import/export + round-trip                     [small]
                                                  tests: test_argdown.py
 Stage H  dna round-trip hardening + DATS/4CAT field wiring +            [small]
          minet move                              tests: test_dna_roundtrip.py
-Stage I  pyproject extras + install docs per machine (laptop/DEPLOYMENT_HOST/    [small]
+Stage I  pyproject extras + install docs per machine (laptop/local GPU host/    [small]
          Pouta/Roihu)                            docs: INSTALL.md
 ```
 
 Order note: A+B unblock everything else; D is the heart (Context
 Memory → analysis); E is the only networked piece and is mock-tested
-first, real-server-tested on DEPLOYMENT_HOST afterwards.
+first, real-server-tested on local GPU host afterwards.
 
 ## 17. Open questions (maintainer input welcome, not blocking)
 
