@@ -1,74 +1,129 @@
+# Reviewed public-source configuration for the AI26 DAIR source group.
+# Factual public identifiers only. Inclusion is a sampling decision, not an
+# actor- or document-level ideological classification.
 project: ai26
 arena: elites
 source_group: dair-critical-ai
-selection_rationale: "Provisional AI-critical source sampling; not a document-level ideology assignment."
+selection_rationale: >-
+  Provisional source sampling for research on critical discourse about AI.
+  AI Critical is a sensitising/source-selection category only; collected items
+  remain classification_state=unjudged until later human-reviewed analysis.
+
 transcript_policy:
   text_native: collect_text
   captioned_audio_video: creator_captions_first
+  platform_auto_captions: collect_as_machine_generated_unverified
   uncaptioned_audio_video: local_asr_when_permitted
-  multimodal: disabled
+  exact_asr_quotes_require_human_verification: true
+  multimodal: disabled_by_default
+
 sources:
+  - key: dair-home
+    kind: page
+    enabled: true
+    url: https://dair-institute.org/
+    section: institution
+
   - key: dair-publications
     kind: website
     enabled: true
     index_url: https://dair-institute.org/publications/
     section: publications
+    preferred_method: rss_or_atom_if_verified_else_html_index
+
   - key: dair-blog
     kind: website
     enabled: true
     index_url: https://dair-institute.org/blog/
     section: blog
+    preferred_method: rss_or_atom_if_verified_else_html_index
+
   - key: mastodon-dair
     kind: mastodon
     enabled: true
     account: dair-community.social/@DAIR
-    canonical_actor: https://dair-community.social/@dair
+    canonical_actor: https://dair-community.social/@DAIR
+    max_pages: 5
+
   - key: mastodon-emily
     kind: mastodon
     enabled: true
     account: dair-community.social/@EmilyMBender
-    canonical_actor: https://dair-community.social/@emilymbender
+    canonical_actor: https://dair-community.social/@EmilyMBender
+    max_pages: 5
+
   - key: mastodon-alex
     kind: mastodon
     enabled: true
     account: dair-community.social/@alex
     canonical_actor: https://dair-community.social/@alex
+    max_pages: 5
+
   - key: bluesky-dair
     kind: bluesky
     enabled: true
     handle: dairinstitute.bsky.social
-    did: did:plc:ptgy7bgb3tccpx23risxxez7
+    max_pages: 5
+
   - key: bluesky-emily
     kind: bluesky
     enabled: true
     handle: emilymbender.bsky.social
-    did: did:plc:aeug3w4mdhnc2wv73hmrh36v
+    max_pages: 5
+
   - key: bluesky-alex
     kind: bluesky
     enabled: true
     handle: alexhanna.bsky.social
-    did: did:plc:m4fvxlyv4gqpugzszzp4cjxf
+    max_pages: 5
+
+  - key: peertube-dair
+    kind: peertube
+    enabled: true
+    instance: https://peertube.dair-institute.org
+    account: dair
+    page_size: 100
+    max_pages_per_channel: 2
+    preferred_caption_languages: [en]
+    transcript_priority:
+      - creator_caption
+      - platform_auto_caption
+      - local_audio_asr_when_permitted
+      - selected_multimodal_only
+
   - key: maiht3k-podcast
     kind: buzzsprout
     enabled: true
     feed_url: https://feeds.buzzsprout.com/2126417.rss
     transcript_source: publisher_episode_page
+    note: >-
+      Publisher transcripts are a text-first source for the podcast. Keep them
+      separate from PeerTube records so platform-specific provenance survives.
+
   - key: x-alex
     kind: existing_browser_collector
     enabled: false
     account: alexhanna
-    reason: Requires explicit researcher-operated existing X browser collector.
-  - key: peertube-dair
-    kind: peertube
-    enabled: false
-    url: https://peertube.dair-institute.org/accounts/dair
-    reason: Superseded by the publisher transcript-bearing podcast feed.
+    status: configured_existing_collector
+    reason: >-
+      Use the repository's existing explicitly researcher-operated X collector;
+      this source-group runner does not automate login or duplicate that path.
+
   - key: twitch-dair
     kind: twitch
     enabled: false
     channel: dair_institute
-    reason: No stable authorized public transcript API established.
+    status: optional_disabled
+    reason: >-
+      No stable authorized public transcript API is established. Prefer public
+      captions; otherwise use a separately reviewed audio-only VOD workflow.
+      Live capture and Twitch chat are out of scope.
+
   - key: linkedin-dair
     kind: linkedin
     enabled: false
-    reason: Manual authorized capture only; no automated login or scraping.
+    url: https://www.linkedin.com/company/dair-institute/posts/
+    status: optional_disabled
+    reason: >-
+      Manual/authorized capture only. Do not implement brittle scraping,
+      credential storage, automated login, or access-control bypass.
