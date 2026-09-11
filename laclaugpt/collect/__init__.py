@@ -82,6 +82,8 @@ class CollectRecord:
     # Provenance inputs
     collector: str = "unknown"
     imported_from: str | None = None
+    raw_payload_ref: str | None = None
+    dataset_id: str | None = None
 
     @property
     def dedup_id(self) -> str:
@@ -121,6 +123,8 @@ class CollectRecord:
             collector_version=COLLECTOR_VERSION,
             collected_at=self.collected_at,
             raw_metadata=self.metadata,
+            raw_payload_ref=self.raw_payload_ref,
+            dataset_id=self.dataset_id,
             provenance_id=prov.provenance_id,
         )
 
@@ -139,6 +143,7 @@ class CollectionStore:
         self.normalized_dir = self.root / "normalized"
         self.normalized_dir.mkdir(parents=True, exist_ok=True)
         self._ledger = self.root / "seen.jsonl"
+        self._checkpoints = self.root / "checkpoints.json"
         self._seen: set[str] = set()
         if self._ledger.exists():
             for line in self._ledger.read_text(encoding="utf-8").splitlines():
@@ -148,6 +153,31 @@ class CollectionStore:
     def is_seen(self, dedup_id: str) -> bool:
         return dedup_id in self._seen
 
+    def save_raw(self, source: str, native_id: str, payload: object) -> str:
+        """Retain a permitted API/page capture before normalization."""
+        digest = hashlib.sha256(native_id.encode("utf-8")).hexdigest()[:24]
+        path = self.raw_dir / source / f"{digest}.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        return path.relative_to(self.root).as_posix()
+
+    def get_checkpoint(self, source: str) -> str | None:
+        if not self._checkpoints.exists():
+            return None
+        return json.loads(self._checkpoints.read_text(encoding="utf-8")).get(source)
+
+    def set_checkpoint(self, source: str, value: str | None) -> None:
+        data = {}
+        if self._checkpoints.exists():
+            data = json.loads(self._checkpoints.read_text(encoding="utf-8"))
+        if value is None:
+            data.pop(source, None)
+        else:
+            data[source] = value
+        self._checkpoints.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self._checkpoints.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(self._checkpoints)
     def save(self, record: CollectRecord) -> tuple[SourceItem, IngestionRecord] | None:
         """Insert one record; returns None when it is a duplicate."""
         dedup_id = record.dedup_id
