@@ -52,7 +52,9 @@ FORBIDDEN_ROOT_PREFIXES = (
     "browser_profiles/",
     "config/sources/",
     "deploy/systemd/",
+    "scripts/ep24/",
 )
+
 
 FORBIDDEN_EXTENSIONS = {
     ".sqlite", ".sqlite3", ".duckdb", ".db", ".bson", ".rdb", ".aof",
