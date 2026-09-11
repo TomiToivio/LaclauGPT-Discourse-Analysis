@@ -2,7 +2,8 @@ name: One-time private config test update
 
 on:
   push:
-    branches: [fix/private-operational-config-2026-09-11]
+    branches:
+      - fix/private-operational-config-2026-09-11
 
 permissions:
   contents: write
@@ -15,79 +16,13 @@ jobs:
         with:
           ref: fix/private-operational-config-2026-09-11
 
-      - name: Replace live-profile test with synthetic private-profile fixture
-        run: |
-          python - <<'PY'
-          from pathlib import Path
+      - name: Patch tests
+        run: python scripts/_private_config_test_patch.py
 
-          path = Path('tests/test_collect_dair.py')
-          text = path.read_text(encoding='utf-8')
-          old = '''def test_profile_switches_peer_tube_and_public_hygiene():
-    profile = load_profile()
-    enabled = {source["key"] for source in profile["sources"] if source["enabled"]}
-    assert {
-        "dair-home",
-        "dair-publications",
-        "mastodon-dair",
-        "mastodon-alex",
-        "bluesky-alex",
-        "peertube-dair",
-        "maiht3k-podcast",
-    } <= enabled
-    assert not next(
-        source for source in profile["sources"] if source["key"] == "linkedin-dair"
-    )["enabled"]
-    assert not next(
-        source for source in profile["sources"] if source["key"] == "twitch-dair"
-    )["enabled"]
-    serialized = yaml.safe_dump(profile).lower()
-    assert "classification_state" not in serialized or "unjudged" in serialized
-    assert not any(
-        secret in serialized
-        for secret in ("api_key", "password", "bearer ", "c:\\\\users", "/scratch/")
-    )
-'''
-          new = '''def test_private_profile_switches_and_hygiene(tmp_path: Path):
-    profile_path = tmp_path / "dair-private.yaml"
-    synthetic = {
-        **CFG,
-        "sources": [
-            {
-                "key": "synthetic-enabled",
-                "kind": "page",
-                "enabled": True,
-                "url": "https://example.org/enabled",
-            },
-            {
-                "key": "synthetic-disabled",
-                "kind": "page",
-                "enabled": False,
-                "url": "https://example.org/disabled",
-            },
-        ],
-    }
-    profile_path.write_text(yaml.safe_dump(synthetic), encoding="utf-8")
-    profile = load_profile(profile_path)
-    enabled = {source["key"] for source in profile["sources"] if source["enabled"]}
-    assert enabled == {"synthetic-enabled"}
-    assert not next(
-        source for source in profile["sources"] if source["key"] == "synthetic-disabled"
-    )["enabled"]
-    serialized = yaml.safe_dump(profile).lower()
-    assert "classification_state" not in serialized or "unjudged" in serialized
-    assert not any(
-        secret in serialized
-        for secret in ("api_key", "password", "bearer ", "c:\\\\users", "/scratch/")
-    )
-'''
-          if old not in text:
-              raise SystemExit('expected DAIR live-profile test block not found')
-          path.write_text(text.replace(old, new), encoding='utf-8')
-          Path('.github/workflows/private-config-tests-once.yml').unlink()
-          PY
-
-      - name: Commit test update and remove one-time workflow
+      - name: Remove transient patch files and commit
         run: |
+          rm scripts/_private_config_test_patch.py
+          rm .github/workflows/private-config-tests-once.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
