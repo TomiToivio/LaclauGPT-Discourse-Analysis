@@ -68,6 +68,15 @@ def test_content_guard_catches_high_signal_secrets_and_private_infra() -> None:
     assert _suspicious("host: 100.115.95.109")  # PUBLICATION-SAFETY: allow
 
 
+def test_content_guard_catches_known_private_ai26_deployment_markers() -> None:
+    private_db = "vasama" + "_ai"
+    private_host = "Laskin" + "01"
+    private_path = "/mnt/workspace/" + "LaclauGPT-Discourse-Analysis"
+    assert _suspicious(f"database = {private_db}")
+    assert _suspicious(f"deployment host: {private_host}")
+    assert _suspicious(f"WorkingDirectory={private_path}")
+
+
 def test_content_guard_allows_explicit_placeholders_and_loopback() -> None:
     assert not _suspicious('password: "${LACLAUGPT_ARANGODB_PASSWORD}"')
     assert not _suspicious("api_key: placeholder")
