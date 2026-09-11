@@ -110,6 +110,12 @@ SUSPICIOUS_CONTENT = (
         r"(?i)\b(?:mongodb(?:\+srv)?|postgres(?:ql)?|mysql|mariadb|redis|rediss)://"
         r"[^\s:/@]+:[^\s/@]+@"
     ),
+    # Known private deployment markers that previously appeared in the public
+    # AI26 runtime history. Keep the generic/public code, but prevent these
+    # concrete operational identifiers from being reintroduced into tracked text.
+    re.compile(r"\bvasama_ai\b", re.IGNORECASE),  # PUBLICATION-SAFETY: allow
+    re.compile(r"\bLaskin01\b", re.IGNORECASE),  # PUBLICATION-SAFETY: allow
+    re.compile(r"/mnt/workspace/LaclauGPT-Discourse-Analysis", re.IGNORECASE),  # PUBLICATION-SAFETY: allow
     re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b"),
     re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"),
     re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b"),
