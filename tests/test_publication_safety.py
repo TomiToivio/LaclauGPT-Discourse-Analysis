@@ -11,7 +11,12 @@ def test_path_guard_blocks_common_private_artifacts() -> None:
         "cookies.sqlite-wal",
         "research.sqlite-wal",
         "exports/ai26.jsonl",
+        "collection-data/feeds.txt",
         "config/sources/live-watchlist.yaml",
+        "config/projects/ai26-rss-sources.toml",
+        "config/projects/ai26_sources.yaml",
+        "docs/AI26_RSS_SOURCES.md",
+        "docs/AI26_FEEDS.md",
         "deploy/systemd/ai26/live.service",
         "ai26_runtime/local-export.jsonl",
         "capture.session",
@@ -19,13 +24,19 @@ def test_path_guard_blocks_common_private_artifacts() -> None:
         "database.dump",
         "bundle.tar.gz",
         "tests/fixtures/synthetic_ai.csv",
+        "docs/AI26_COLLECTION_METHOD.md",
     ])
     rendered = "\n".join(problems)
     assert "credentials.json" in rendered
     assert "cookies.sqlite-wal" in rendered
     assert "research.sqlite-wal" in rendered
     assert "exports/ai26.jsonl" in rendered
+    assert "collection-data/feeds.txt" in rendered
     assert "config/sources/live-watchlist.yaml" in rendered
+    assert "config/projects/ai26-rss-sources.toml" in rendered
+    assert "config/projects/ai26_sources.yaml" in rendered
+    assert "docs/AI26_RSS_SOURCES.md" in rendered
+    assert "docs/AI26_FEEDS.md" in rendered
     assert "deploy/systemd/ai26/live.service" in rendered
     assert "ai26_runtime/local-export.jsonl" in rendered
     assert "capture.session" in rendered
@@ -33,6 +44,7 @@ def test_path_guard_blocks_common_private_artifacts() -> None:
     assert "database.dump" in rendered
     assert "bundle.tar.gz" in rendered
     assert "tests/fixtures/synthetic_ai.csv" not in rendered
+    assert "docs/AI26_COLLECTION_METHOD.md" not in rendered
 
 
 def test_content_guard_catches_high_signal_secrets_and_private_infra() -> None:
