@@ -405,7 +405,7 @@ def test_private_profile_switches_and_hygiene(tmp_path: Path):
     assert "classification_state" not in serialized or "unjudged" in serialized
     assert not any(
         secret in serialized
-        for secret in ("api_key", "password", "bearer ", "c:\users", "/scratch/")
+        for secret in ("api_key", "password", "bearer ", r"c:\users", "/scratch/")
     )
 
 def test_empty_duplicate_or_malformed_source_lists(tmp_path: Path):
