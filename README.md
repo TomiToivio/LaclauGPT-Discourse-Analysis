@@ -211,7 +211,7 @@ constraints.
 
 For basic source ingestion (RSS feeds, plain web pages, Hermes Agent
 submissions, manual researcher submissions and Telegram via the
-Vasama-OSINT adapter), see [`docs/DATA_COLLECTION.md`](docs/DATA_COLLECTION.md)
+external Telegram collector), see [`docs/DATA_COLLECTION.md`](docs/DATA_COLLECTION.md)
 — all channels converge into the same canonical corpus, and collection
 settings stay in gitignored `collection-data/`.
 
