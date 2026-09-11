@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Fail CI/pre-commit when obviously restricted research artifacts are tracked.
+"""Fail CI/pre-commit when obviously restricted or secret material is tracked.
 
-This is a lightweight repository guard, not a privacy or secret-scanning product.
-It intentionally focuses on high-signal path/extension checks and a small set of
-production-data indicators. Human disclosure review remains mandatory.
+This is a lightweight repository guard, not a replacement for GitHub secret
+scanning, institutional disclosure review, or a forensic history audit. It aims
+to catch the most common accidental publication routes in a public research
+repository: raw/derived data, database/media dumps, browser/session state,
+credentials, private infrastructure paths and high-confidence token formats.
 """
 
 from __future__ import annotations
@@ -27,12 +29,40 @@ FORBIDDEN_ROOT_PREFIXES = (
     "restricted/",
     "scratch/",
     "secrets/",
+    "raw/",
+    "raw-data/",
+    "raw_data/",
+    "derived/",
+    "derived-data/",
+    "derived_data/",
+    "output/",
+    "outputs/",
+    "exports/",
+    "runs/",
+    "logs/",
+    "tmp/",
+    "temp/",
+    "checkpoints/",
+    "transcripts/",
+    "screenshots/",
+    "recordings/",
+    "media-downloads/",
+    "media_downloads/",
+    "browser-profiles/",
+    "browser_profiles/",
 )
 
 FORBIDDEN_EXTENSIONS = {
     ".sqlite",
     ".sqlite3",
     ".duckdb",
+    ".db",
+    ".bson",
+    ".rdb",
+    ".aof",
+    ".dump",
+    ".backup",
+    ".bak",
     ".parquet",
     ".mp4",
     ".mov",
@@ -41,20 +71,88 @@ FORBIDDEN_EXTENSIONS = {
     ".wav",
     ".mp3",
     ".m4a",
+    ".session",
+    ".pem",
+    ".key",
+    ".p12",
+    ".pfx",
+    ".jks",
+    ".keystore",
+    ".kdbx",
+    ".har",
+    ".zip",
+    ".tar",
+    ".gz",
+    ".tgz",
+    ".7z",
+    ".rar",
 }
 
-# High-signal production/research-storage patterns. Safe example/test URLs may
-# be explicitly marked with PUBLICATION-SAFETY: allow on the same line.
-# Documentation may legitimately mention generic CSC paths, so path strings are
-# handled structurally rather than by broad text matching.
+FORBIDDEN_FILENAMES = {
+    "credentials.json",
+    "application_default_credentials.json",
+    "token.json",
+    "cookies.txt",
+    "cookies.json",
+    "cookies.sqlite",
+    "login data",
+    "web data",
+    "local state",
+    ".netrc",
+}
+
+_CREDENTIAL_NAMES = (
+    r"api[_-]?key|api[_-]?token|access[_-]?token|refresh[_-]?token|"
+    r"secret[_-]?key|client[_-]?secret|password|passwd|telegram[_-]?api[_-]?hash"
+)
+_PLACEHOLDER_NEGATIVE = (
+    r"(?!\$\{)(?!<)(?!example\b)(?!changeme\b)(?!placeholder\b)"
+    r"(?!dummy\b)(?!test\b)(?!synthetic\b)(?!none\b)(?!null\b)"
+)
+
+# High-signal production/research-storage and credential patterns. Safe examples
+# may be explicitly marked with PUBLICATION-SAFETY: allow on the same line.
 SUSPICIOUS_CONTENT = (
     re.compile(r"https?://a3s\.fi/swift/v1/", re.IGNORECASE),
-    re.compile(r"(?i)(api[_-]?key|access[_-]?token|secret[_-]?key)\s*[:=]\s*['\"][^'\"]+['\"]"),
+    # Quoted generic credential assignments. Environment substitutions and
+    # conspicuous placeholders are deliberately excluded.
+    re.compile(
+        rf"(?i)\b({_CREDENTIAL_NAMES})\b\s*[:=]\s*['\"]"
+        rf"{_PLACEHOLDER_NEGATIVE}[^'\"]{{8,}}['\"]"
+    ),
+    # Unquoted literal credentials; environment substitutions/placeholders are excluded.
+    re.compile(
+        rf"(?i)\b({_CREDENTIAL_NAMES})\b\s*[:=]\s*{_PLACEHOLDER_NEGATIVE}"
+        r"[A-Za-z0-9_./+=:@-]{8,}"
+    ),
+    # Connection strings that embed username/password material.
+    re.compile(
+        r"(?i)\b(?:mongodb(?:\+srv)?|postgres(?:ql)?|mysql|mariadb|redis|rediss)://"
+        r"[^\s:/@]+:[^\s/@]+@"
+    ),
+    # Common high-confidence token/key formats.
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b"),
+    re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b"),
+    re.compile(r"\bhf_[A-Za-z0-9]{20,}\b"),
+    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
+    re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{20,}\b"),
+    re.compile(r"\b\d{8,10}:[A-Za-z0-9_-]{30,}\b"),
+    # Private-key material. PUBLICATION-SAFETY: allow
+    re.compile(r"-----BEGIN (?:RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----"),
+    # User-specific absolute paths should not be baked into public files.
+    re.compile(r"(?<![A-Za-z0-9])(?:/home|/Users)/(?!user/|username/|example/)[A-Za-z0-9._-]+/"),
+    re.compile(r"(?i)\b[A-Z]:\\Users\\(?!user\\|username\\|example\\)[^\\\s]+\\"),
+    # Non-loopback RFC1918 addresses are normally private infrastructure details.
+    re.compile(
+        r"(?<!\d)(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|"
+        r"172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})(?!\d)"
+    ),
 )
 
 TEXT_EXTENSIONS = {
     ".md", ".txt", ".py", ".js", ".ts", ".json", ".jsonl", ".yaml", ".yml",
-    ".toml", ".ini", ".cfg", ".csv", ".sh", ".ps1", ".env", "",
+    ".toml", ".ini", ".cfg", ".csv", ".sh", ".ps1", ".env", ".service", ".timer", "",
 }
 
 
@@ -74,6 +172,7 @@ def path_violations(paths: list[str]) -> list[str]:
     for rel in paths:
         p = Path(rel)
         lowered = rel.lower()
+        name = p.name.lower()
 
         if rel.startswith("data/") and rel not in ALLOWED_RESTRICTED_ROOT_FILES:
             problems.append(f"tracked runtime research data path: {rel}")
@@ -84,13 +183,31 @@ def path_violations(paths: list[str]) -> list[str]:
                 problems.append(f"tracked restricted/copyright source path: {rel}")
 
         if lowered.startswith(FORBIDDEN_ROOT_PREFIXES):
-            problems.append(f"tracked restricted/private root: {rel}")
+            problems.append(f"tracked restricted/private runtime root: {rel}")
 
         if p.suffix.lower() in FORBIDDEN_EXTENSIONS:
-            problems.append(f"tracked database/media artifact ({p.suffix}): {rel}")
+            problems.append(f"tracked database/media/auth/archive artifact ({p.suffix}): {rel}")
 
-        if p.name == ".env" or (p.name.startswith(".env.") and p.name != ".env.example"):
+        credential_json = (
+            name.startswith("client_secret")
+            or name.startswith("service-account")
+            or name.startswith("service_account")
+            or (name.startswith("credentials") and name.endswith(".json"))
+        )
+        if name in FORBIDDEN_FILENAMES or credential_json:
+            problems.append(f"tracked credential/session filename: {rel}")
+
+        if name == ".env" or (name.startswith(".env.") and name != ".env.example"):
             problems.append(f"tracked environment/secrets file: {rel}")
+
+        if name.endswith(".session-journal") or name.startswith("cookies.sqlite"):
+            problems.append(f"tracked browser/session state: {rel}")
+
+        if rel.startswith("ai26_runtime/") and p.suffix.lower() in {".jsonl", ".csv", ".log", ".pid"}:
+            problems.append(f"tracked AI26 runtime output: {rel}")
+
+        if rel.startswith("deploy/") and any(part in name for part in (".private.", ".local.")):
+            problems.append(f"tracked private deployment overlay: {rel}")
 
     return problems
 
@@ -111,7 +228,7 @@ def content_violations(paths: list[str]) -> list[str]:
                 continue
             for pattern in SUSPICIOUS_CONTENT:
                 if pattern.search(line):
-                    problems.append(f"suspicious production-data/secret indicator: {rel}:{lineno}")
+                    problems.append(f"suspicious private/credential indicator: {rel}:{lineno}")
                     break
     return problems
 
@@ -146,7 +263,7 @@ def main() -> int:
         )
         return 1
 
-    print("publication-safety: no high-signal tracked research-data violations found")
+    print("publication-safety: no high-signal tracked research-data/privacy violations found")
     return 0
 
 
