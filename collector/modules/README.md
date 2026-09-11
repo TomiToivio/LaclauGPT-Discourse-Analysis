@@ -1,29 +1,32 @@
 # Platform parsing modules
 
-Python ports of the Zeeschuimer platform modules, kept line-comparable
-with upstream so future upstream fixes can be merged by diff.
+These are **LaclauGPT-native platform parsers** for TikTok, Instagram and
+X/Twitter.
 
-## Attribution
+Their architecture follows the historical
+[LaclauGPT-TikTok-Scraper](https://github.com/TomiToivio/LaclauGPT-TikTok-Scraper):
+capture a platform response, route it by request/view, parse native platform
+objects in small helpers, and map them into a LaclauGPT-owned record shape.
 
-Zeeschuimer — https://github.com/digitalmethodsinitiative/zeeschuimer
-Copyright (c) Stijn Peeters <stijn.peeters@uva.nl>
-License: Mozilla Public License 2.0 (MPL-2.0).
+Zeeschuimer remains an important **design inspiration** for browser/API-response
+capture and a useful interoperability target, but these Python modules are not
+ports or line-comparable adaptations of Zeeschuimer source code. They do not
+reuse Zeeschuimer's parser source structure, 4CAT mapping sentinel, `_zs_*`
+internal fields, or upstream sync blocks.
 
-Ported upstream files (2026, LaclauGPT adaptation):
+The parser implementations in this directory are released under the repository's
+CC0 terms. Separate Zeeschuimer/4CAT import adapters elsewhere in the repository
+remain interoperability code and are not affected by this parser rewrite.
 
-| LaclauGPT file  | Upstream source                    |
-|-----------------|------------------------------------|
-| `tiktok.py`     | `modules/tiktok.js`                |
-| `instagram.py`  | `modules/instagram.js`             |
-| `twitter.py`    | `modules/twitter.js`               |
+## Design rules
 
-Under MPL 2.0 this adaptation must remain available under MPL-2.0; the
-upstream copyright notice is retained in each module header. Logic-level
-changes (vs. plain translation): `capture()` also accepts pre-parsed
-dict payloads (CDP/HAR driver shortcut); `map_item()` emits plain dicts
-instead of 4CAT `MappedItem` objects; upstream endpoint/operation
-allowlists, dedup semantics and partial-item handling are preserved.
+- Keep platform post IDs as strings.
+- Prefer explicit endpoint/view routing over opaque recursive assumptions.
+- Accept platform payload drift through small compatibility helpers.
+- Keep raw platform objects separate from LaclauGPT normalised records.
+- Preserve source URL and collection provenance.
+- Filter obvious ads/live/non-post payloads where the platform shape permits it.
+- Use synthetic fixtures for public tests.
 
-The X/Twitter module deliberately follows upstream's operation-name
-endpoint matching (never hard-coded GraphQL query IDs) and keeps all
-post IDs as exact strings (they exceed 2^53).
+The browser-side parsers in `collector/browser/modules/` use the same
+LaclauGPT-owned design principles.
