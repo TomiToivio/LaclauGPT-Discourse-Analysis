@@ -82,6 +82,7 @@ FORBIDDEN_EXTENSIONS = {
     ".har",
     ".zip",
     ".tar",
+    ".gz",
     ".tgz",
     ".7z",
     ".rar",
@@ -100,22 +101,28 @@ FORBIDDEN_FILENAMES = {
     ".netrc",
 }
 
+_CREDENTIAL_NAMES = (
+    r"api[_-]?key|api[_-]?token|access[_-]?token|refresh[_-]?token|"
+    r"secret[_-]?key|client[_-]?secret|password|passwd|telegram[_-]?api[_-]?hash"
+)
+_PLACEHOLDER_NEGATIVE = (
+    r"(?!\$\{)(?!<)(?!example\b)(?!changeme\b)(?!placeholder\b)"
+    r"(?!dummy\b)(?!test\b)(?!synthetic\b)(?!none\b)(?!null\b)"
+)
+
 # High-signal production/research-storage and credential patterns. Safe examples
 # may be explicitly marked with PUBLICATION-SAFETY: allow on the same line.
 SUSPICIOUS_CONTENT = (
     re.compile(r"https?://a3s\.fi/swift/v1/", re.IGNORECASE),
-    # Quoted generic credential assignments.
+    # Quoted generic credential assignments. Environment substitutions and
+    # conspicuous placeholders are deliberately excluded.
     re.compile(
-        r"(?i)\b(api[_-]?key|api[_-]?token|access[_-]?token|refresh[_-]?token|"
-        r"secret[_-]?key|client[_-]?secret|password|passwd|telegram[_-]?api[_-]?hash)"
-        r"\b\s*[:=]\s*['\"][^'\"]{8,}['\"]"
+        rf"(?i)\b({_CREDENTIAL_NAMES})\b\s*[:=]\s*['\"]"
+        rf"{_PLACEHOLDER_NEGATIVE}[^'\"]{{8,}}['\"]"
     ),
     # Unquoted literal credentials; environment substitutions/placeholders are excluded.
     re.compile(
-        r"(?i)\b(api[_-]?key|api[_-]?token|access[_-]?token|refresh[_-]?token|"
-        r"secret[_-]?key|client[_-]?secret|password|passwd|telegram[_-]?api[_-]?hash)"
-        r"\b\s*[:=]\s*(?!\$\{)(?!<)(?!example\b)(?!changeme\b)(?!placeholder\b)"
-        r"(?!dummy\b)(?!test\b)(?!synthetic\b)(?!none\b)(?!null\b)"
+        rf"(?i)\b({_CREDENTIAL_NAMES})\b\s*[:=]\s*{_PLACEHOLDER_NEGATIVE}"
         r"[A-Za-z0-9_./+=:@-]{8,}"
     ),
     # Connection strings that embed username/password material.
@@ -181,7 +188,13 @@ def path_violations(paths: list[str]) -> list[str]:
         if p.suffix.lower() in FORBIDDEN_EXTENSIONS:
             problems.append(f"tracked database/media/auth/archive artifact ({p.suffix}): {rel}")
 
-        if name in FORBIDDEN_FILENAMES or name.startswith("client_secret"):
+        credential_json = (
+            name.startswith("client_secret")
+            or name.startswith("service-account")
+            or name.startswith("service_account")
+            or (name.startswith("credentials") and name.endswith(".json"))
+        )
+        if name in FORBIDDEN_FILENAMES or credential_json:
             problems.append(f"tracked credential/session filename: {rel}")
 
         if name == ".env" or (name.startswith(".env.") and name != ".env.example"):
