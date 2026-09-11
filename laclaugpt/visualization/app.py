@@ -359,10 +359,10 @@ def _display_document(
             ]), width="stretch", hide_index=True)
     with tabs[2]:
         for quote in annotation.evidence_quotes:
-            st.quote(quote)
+            st.markdown(f"> {quote}")
         for quote in annotation.hegemonic_evidence:
             text = getattr(quote, "quote", quote)
-            st.quote(text)
+            st.markdown(f"> {text}")
         if annotation.counter_evidence:
             st.write("**Counter-evidence**")
             for item in annotation.counter_evidence:

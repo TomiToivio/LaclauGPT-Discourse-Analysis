@@ -514,9 +514,9 @@ def _document_view(
 
     with tabs["Evidence"]:
         for quote in annotation.evidence_quotes:
-            st.quote(quote)
+            st.markdown(f"> {quote}")
         for span in annotation.hegemonic_evidence:
-            st.quote(getattr(span, "quote", span))
+            st.markdown(f"> {getattr(span, 'quote', span)}")
         if annotation.counter_evidence:
             st.write("**Counter-evidence**")
             for item in annotation.counter_evidence:
