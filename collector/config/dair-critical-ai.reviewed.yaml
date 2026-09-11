@@ -1,0 +1,163 @@
+# Reviewed public-source profile for AI26 reproducibility.
+#
+# This file contains factual public identifiers for a public institution and
+# public researchers.  It contains no credentials, private links, operational
+# schedules, research data, inferred political attributes, or document-level
+# ideological classifications.
+#
+# IMPORTANT: inclusion in this source group is a sampling/source-selection
+# decision only.  It does NOT classify any actor or document as "AI Critical".
+
+profile_version: 1
+publication_status: public_after_review
+project: ai26
+arena: elites
+source_group: dair-critical-ai
+selection_rationale: >-
+  Public DAIR institutional material and associated public researcher accounts
+  are sampled because they are relevant to research on critical discourse about
+  AI. AI Critical is a provisional sensitising category, not an actor-level or
+  document-level classification.
+
+interpretation_policy:
+  assign_ideology_at_collection: false
+  source_group_is_ideology: false
+  retain_original_language: true
+  translation_is_derived: true
+
+modality_policy:
+  text_native: collect_text
+  captioned_video: prefer_existing_captions
+  uncaptioned_video: local_audio_asr_when_permitted
+  multimodal_default: false
+  human_verification_required_for_exact_asr_quotes: true
+
+sources:
+  - id: dair-website
+    platform: web
+    kind: institution_website
+    canonical_url: https://dair-institute.org/
+    status: enabled
+    acquisition_priority: 1
+
+  - id: dair-publications
+    platform: web
+    kind: publications_index
+    canonical_url: https://dair-institute.org/publications/
+    status: enabled
+    acquisition_priority: 1
+    preferred_method: rss_or_atom_then_html_index
+
+  - id: dair-blog
+    platform: web
+    kind: blog_index
+    canonical_url: https://dair-institute.org/blog/
+    status: enabled
+    acquisition_priority: 1
+    preferred_method: rss_or_atom_then_html_index
+
+  - id: emily-bender-mastodon
+    platform: mastodon
+    kind: public_researcher_account
+    account_ref: dair-community.social/@EmilyMBender
+    status: enabled
+    acquisition_priority: 2
+
+  - id: alex-hanna-mastodon
+    platform: mastodon
+    kind: public_researcher_account
+    account_ref: dair-community.social/@alex
+    status: enabled
+    acquisition_priority: 2
+
+  - id: dair-mastodon
+    platform: mastodon
+    kind: institutional_account
+    instance: https://dair-community.social/
+    discover_official_account: true
+    status: discovery_required
+    acquisition_priority: 2
+
+  - id: dair-bluesky
+    platform: bluesky
+    kind: institutional_account
+    handle: dairinstitute.bsky.social
+    resolve_did_at_collection: true
+    status: enabled
+    acquisition_priority: 3
+
+  - id: emily-bender-bluesky
+    platform: bluesky
+    kind: public_researcher_account
+    handle: emilymbender.bsky.social
+    resolve_did_at_collection: true
+    status: enabled
+    acquisition_priority: 3
+
+  - id: alex-hanna-bluesky
+    platform: bluesky
+    kind: public_researcher_account
+    handle: alexhanna.bsky.social
+    resolve_did_at_collection: true
+    status: enabled
+    acquisition_priority: 3
+
+  - id: dair-peertube
+    platform: peertube
+    kind: institutional_video_instance
+    instance: https://peertube.dair-institute.org/
+    discover_channels_before_collection: true
+    status: enabled
+    acquisition_priority: 4
+    transcript_priority:
+      - creator_caption
+      - platform_caption
+      - local_audio_asr
+      - selected_multimodal_only
+
+  - id: alex-hanna-x
+    platform: x
+    kind: public_researcher_account
+    handle: alexhanna
+    status: configured_existing_collector
+    acquisition_priority: 5
+    collector_path: existing_x_collector
+
+  - id: dair-twitch
+    platform: twitch
+    kind: institutional_stream_channel
+    handle: dair_institute
+    canonical_url: https://www.twitch.tv/dair_institute
+    status: optional_disabled
+    acquisition_priority: 6
+    reason: >-
+      Enable only when a stable authorized caption/transcript path or a
+      separately reviewed audio-only VOD workflow is available. Live capture
+      and chat collection are out of scope.
+
+  - id: dair-linkedin
+    platform: linkedin
+    kind: institutional_company_page
+    canonical_url: https://www.linkedin.com/company/dair-institute/posts/
+    status: optional_disabled
+    acquisition_priority: 7
+    reason: >-
+      Do not use brittle or unauthorized scraping. Enable only through a
+      separately reviewed authorized/manual browser-capture workflow with no
+      credential storage or automated login.
+
+provenance_defaults:
+  project: ai26
+  arena: elites
+  source_group: dair-critical-ai
+  configuration_fingerprint_required: true
+  raw_capture_reference_required_when_supported: true
+
+ethical_boundaries:
+  public_content_only: true
+  collect_followers: false
+  collect_private_posts: false
+  collect_direct_messages: false
+  collect_twitch_chat: false
+  bypass_access_controls: false
+  store_credentials_in_repo: false
