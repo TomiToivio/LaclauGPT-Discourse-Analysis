@@ -171,8 +171,12 @@ def path_violations(paths: list[str]) -> list[str]:
         if name == ".env" or (name.startswith(".env.") and name != ".env.example"):
             problems.append(f"tracked environment/secrets file: {rel}")
 
-        if name.endswith(".session-journal") or name.startswith("cookies.sqlite"):
-            problems.append(f"tracked browser/session state: {rel}")
+        if (
+            name.endswith(".session-journal")
+            or name.startswith("cookies.sqlite")
+            or name.endswith((".sqlite-wal", ".sqlite-shm", ".sqlite3-wal", ".sqlite3-shm"))
+        ):
+            problems.append(f"tracked browser/database session state: {rel}")
 
         if rel.startswith("ai26_runtime/") and p.suffix.lower() in {".jsonl", ".csv", ".log", ".pid"}:
             problems.append(f"tracked AI26 runtime output: {rel}")
