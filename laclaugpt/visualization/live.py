@@ -515,10 +515,12 @@ def formation_intensity(
             "actors": actors,
             "relations": pd.Series(relation_counts),
         }
-    ).fillna(0)
+    )
+    result.index.name = "formation"
+    result = result.fillna(0).reset_index()
     result["relations"] = result["relations"].astype(int)
     result["relations_per_document"] = (result["relations"] / result["documents"]).round(2)
-    return result.reset_index().rename(columns={"formations": "formation"}).sort_values(
+    return result.sort_values(
         ["documents", "formation"], ascending=[False, True]
     )
 

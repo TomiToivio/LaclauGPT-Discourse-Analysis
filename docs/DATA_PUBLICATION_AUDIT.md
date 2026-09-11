@@ -1,14 +1,14 @@
 # Research-data publication audit
 
-Audit scope: public repository content on the default branch, publication-related configuration/documentation, current EP24 codebooks, selected repository searches for research-data indicators, and recent issue #73 context. This is a repository-level screening, not a substitute for institutional legal/data-protection review or a forensic secret scan of every historical Git object.
+Audit scope: public repository content on the default branch, publication-related configuration/documentation, selected repository searches for research-data indicators, and historical issue context. This is a repository-level screening, not a substitute for institutional legal/data-protection review or a forensic secret scan of every historical Git object.
 
 ## Executive assessment
 
 The repository already has a strong core boundary:
 
 - `/data/*` is ignored except `data/README.md`;
-- `/sources/*` is ignored except documentation and explicitly public EP24 codebooks;
-- EP24 CSV inputs are specifically ignored;
+- `/sources/*` is ignored except documentation;
+- historical EP24 artefacts are retained locally and excluded from public Git;
 - `data/README.md` describes runtime/working research data as non-versioned;
 - issue #73 explicitly requires research/generated data and secrets to stay outside Git.
 
@@ -30,21 +30,12 @@ The main gaps were policy/documentation rather than a visible committed raw corp
 
 Detailed rules are in `docs/DATA_PUBLICATION_POLICY.md`.
 
-## EP24 Finland / Poland codebook assessment
+## Historical EP24 material
 
-Reviewed:
-
-- `sources/codebooks/ep24_finland.md`
-- `sources/codebooks/ep24_poland.md`
-
-The current public files consist of party/institution names, public political figures with factual public context, seed signifiers, election/country context and provenance notes. Their legacy family buckets apply to parties rather than inferred attributes of ordinary research subjects.
-
-**Decision:** these files can remain public after human review as reproducibility artifacts, with two conditions:
-
-1. legacy ideological/family buckets remain explicitly labelled as legacy descriptive/sensitising metadata rather than validated findings;
-2. future person-level inferred political attributes are not added to the public files.
-
-The referenced legacy workbooks and research-diary records themselves remain restricted. If future seed material mixes public methodology with subject-level inference, split it into a public codebook and a restricted codebook stored in controlled research infrastructure.
+EP24 Finland and Poland artefacts were removed from public Git and retained
+only in the restricted local checkout. This includes codebooks,
+configurations, pipelines and tests. The public repository keeps only
+high-level Markdown documentation needed to explain the historical boundary.
 
 ## Repository findings
 
@@ -63,7 +54,7 @@ Recommendation: replace real account/profile examples with clearly fictional `ex
 
 ### Gap: production-service URL patterns
 
-Repository search found `a3s.fi` patterns in EP24 fetch tests. The visible test values appear to be deliberately simplified fixture paths rather than production research records. Even so, the publication guard should distinguish safe fixture/example URLs from production research URLs and flag suspicious Allas/Swift patterns for human review.
+Historical EP24 fetch tests are retained locally and excluded from public Git. The publication guard should distinguish safe fixture/example URLs from production research URLs and flag suspicious Allas/Swift patterns for human review.
 
 ### Issue / discussion surface
 
