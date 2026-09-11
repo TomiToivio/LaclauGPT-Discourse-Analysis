@@ -54,7 +54,7 @@ def test_content_guard_allows_explicit_placeholders_and_loopback() -> None:
     assert not _suspicious("path: /home/user/project")
     assert not _suspicious("path: /users/user/project")
     assert not _suspicious(r"path: C:\Users\user\project")
-    assert not _suspicious("path: ${LACLAUGPT_DATA_DIR}/ep24")
+    assert not _suspicious("path: ${LACLAUGPT_DATA_DIR}/ai26")
 
 
 def test_content_guard_does_not_treat_code_expressions_as_literal_secrets() -> None:
