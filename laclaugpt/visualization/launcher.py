@@ -51,7 +51,9 @@ def launch(
             "`python -m pip install -e \".[visualization]\"`"
         ) from exc
 
-    app_path = Path(__file__).with_name("app.py")
+    # dashboard.py is the current schema/profile-aware Streamlit entry point.
+    # app.py retains shared UI helpers and backward-compatible import paths.
+    app_path = Path(__file__).with_name("dashboard.py")
     streamlit_args = [
         "streamlit",
         "run",
