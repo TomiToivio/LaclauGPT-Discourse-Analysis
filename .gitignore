@@ -306,3 +306,8 @@ data/csv/ep24_finland.csv
 
 # Agent-specific local permissions
 .claude/settings.local.json
+
+# Private operational source-selection and deployment configuration.
+# Keep these outside the public repository.
+/config/sources/
+/deploy/systemd/

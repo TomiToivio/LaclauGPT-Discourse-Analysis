@@ -10,6 +10,8 @@ def test_path_guard_blocks_common_private_artifacts() -> None:
         "credentials.json",
         "cookies.sqlite-wal",
         "exports/ai26.jsonl",
+        "config/sources/live-watchlist.yaml",
+        "deploy/systemd/ai26/live.service",
         "ai26_runtime/local-export.jsonl",
         "capture.session",
         "private-key.pem",
@@ -21,6 +23,8 @@ def test_path_guard_blocks_common_private_artifacts() -> None:
     assert "credentials.json" in rendered
     assert "cookies.sqlite-wal" in rendered
     assert "exports/ai26.jsonl" in rendered
+    assert "config/sources/live-watchlist.yaml" in rendered
+    assert "deploy/systemd/ai26/live.service" in rendered
     assert "ai26_runtime/local-export.jsonl" in rendered
     assert "capture.session" in rendered
     assert "private-key.pem" in rendered
@@ -40,6 +44,7 @@ def test_content_guard_catches_high_signal_secrets_and_private_infra() -> None:
     assert _suspicious("/projappl/project_1234567/private/ai26")  # PUBLICATION-SAFETY: allow
     assert _suspicious(r"C:\Users\researcher\private\ai26.yaml")  # PUBLICATION-SAFETY: allow
     assert _suspicious("host: 192.168.254.42")  # PUBLICATION-SAFETY: allow
+    assert _suspicious("host: 100.64.0.10")  # PUBLICATION-SAFETY: allow
 
 
 def test_content_guard_allows_explicit_placeholders_and_loopback() -> None:
