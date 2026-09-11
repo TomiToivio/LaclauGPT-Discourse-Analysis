@@ -30,13 +30,13 @@ def test_path_guard_blocks_common_private_artifacts() -> None:
 
 
 def test_content_guard_catches_high_signal_secrets_and_private_infra() -> None:
-    assert _suspicious('password: "correct-horse-battery-staple"')
-    assert _suspicious("api_key: abcdefghijklmnopqrstuvwxyz")
-    assert _suspicious("mongodb://researcher:supersecret@db.example:27017/laclaugpt")
-    assert _suspicious("ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")
-    assert _suspicious("/home/researcher/private/ai26.yaml")
-    assert _suspicious(r"C:\Users\researcher\private\ai26.yaml")
-    assert _suspicious("host: 192.168.10.42")
+    assert _suspicious('password: "correct-horse-battery-staple"')  # PUBLICATION-SAFETY: allow
+    assert _suspicious("api_key: abcdefghijklmnopqrstuvwxyz")  # PUBLICATION-SAFETY: allow
+    assert _suspicious("mongodb://researcher:supersecret@db.example:27017/laclaugpt")  # PUBLICATION-SAFETY: allow
+    assert _suspicious("ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456")  # PUBLICATION-SAFETY: allow
+    assert _suspicious("/home/researcher/private/ai26.yaml")  # PUBLICATION-SAFETY: allow
+    assert _suspicious(r"C:\Users\researcher\private\ai26.yaml")  # PUBLICATION-SAFETY: allow
+    assert _suspicious("host: 192.168.10.42")  # PUBLICATION-SAFETY: allow
 
 
 def test_content_guard_allows_explicit_placeholders_and_loopback() -> None:
@@ -45,3 +45,10 @@ def test_content_guard_allows_explicit_placeholders_and_loopback() -> None:
     assert not _suspicious("base_url: http://127.0.0.1:11434")
     assert not _suspicious("path: /home/user/project")
     assert not _suspicious(r"path: C:\Users\user\project")
+
+
+def test_content_guard_does_not_treat_code_expressions_as_literal_secrets() -> None:
+    assert not _suspicious('api_key = os.environ.get("OLLAMA_API_KEY", "").strip()')
+    assert not _suspicious(
+        'password=_setting(config, "arangodb_password", "LACLAUGPT_ARANGODB_PASSWORD")'
+    )
