@@ -9,8 +9,8 @@ import os
 from collections import defaultdict
 from pathlib import Path
 
-import ep24_asr
-import ep24_fetch
+import legacy_asr
+import legacy_fetch
 
 REPO_ROOT = os.environ.get("LACLAUGPT_REPO_ROOT", str(Path(__file__).resolve().parents[1]))
 DATA_ROOT = os.environ.get("LACLAUGPT_DATA_DIR", str(Path(REPO_ROOT) / "data"))
@@ -136,10 +136,10 @@ def run_country(country: str, source_csv: str | Path, data_root: str = DATA_ROOT
     if dry_run:
         status["dry_run"] = True
         return status
-    status["fetched"] = len(ep24_fetch.fetch_all(p["manifest"], p["videos"]))
-    status["transcribed"] = ep24_asr.transcribe_manifest(
+    status["fetched"] = len(legacy_fetch.fetch_all(p["manifest"], p["videos"]))
+    status["transcribed"] = legacy_asr.transcribe_manifest(
         p["manifest"], p["videos"], p["transcripts"], model=model)
-    from ep24_pipeline import build_canonical_csv
+    from legacy_pipeline import build_canonical_csv
     status["canonical_rows"] = build_canonical_csv(
         p["manifest"], p["transcripts"], p["roster"], p["input"])
     status["analysis"] = canonical_analysis(country, p)

@@ -12,9 +12,9 @@ import os
 import time
 from pathlib import Path
 
-import ep24_asr
-import ep24_fetch
-import ep24_screen_metadata
+import legacy_asr
+import legacy_fetch
+import legacy_screen_metadata
 
 REPO_ROOT = os.environ.get("LACLAUGPT_REPO_ROOT", str(Path(__file__).resolve().parent))
 DATA_ROOT = os.environ.get("LACLAUGPT_DATA_DIR", str(Path(__file__).resolve().parent / "data"))
@@ -57,14 +57,14 @@ def ocr_video_frames(video_path: Path, *, max_frames: int = 3) -> str:
 
 def run_country(country: str, *, data_root: str = DATA_ROOT,
                 repo_root: str = REPO_ROOT, run_config: str | None = None,
-                model_size: str = ep24_asr.DEFAULT_MODEL, model=None,
+                model_size: str = legacy_asr.DEFAULT_MODEL, model=None,
                 ocr_fn=ocr_video_frames) -> dict:
     p = paths(country, data_root=data_root, repo_root=repo_root)
     status: dict = {"country": country}
-    fetched = ep24_fetch.fetch_all(p["manifest"], p["videos"])
+    fetched = legacy_fetch.fetch_all(p["manifest"], p["videos"])
     status["fetched"] = len(fetched)
 
-    n = ep24_asr.transcribe_manifest(p["manifest"], p["videos"],
+    n = legacy_asr.transcribe_manifest(p["manifest"], p["videos"],
                                      p["transcripts"], model_size=model_size,
                                      model=model)
     status["transcribed"] = n
@@ -74,7 +74,7 @@ def run_country(country: str, *, data_root: str = DATA_ROOT,
     for rec in transcripts:
         if rec.get("screen_ocr"):
             continue
-        video = ep24_fetch._dest_for(Path(p["videos"]), rec["allas_url"])
+        video = legacy_fetch._dest_for(Path(p["videos"]), rec["allas_url"])
         if not video.exists():
             continue
         rec["screen_ocr"] = ocr_fn(video)
@@ -82,7 +82,7 @@ def run_country(country: str, *, data_root: str = DATA_ROOT,
     _write_jsonl(p["transcripts"], transcripts)
     status["ocr_enriched"] = enriched
 
-    from ep24_pipeline import build_canonical_csv
+    from legacy_pipeline import build_canonical_csv
     written = build_canonical_csv(p["manifest"], p["transcripts"],
                                   p["legacy_csv"], p["canonical_csv"])
     status["canonical_rows"] = written
@@ -135,7 +135,7 @@ export LACLAUGPT_MEMORY_DIR=$DATA_ROOT/memory
 export LACLAUGPT_DATA_DIR=$DATA_ROOT
 export TMPDIR=${{TMPDIR:-/tmp}}
 
-python ep24_mm_pipeline.py --country {country} \\
+python legacy_mm_pipeline.py --country {country} \\
     --data-root "$DATA_ROOT" --repo-root "$REPO_ROOT"
 """
 
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     ap.add_argument("--data-root", default=DATA_ROOT)
     ap.add_argument("--repo-root", default=REPO_ROOT)
     ap.add_argument("--run-config", default=None)
-    ap.add_argument("--model", default=ep24_asr.DEFAULT_MODEL)
+    ap.add_argument("--model", default=legacy_asr.DEFAULT_MODEL)
     args = ap.parse_args()
     t0 = time.time()
     status = run_country(args.country, data_root=args.data_root,

@@ -2,7 +2,7 @@
 """EP24 ASR stage: faster-whisper large-v3 transcripts for fetched videos.
 
 Issue #73 phase 1.2. Re-derives transcripts from the videos fetched by
-`ep24_fetch` (never the legacy `whisper_transcript` columns — those are
+`legacy_fetch` (never the legacy `whisper_transcript` columns — those are
 outputs of the old Puhti run and ride only as provenance metadata).
 
 Model lessons baked in (recorded 2026-09-06/08 sessions):
@@ -11,7 +11,7 @@ Model lessons baked in (recorded 2026-09-06/08 sessions):
   HEPP24 corpus produced phantom transcripts in v1)
 - per-document output JSONL keeps provenance: model, version, fetch time
 
-Paths come from runtime configuration: videos stream to $TMPDIR via ep24_fetch;
+Paths come from runtime configuration: videos stream to $TMPDIR via legacy_fetch;
 transcripts land under the configured data root.
 """
 from __future__ import annotations
@@ -58,9 +58,9 @@ def transcribe_manifest(manifest_path: str | Path, videos_dir: str | Path,
                         out_path: str | Path, *, model_size: str = DEFAULT_MODEL,
                         device: str = DEFAULT_DEVICE, compute_type: str = DEFAULT_COMPUTE,
                         model=None) -> int:
-    import ep24_fetch
+    import legacy_fetch
 
-    pairs = ep24_fetch.load_manifest(manifest_path)
+    pairs = legacy_fetch.load_manifest(manifest_path)
     videos_dir = Path(videos_dir)
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -79,7 +79,7 @@ def transcribe_manifest(manifest_path: str | Path, videos_dir: str | Path,
         for doc_id, url in pairs:
             if doc_id in done:
                 continue
-            video = ep24_fetch._dest_for(Path(videos_dir), url)
+            video = legacy_fetch._dest_for(Path(videos_dir), url)
             if not video.exists():
                 raise FileNotFoundError(f"video for {doc_id} not fetched: expected {video}")
             result = transcribe_video(video, model_size=model_size,
@@ -109,7 +109,7 @@ def _slurm_header(job_name: str, time_limit: str, manifest: str,
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH --gpus=1
-#SBATCH --output=ep24_asr_%j.out
+#SBATCH --output=legacy_asr_%j.out
 
 set -euo pipefail
 : "${{LACLAUGPT_REPO_ROOT:?set LACLAUGPT_REPO_ROOT to the checked-out repository}}"
@@ -120,8 +120,8 @@ cd "$REPO_ROOT"
 
 export LACLAUGPT_MEMORY_DIR=$DATA_ROOT/memory
 export TMPDIR=${{TMPDIR:-/tmp}}
-python ep24_fetch.py --manifest "$DATA_ROOT/ep24/csv/{manifest}" --workdir "$DATA_ROOT/ep24/videos"
-python ep24_asr.py --manifest "$DATA_ROOT/ep24/csv/{manifest}" \\
+python legacy_fetch.py --manifest "$DATA_ROOT/ep24/csv/{manifest}" --workdir "$DATA_ROOT/ep24/videos"
+python legacy_asr.py --manifest "$DATA_ROOT/ep24/csv/{manifest}" \\
     --videos-dir "$DATA_ROOT/ep24/videos" \\
     --out "$DATA_ROOT/ep24/annotations/{country}_transcripts.jsonl"
 """
@@ -132,7 +132,7 @@ def write_slurm_script(path: str | Path, country: str, *,
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     manifest = f"{country}_manifest.csv"
-    path.write_text(_slurm_header(f"ep24_asr_{country}", time_limit, manifest, country),
+    path.write_text(_slurm_header(f"legacy_asr_{country}", time_limit, manifest, country),
                     encoding="utf-8")
     return path
 

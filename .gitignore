@@ -307,7 +307,20 @@ data/csv/ep24_finland.csv
 # Agent-specific local permissions
 .claude/settings.local.json
 
-# Private operational source-selection and deployment configuration.
-# Keep these outside the public repository.
 /config/sources/
 /deploy/systemd/
+
+# EP24 research data and runners are private (tighter data-sharing rules
+# than AI26). Only historical markdown references remain in the repo.
+/ep24_*.py
+/run_configs/arena_ep24*.yaml
+/run_configs/ep24_codebooks.yaml
+/config/arenas/ep24-*.yaml
+/config/projects/ep24.yaml
+/scripts/ep24/
+/scripts/ep24_*.sh
+/scripts/ep24_*.py
+/scripts/prepare_ep24_reprocessing.py
+/sources/codebooks/ep24_*.md
+/tests/test_ep24_*.py
+/tests/test_prepare_ep24_reprocessing.py

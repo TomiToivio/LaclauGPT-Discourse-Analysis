@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from scripts.ep24_roihu_reprocess import prepare_inputs
+from scripts.legacy_roihu_reprocess import prepare_inputs
 
 
 def test_prepare_inputs_deduplicates_and_excludes_model_outputs(tmp_path: Path) -> None:

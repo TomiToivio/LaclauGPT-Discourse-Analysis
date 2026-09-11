@@ -12,8 +12,8 @@ import json
 import os
 from pathlib import Path
 
-import ep24_asr
-import ep24_fetch
+import legacy_asr
+import legacy_fetch
 
 REPO_ROOT = os.environ.get("LACLAUGPT_REPO_ROOT", str(Path(__file__).resolve().parent))
 DATA_ROOT = os.environ.get("LACLAUGPT_DATA_DIR", str(Path(__file__).resolve().parent / "data"))
@@ -43,22 +43,22 @@ def paths(country: str, *, data_root: str = DATA_ROOT,
 
 def run_country(country: str, *, data_root: str = DATA_ROOT,
                 repo_root: str = REPO_ROOT, run_config: str | None = None,
-                model_size: str = ep24_asr.DEFAULT_MODEL, model=None,
+                model_size: str = legacy_asr.DEFAULT_MODEL, model=None,
                 dry_run: bool = False) -> dict:
     p = paths(country, data_root=data_root, repo_root=repo_root)
     status: dict = {"country": country}
-    fetched = ep24_fetch.fetch_all(p["manifest"], p["videos"])
+    fetched = legacy_fetch.fetch_all(p["manifest"], p["videos"])
     status["fetched"] = len(fetched)
     if dry_run:
         status["dry_run"] = True
         return status
 
-    n = ep24_asr.transcribe_manifest(p["manifest"], p["videos"],
+    n = legacy_asr.transcribe_manifest(p["manifest"], p["videos"],
                                      p["transcripts"], model_size=model_size,
                                      model=model)
     status["transcribed"] = n
 
-    from ep24_pipeline import build_canonical_csv
+    from legacy_pipeline import build_canonical_csv
     written = build_canonical_csv(p["manifest"], p["transcripts"],
                                   p["legacy_csv"], p["canonical_csv"])
     status["canonical_rows"] = written

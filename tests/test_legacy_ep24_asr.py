@@ -7,8 +7,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import ep24_asr
-import ep24_fetch
+import legacy_asr
+import legacy_fetch
 
 
 class FakeInfo:
@@ -49,19 +49,19 @@ class _Manifest:
 class TranscribeTests(unittest.TestCase):
     def test_vad_filter_is_on(self) -> None:
         fake = FakeWhisper([FakeSegment("Hei vaalifanit"), FakeSegment("")])
-        ep24_asr.transcribe_video("/tmp/whatever.mp4", model=fake)
+        legacy_asr.transcribe_video("/tmp/whatever.mp4", model=fake)
         self.assertTrue(fake.last_kwargs["vad_filter"])
 
     def test_empty_segments_do_not_break_join(self) -> None:
         fake = FakeWhisper([FakeSegment("Yksi"), FakeSegment("   "), FakeSegment("kaksi")])
-        result = ep24_asr.transcribe_video("/tmp/x.mp4", model=fake)
+        result = legacy_asr.transcribe_video("/tmp/x.mp4", model=fake)
         self.assertEqual(result["transcript"], "Yksi kaksi")
         self.assertEqual(result["language"], "fi")
         self.assertEqual(result["duration"], 12.5)
 
     def test_model_provenance_recorded(self) -> None:
         fake = FakeWhisper([FakeSegment("ok")])
-        result = ep24_asr.transcribe_video("/tmp/x.mp4", model=fake)
+        result = legacy_asr.transcribe_video("/tmp/x.mp4", model=fake)
         self.assertIn("transcript", result)
 
 
@@ -70,7 +70,7 @@ class ManifestTranscribeTests(unittest.TestCase):
         videos = Path(tmp) / "videos"
         videos.mkdir(exist_ok=True)
         for url in urls:
-            dest = ep24_fetch._dest_for(videos, url)
+            dest = legacy_fetch._dest_for(videos, url)
             dest.write_bytes(b"fake video bytes")
         return videos
 
@@ -83,13 +83,13 @@ class ManifestTranscribeTests(unittest.TestCase):
                                               "https://a3s.fi/x/2.mp4"])
             out = Path(tmp) / "out" / "finland_transcripts.jsonl"
             fake = FakeWhisper([FakeSegment("transkriptio")])
-            n = ep24_asr.transcribe_manifest(mp, videos, out, model=fake)
+            n = legacy_asr.transcribe_manifest(mp, videos, out, model=fake)
             self.assertEqual(n, 2)
             records = [json.loads(l) for l in out.read_text(encoding="utf-8").splitlines()]
             self.assertEqual({r["document_id"] for r in records}, {"ID1", "ID2"})
-            self.assertEqual(records[0]["transcript_version"], ep24_asr.TRANSCRIPT_VERSION)
+            self.assertEqual(records[0]["transcript_version"], legacy_asr.TRANSCRIPT_VERSION)
             self.assertTrue(records[0]["vad_filter"])
-            self.assertEqual(ep24_asr.transcribe_manifest(mp, videos, out, model=fake), 0)
+            self.assertEqual(legacy_asr.transcribe_manifest(mp, videos, out, model=fake), 0)
 
     def test_missing_video_raises_clearly(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -99,13 +99,13 @@ class ManifestTranscribeTests(unittest.TestCase):
             videos.mkdir(exist_ok=True)
             fake = FakeWhisper([FakeSegment("x")])
             with self.assertRaises(FileNotFoundError):
-                ep24_asr.transcribe_manifest(mp, videos, Path(tmp) / "o.jsonl", model=fake)
+                legacy_asr.transcribe_manifest(mp, videos, Path(tmp) / "o.jsonl", model=fake)
 
 
 class SlurmScriptTests(unittest.TestCase):
     def test_script_uses_runtime_roots(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            p = ep24_asr.write_slurm_script(Path(tmp) / "asr_fi.sh", "finland")
+            p = legacy_asr.write_slurm_script(Path(tmp) / "asr_fi.sh", "finland")
             text = p.read_text(encoding="utf-8")
             self.assertIn("LACLAUGPT_REPO_ROOT", text)
             self.assertIn("LACLAUGPT_DATA_DIR", text)

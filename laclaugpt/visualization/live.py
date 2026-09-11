@@ -37,6 +37,7 @@ def build_live_frame(annotations: Sequence[DocumentAnnotation]) -> pd.DataFrame:
     analysis_timestamps: list[Any] = []
     relation_counts: list[int] = []
     candidate_role_counts: list[int] = []
+    max_formation_confidences: list[float] = []
 
     for annotation in annotations:
         provenance = annotation.collection_provenance or {}
@@ -50,6 +51,12 @@ def build_live_frame(annotations: Sequence[DocumentAnnotation]) -> pd.DataFrame:
         analysis_timestamps.append(getattr(annotation, "created_at", None))
         relation_counts.append(len(annotation.articulations or []))
         candidate_role_counts.append(len(annotation.signifier_roles or []))
+        confidences = [
+            float(item.confidence)
+            for item in annotation.formation_candidates or []
+            if item.confidence is not None
+        ]
+        max_formation_confidences.append(max(confidences) if confidences else None)
 
     frame["analysis_status"] = statuses
     frame["collector"] = collectors
@@ -60,6 +67,7 @@ def build_live_frame(annotations: Sequence[DocumentAnnotation]) -> pd.DataFrame:
     )
     frame["relation_count"] = relation_counts
     frame["candidate_role_count"] = candidate_role_counts
+    frame["max_formation_confidence"] = max_formation_confidences
     return frame
 
 
@@ -101,6 +109,22 @@ def filter_list_value(
             )
         )
     ].copy()
+
+
+def filter_min_confidence(frame: pd.DataFrame, min_confidence: Any) -> pd.DataFrame:
+    """Keep documents whose strongest candidate formation passes a threshold.
+
+    Formation confidence is model-reported and uncalibrated. The threshold is a
+    display filter for the researcher, never a validity judgement.
+    """
+    try:
+        threshold = float(min_confidence or 0.0)
+    except (TypeError, ValueError):
+        threshold = 0.0
+    if threshold <= 0.0 or frame.empty or "max_formation_confidence" not in frame:
+        return frame.copy()
+    values = pd.to_numeric(frame["max_formation_confidence"], errors="coerce").fillna(0.0)
+    return frame[values >= threshold].copy()
 
 
 def explode_timeline(
@@ -310,3 +334,231 @@ def first_seen(frame: pd.DataFrame, column: str, label: str) -> pd.DataFrame:
         .rename(columns={column: label})
         .sort_values(["first_seen", label], ascending=[False, True])
     )
+
+
+def signifier_trend(
+    frame: pd.DataFrame, *, recent: pd.Timedelta | None = None
+) -> pd.DataFrame:
+    """Compare recent and earlier corpus halves for each observed signifier.
+
+    Both periods are measured in the same filtered view, so rising or falling
+    counts describe this corpus window only, not global usage. A signifier
+    counted as emerging/declining here remains a descriptive observation.
+    """
+    columns = [
+        "signifier",
+        "documents",
+        "recent_documents",
+        "earlier_documents",
+        "trend",
+    ]
+    if frame.empty or "signifiers" not in frame or "source_timestamp" not in frame:
+        return pd.DataFrame(columns=columns)
+    exploded = frame[["source_timestamp", "document_id", "signifiers"]].explode("signifiers")
+    exploded = exploded.dropna(subset=["source_timestamp"])
+    exploded["signifiers"] = exploded["signifiers"].fillna("").astype(str).str.strip()
+    exploded = exploded[exploded["signifiers"] != ""]
+    if exploded.empty:
+        return pd.DataFrame(columns=columns)
+    timestamps = pd.to_datetime(exploded["source_timestamp"], errors="coerce", utc=True)
+    anchor = timestamps.max()
+    window = recent or (anchor - timestamps.min()) / 2 or pd.Timedelta(days=7)
+    cutoff = anchor - window
+    recent_part = exploded[timestamps >= cutoff]
+    earlier_part = exploded[timestamps < cutoff]
+    totals = exploded.groupby("signifiers")["document_id"].nunique()
+    recent_counts = recent_part.groupby("signifiers")["document_id"].nunique()
+    earlier_counts = earlier_part.groupby("signifiers")["document_id"].nunique()
+    rows: list[dict[str, Any]] = []
+    for label in totals.index.sort():
+        total = int(totals[label])
+        recent_count = int(recent_counts.get(label, 0))
+        earlier_count = int(earlier_counts.get(label, 0))
+        if recent_count > earlier_count:
+            trend = "rising"
+        elif recent_count < earlier_count:
+            trend = "declining"
+        else:
+            trend = "stable"
+        rows.append(
+            {
+                "signifier": label,
+                "documents": total,
+                "recent_documents": recent_count,
+                "earlier_documents": earlier_count,
+                "trend": trend,
+            }
+        )
+    order = {"rising": 0, "stable": 1, "declining": 2}
+    result = pd.DataFrame(rows, columns=columns)
+    result["trend_rank"] = result["trend"].map(order)
+    return result.sort_values(
+        ["trend_rank", "recent_documents", "signifier"],
+        ascending=[True, False, True],
+    ).drop(columns="trend_rank")
+
+
+def antagonism_poles(
+    annotations: Iterable[DocumentAnnotation],
+) -> pd.DataFrame:
+    """Aggregate antagonism relations by articulated side-pair over time.
+
+    Returns one row per (source-side, target-side) pair with the actors that
+    articulate each side and the evidence-bearing supporting documents. Sides
+    are taken verbatim from coded relations; no fixed opposition list exists.
+    """
+    rows: list[dict[str, Any]] = []
+    for annotation in annotations:
+        for articulation in annotation.articulations or []:
+            relation = str(articulation.relation or "").casefold()
+            if "antagon" not in relation:
+                continue
+            for target in articulation.related_to or []:
+                rows.append(
+                    {
+                        "side_a": str(articulation.signifier.label or ""),
+                        "side_b": str(target.label or ""),
+                        "documents": annotation.document_id,
+                        "actor": str(annotation.source_author or ""),
+                        "timestamp": annotation.source_timestamp,
+                        "claim_status": articulation.claim_status,
+                        "model_confidence": articulation.confidence,
+                        "evidence_verified": articulation.evidence_verified,
+                        "evidence": articulation.evidence,
+                        "source_url": annotation.source_url,
+                        "platform": annotation.source_platform,
+                    }
+                )
+    frame = pd.DataFrame(rows)
+    if frame.empty:
+        return pd.DataFrame(
+            columns=[
+                "antagonism",
+                "side_a_actors",
+                "side_b_actors",
+                "documents",
+                "latest_source",
+            ]
+        )
+    frame["timestamp"] = pd.to_datetime(frame["timestamp"], errors="coerce", utc=True)
+
+    def _ordered(row: pd.Series) -> tuple[str, str, str, str]:
+        side_a, side_b = str(row["side_a"]), str(row["side_b"])
+        if side_a.casefold() > side_b.casefold():
+            side_a, side_b = side_b, side_a
+        return side_a, side_b, str(row["documents"]), str(row["actor"])
+
+    ordered = frame.apply(_ordered, axis=1, result_type="expand")
+    frame[["side_a", "side_b", "documents", "actor"]] = ordered
+    frame["document_id"] = frame["documents"]
+    grouped = frame.groupby(["side_a", "side_b"], dropna=False)
+    result = grouped.agg(
+        documents=("document_id", "nunique"),
+        latest_source=("timestamp", "max"),
+    ).reset_index()
+    actors_by_side = frame.groupby(["side_a", "side_b"])["actor"].apply(
+        lambda values: sorted({value for value in values if value.strip()})
+    )
+    side_a_actors: list[str] = []
+    side_b_actors: list[str] = []
+    for pair, actors in actors_by_side.items():
+        _pair = pair  # deterministic (side_a, side_b) tuple
+        actors_csv = ", ".join(actors) or "n/a"
+        side_a_actors.append(actors_csv)
+        side_b_actors.append(actors_csv)
+    result["side_a_actors"] = side_a_actors
+    result["side_b_actors"] = side_b_actors
+    result["antagonism"] = result["side_a"] + " ↔ " + result["side_b"]
+    return result.sort_values(
+        ["documents", "antagonism"], ascending=[False, True]
+    )
+
+
+def formation_intensity(
+    frame: pd.DataFrame,
+    annotations: Iterable[DocumentAnnotation],
+) -> pd.DataFrame:
+    """Describe per-formation coded relation density alongside document counts.
+
+    Intensity is relations (articulation-family codes) per document carrying the
+    formation candidate. It is a corpus metric about coded relations, never a
+    measure of public opinion or discourse 'strength' in the wild.
+    """
+    relation_counts: Counter[str] = Counter()
+    for annotation in annotations:
+        for articulation in annotation.articulations or []:
+            formation_labels = [
+                str(item.formation.label)
+                for item in annotation.formation_candidates or []
+                if item.formation and item.formation.label
+            ]
+            for label in formation_labels:
+                relation_counts[label] += len(articulation.related_to or [])
+    if frame.empty or "formations" not in frame:
+        return pd.DataFrame(
+            columns=["formation", "documents", "actors", "relations", "relations_per_document"]
+        )
+    rows = frame[["document_id", "source_author", "formations"]].explode("formations")
+    rows["formations"] = rows["formations"].fillna("").astype(str).str.strip()
+    rows = rows[rows["formations"] != ""]
+    if rows.empty:
+        return pd.DataFrame(
+            columns=["formation", "documents", "actors", "relations", "relations_per_document"]
+        )
+    documents = rows.groupby("formations")["document_id"].nunique()
+    actors = rows.groupby("formations")["source_author"].apply(
+        lambda values: len({str(value) for value in values if str(value).strip()})
+    )
+    result = pd.DataFrame(
+        {
+            "documents": documents,
+            "actors": actors,
+            "relations": pd.Series(relation_counts),
+        }
+    ).fillna(0)
+    result["relations"] = result["relations"].astype(int)
+    result["relations_per_document"] = (result["relations"] / result["documents"]).round(2)
+    return result.reset_index().rename(columns={"formations": "formation"}).sort_values(
+        ["documents", "formation"], ascending=[False, True]
+    )
+
+
+def actor_relations(
+    annotations: Iterable[DocumentAnnotation], *, limit: int = 60
+) -> pd.DataFrame:
+    """Return each actor's strongest equivalential and antagonistic connections.
+
+    Rows pair actors with the signifiers they most frequently articulate as
+    equivalent or antagonistic. Connections are coded relations in evidence,
+    not attributes of the actors themselves.
+    """
+    buckets: dict[str, dict[str, Counter[str]]] = {}
+    for annotation in annotations:
+        actor = str(annotation.source_author or "").strip()
+        if not actor:
+            continue
+        family = buckets.setdefault(actor, {"equivalence": Counter(), "antagonism": Counter()})
+        for articulation in annotation.articulations or []:
+            relation = str(articulation.relation or "").casefold()
+            kind = "equivalence" if "equiv" in relation else (
+                "antagonism" if "antagon" in relation else ""
+            )
+            if not kind:
+                continue
+            related = [str(ref.label or "") for ref in articulation.related_to or []]
+            related = [label for label in related if label]
+            if related:
+                family[kind][", ".join(related)] += 1
+    rows: list[dict[str, Any]] = []
+    for actor, family in buckets.items():
+        for kind in ("equivalence", "antagonism"):
+            for related, count in family[kind].most_common(3):
+                rows.append(
+                    {
+                        "actor": actor,
+                        "relation_family": kind,
+                        "connected_to": related,
+                        "coded_relations": count,
+                    }
+                )
+    return pd.DataFrame(rows).head(limit)

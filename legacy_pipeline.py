@@ -16,7 +16,7 @@ videos prefer $TMPDIR. Legacy CSV columns ride only as identity/metadata, never
 as text source.
 
 Everything here is offline-testable: LLM and whisper are injected mocks in
-tests/test_ep24_pipeline.py.
+tests/test_legacy_pipeline.py.
 """
 from __future__ import annotations
 
@@ -26,9 +26,9 @@ import json
 import os
 from pathlib import Path
 
-import ep24_asr
-import ep24_fetch
-import ep24_screen_metadata
+import legacy_asr
+import legacy_fetch
+import legacy_screen_metadata
 
 REPO_ROOT = os.environ.get("LACLAUGPT_REPO_ROOT", str(Path(__file__).resolve().parent))
 DATA_ROOT = os.environ.get("LACLAUGPT_DATA_DIR", str(Path(__file__).resolve().parent / "data"))
@@ -60,7 +60,7 @@ def build_canonical_csv(manifest_path: str | Path, transcripts_path: str | Path,
                         legacy_csv: str | Path, out_path: str | Path,
                         *, legacy_sample_csv: str | Path | None = None) -> int:
     """Join transcripts (+ screen metadata) with legacy identity metadata."""
-    import ep24_screen_metadata
+    import legacy_screen_metadata
 
     legacy: dict[str, dict] = {}
     with open(legacy_csv, encoding="utf-8", newline="") as fh:
@@ -101,7 +101,7 @@ def build_canonical_csv(manifest_path: str | Path, transcripts_path: str | Path,
                 rec = transcripts.get(doc_id)
                 if not rec or not rec.get("transcript"):
                     continue
-                meta = ep24_screen_metadata.extract_screen_metadata(
+                meta = legacy_screen_metadata.extract_screen_metadata(
                     rec.get("screen_ocr", "") or "")
                 ident = legacy.get(doc_id, {})
                 writer.writerow([
@@ -109,7 +109,7 @@ def build_canonical_csv(manifest_path: str | Path, transcripts_path: str | Path,
                     rec.get("language", ""), ident.get("political_preference", ""),
                     ident.get("corrected_date", ""), ident.get("account_type", ""),
                     ident.get("source_type", ""), meta.handle, meta.platform,
-                    json.dumps(ep24_screen_metadata.screen_metadata_record(meta),
+                    json.dumps(legacy_screen_metadata.screen_metadata_record(meta),
                                ensure_ascii=False),
                 ])
                 written += 1
@@ -122,12 +122,12 @@ def run_country(country: str, *, data_root: str = DATA_ROOT,
     paths = country_paths(country, data_root=data_root, repo_root=repo_root)
     status: dict = {"country": country}
 
-    fetched = ep24_fetch.fetch_all(paths["csv"], paths["videos"])
+    fetched = legacy_fetch.fetch_all(paths["csv"], paths["videos"])
     status["fetched"] = len(fetched)
 
-    n = ep24_asr.transcribe_manifest(paths["csv"], paths["videos"],
+    n = legacy_asr.transcribe_manifest(paths["csv"], paths["videos"],
                                      paths["transcripts"],
-                                     model_size=ep24_asr.DEFAULT_MODEL,
+                                     model_size=legacy_asr.DEFAULT_MODEL,
                                      model=model)
     status["transcribed"] = n
 
@@ -171,7 +171,7 @@ export LACLAUGPT_MEMORY_DIR=$DATA_ROOT/memory
 export LACLAUGPT_DATA_DIR=$DATA_ROOT
 export TMPDIR=${{TMPDIR:-/tmp}}
 
-python ep24_pipeline.py --country {country} --data-root "$DATA_ROOT" --repo-root "$REPO_ROOT"
+python legacy_pipeline.py --country {country} --data-root "$DATA_ROOT" --repo-root "$REPO_ROOT"
 """
 
 

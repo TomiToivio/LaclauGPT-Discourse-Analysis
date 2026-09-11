@@ -8,8 +8,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-import ep24_fetch
-import ep24_pipeline
+import legacy_fetch
+import legacy_pipeline
 
 
 def _write_manifest(path: Path, rows: list[tuple[str, str]]) -> None:
@@ -46,7 +46,7 @@ class BuildCanonicalTests(unittest.TestCase):
                    "language": "fi", "screen_ocr": "@kokoomus\nKokoomus\n34 tykkäystä"}
             transcripts.write_text(json.dumps(rec), encoding="utf-8")
             out = Path(tmp) / "canonical.csv"
-            self.assertEqual(ep24_pipeline.build_canonical_csv(mp, transcripts, legacy, out), 1)
+            self.assertEqual(legacy_pipeline.build_canonical_csv(mp, transcripts, legacy, out), 1)
             row = list(csv.DictReader(open(out, encoding="utf-8")))[0]
             self.assertEqual(row["document_id"], "ID1")
             self.assertEqual(row["transcript"], "kokoomus hyvää")
@@ -74,7 +74,7 @@ class BuildCanonicalTests(unittest.TestCase):
             transcripts.write_text(json.dumps(
                 {"document_id": "ID1", "transcript": "fresh", "language": "fi"}), encoding="utf-8")
             out = Path(tmp) / "c.csv"
-            ep24_pipeline.build_canonical_csv(mp, transcripts, legacy, out)
+            legacy_pipeline.build_canonical_csv(mp, transcripts, legacy, out)
             row = list(csv.DictReader(open(out, encoding="utf-8")))[0]
             self.assertNotIn("formula_of_populism_analysis", row)
             self.assertNotIn("whisper_transcript", row)
@@ -95,7 +95,7 @@ class BuildCanonicalTests(unittest.TestCase):
             transcripts.write_text(json.dumps(
                 {"document_id": "ID1", "transcript": "ok", "language": "fi"}), encoding="utf-8")
             out = Path(tmp) / "c.csv"
-            self.assertEqual(ep24_pipeline.build_canonical_csv(mp, transcripts, legacy, out), 1)
+            self.assertEqual(legacy_pipeline.build_canonical_csv(mp, transcripts, legacy, out), 1)
 
 
 class RunCountryTests(unittest.TestCase):
@@ -126,9 +126,9 @@ class RunCountryTests(unittest.TestCase):
                                encoding="utf-8")
                 return 1
 
-            with patch.object(ep24_fetch.urllib.request, "urlopen", return_value=_Resp()):
-                with patch.object(ep24_pipeline.ep24_asr, "transcribe_manifest", side_effect=fake_transcribe):
-                    status = ep24_pipeline.run_country(
+            with patch.object(legacy_fetch.urllib.request, "urlopen", return_value=_Resp()):
+                with patch.object(legacy_pipeline.legacy_asr, "transcribe_manifest", side_effect=fake_transcribe):
+                    status = legacy_pipeline.run_country(
                         "finland", data_root=str(root), repo_root=str(root), dry_run=True)
             self.assertEqual(status["fetched"], 1)
             self.assertEqual(status["transcribed"], 1)
@@ -139,13 +139,13 @@ class RunCountryTests(unittest.TestCase):
 class SlurmScriptTests(unittest.TestCase):
     def test_scripts_for_both_countries(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
-            scripts = ep24_pipeline.write_slurm_scripts(tmp)
+            scripts = legacy_pipeline.write_slurm_scripts(tmp)
             self.assertEqual(len(scripts), 2)
             for s in scripts:
                 text = s.read_text(encoding="utf-8")
                 self.assertIn("LACLAUGPT_REPO_ROOT", text)
                 self.assertIn("LACLAUGPT_DATA_DIR", text)
-                self.assertIn("ep24_pipeline.py --country", text)
+                self.assertIn("legacy_pipeline.py --country", text)
                 self.assertIn("LACLAUGPT_MEMORY_DIR", text)
                 self.assertNotIn("/users/", text)
                 self.assertNotIn("/scratch/project_", text)

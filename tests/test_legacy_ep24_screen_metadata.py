@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import unittest
 
-from ep24_screen_metadata import (ScreenMetadata, extract_screen_metadata,
+from legacy_screen_metadata import (ScreenMetadata, extract_screen_metadata,
                                   lift_engagement, lift_handle, lift_platform,
                                   merge_into_asr_record)
 

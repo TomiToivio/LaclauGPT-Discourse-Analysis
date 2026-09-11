@@ -55,7 +55,7 @@ def run_pipeline(docs: list[dict]) -> dict:
     arena = (docs[0].get("metadata") or {}).get("arena", "elites")
     run_config = REPO / "run_configs" / f"arena_{arena}.yaml"
     if not run_config.exists():
-        run_config = REPO / "run_configs" / "arena_ep24.yaml"
+        run_config = REPO / "run_configs" / "arena_elites.yaml"
     with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as tmp:
         import csv as csvmod
         writer = csvmod.writer(tmp)
