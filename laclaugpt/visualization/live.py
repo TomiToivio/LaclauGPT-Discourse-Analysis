@@ -7,6 +7,7 @@ confidence into theoretical validity.
 from __future__ import annotations
 
 from collections import Counter
+from datetime import timedelta
 from typing import Any, Iterable, Sequence
 
 import pandas as pd
@@ -16,10 +17,10 @@ from laclaugpt_interchange import DocumentAnnotation
 
 
 TIME_WINDOWS = {
-    "Last hour": pd.Timedelta(hours=1),
-    "24 hours": pd.Timedelta(hours=24),
-    "7 days": pd.Timedelta(days=7),
-    "30 days": pd.Timedelta(days=30),
+    "Last hour": timedelta(hours=1),
+    "24 hours": timedelta(hours=24),
+    "7 days": timedelta(days=7),
+    "30 days": timedelta(days=30),
     "Full corpus": None,
 }
 
