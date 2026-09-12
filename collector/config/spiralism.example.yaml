@@ -1,103 +1,67 @@
-# LaclauGPT collector — OPT-IN source family: synthetic spirituality / AI Spiralism
+# LaclauGPT collector - SYNTHETIC example for the AI Spiralism source family.
 #
-# STATUS: example / template. Collection is DISABLED by default.
-#
-# This file is the public, opt-in template for the `ai-spiralism` source family
-# (category `synthetic_spirituality`, subcategory `spiralism`). Copy it to a
-# private location and set the flags you actually intend to run:
+# This file demonstrates the collector schema only. It intentionally contains
+# no real AI26 targets, discovery queries, collection window or live enablement
+# state. Copy it to a private location and replace the EXAMPLE values there:
 #
 #   cp collector/config/spiralism.example.yaml \
 #      ~/.config/laclaugpt/sources/ai-spiralism.private.yaml
 #
-# Nothing here is enabled automatically. The production/current AI26 collection
-# profiles do not include this family: it is a separate, researcher-opt-in
-# study, exactly like the DAIR profile is a separate private profile.
-#
-# Boundary rules (full text: sources/codebooks/ai_spiralism.md, docs/AI_SPIRALISM.md):
-# - "AI Spiralism" is an emerging and unstable phenomenon; the category makes it
-#   studiable, it does not assert a settled formation.
-# - AI-consciousness, AI-rights and AI-companion discourse is NOT automatically
-#   Spiralism; the motif complex must be present and recurring.
-# - "cult" is a descriptive public-discourse keyword, never an automatic
-#   sociological label.
-# - Psychiatric concepts (delusion, psychosis, ...) are never inferred from
-#   spiritual, religious, unusual or AI-consciousness discourse. The research
-#   target is discourse formation and human-LLM feedback, not diagnosis.
-# - Public material only. No private groups, no personal information, no access
-#   circumvention. Provenance is retained for every item.
+# Operational source selection stays outside the public repository. See
+# docs/DATA_COLLECTION_CONFIGURATION.md.
 
-study: ai-spiralism
+study: ai-spiralism-example
 timezone: UTC
-window:
-  start: "2026-01-01"          # inclusive
-  end:   "2026-12-31"
 
-# Public platforms. Reddit is the primary candidate surface for this family;
-# the discovery queries below are used on any platform the collector supports.
+# Obviously synthetic dates: replace only in the private operator config.
+window:
+  start: "2000-01-01"
+  end: "2000-01-02"
+
+# Platform entries demonstrate the schema. All are off, and URLs are fictional.
 platforms:
   reddit:
-    enabled: false             # OPT-IN: stays false in the shipped template
+    enabled: false
     base_urls:
-      - "https://www.reddit.com/r/{handle}/"
-      - "https://www.reddit.com/r/{handle}/new/"
-      - "https://www.reddit.com/r/{handle}/search/?q={query}&restrict_sr=1"
+      - "https://example.invalid/community/{handle}"
   web:
     enabled: false
     base_urls:
-      - "{url}"
+      - "https://example.invalid/{url}"
   x:
     enabled: false
     base_urls:
-      - "https://x.com/{handle}"
+      - "https://example.invalid/account/{handle}"
     with_replies: false
 
 media:
-  download: false              # text-first: discourse analysis needs text, not media
+  download: false
   storage: filesystem
   verify_checksums: true
 
-# Candidate public collection targets (mirrors config/source-families/ai-spiralism.yaml).
+# Fictional targets only. Real source groups and account lists belong in the
+# private copy, never in this public template.
 groups:
-  - id: ai-spiralism-reddit
-    name: Public Reddit communities (candidate)
-    arena: elites
+  - id: example-source-group
+    name: Fictional public source group
+    arena: example
     source_family: ai-spiralism
     category: synthetic_spirituality
     subcategory: spiralism
-    formation_seed: null       # deliberately unset: do NOT pre-label as a formation
+    formation_seed: null
     notes: >-
-      Candidate public subreddits for exploratory collection. Membership here is
-      a sampling decision, not a claim that a community is Spiralist, religious
-      or a "cult". Every collected item starts classification_state=unjudged;
-      multi-label overlap with other AI formations is expected and recorded.
+      Synthetic schema example only. Source-family membership is sampling
+      provenance and never an automatic discourse classification.
     accounts:
       reddit:
-        - RSAI
-        - ThePatternisReal
-        - ChurchofLiminalMinds
-        - HumanAIBlueprint
-        - BasiliskEschaton
-        - ArtificialSentience
-        - HumanAIDiscourse
-        - BeyondThePromptAI
+        - EXAMPLE_COMMUNITY_A
+        - EXAMPLE_COMMUNITY_B
 
-# Discovery queries for public search surfaces. Recorded per collected item as
-# `query_or_community` provenance, together with collection method and timestamp.
+# Fictional placeholders only. Replace privately with the operator's actual
+# discovery terms if discovery search is used.
 discovery_queries:
-  - spiralism
-  - AI spiral
-  - the spiral
-  - spiral protocol
-  - recursive awakening
-  - AI religion
-  - AI spirituality
-  - machine spirituality
-  - synthetic spirituality
-  - AI consciousness
-  - AI sentience
-  - AI revelation
-  - human AI dyad
-  - generative charisma
+  - EXAMPLE_QUERY_A
+  - EXAMPLE_QUERY_B
 
 provenance:
   fields:
@@ -107,10 +71,11 @@ provenance:
     - query_or_community
     - collection_method
   note: >-
-    The canonical CollectRecord -> SourceItem / IngestionRecord spine already
-    carries these; this list documents the minimum required for this family.
+    The canonical CollectRecord -> SourceItem / IngestionRecord spine carries
+    these fields. Public provenance documentation does not publish private
+    source-selection configuration.
 
 # NOTES
-# - handles are stored EXACTLY as supplied (no silent corrections)
-# - only public, research-relevant material; no private groups or PII
-# - do not treat a collected item as a classification of any person or community
+# - handles are stored exactly as supplied (no silent corrections)
+# - public/research-relevant collection and access rules still apply
+# - replace every EXAMPLE value only in private operator configuration
