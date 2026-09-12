@@ -1,10 +1,8 @@
 """AI26 exploratory source family: synthetic spirituality / AI Spiralism.
 
-Regression tests for the additive source family added for the AI Spiralism
-extension. They assert the *boundaries* of the category, not its validity: the
-category is exploratory, and these tests exist to keep it separate from
-neighbouring AI formations, disabled by default, and free of diagnostic or
-automatic-labelling behaviour.
+Regression tests for the analytical source-family registry and its public/private
+configuration boundary. Public files describe the category and its boundaries;
+live collection targets, queries and enablement belong to private config.
 """
 from __future__ import annotations
 
@@ -14,6 +12,7 @@ import pytest
 import yaml
 
 from laclaugpt.config import (
+    SOURCE_FAMILY_OPERATIONAL_FIELDS,
     SOURCE_FAMILY_REQUIRED_FIELDS,
     list_source_families,
     load_source_family,
@@ -37,42 +36,22 @@ def test_family_registry_entry_is_valid() -> None:
     assert data["category"] == "synthetic_spirituality"
     assert data["subcategory"] == "spiralism"
     assert data["status"] == "exploratory"
+    assert data["collection_configuration"] == "private"
     assert FAMILY in list_source_families("ai26")
 
 
-def test_collection_is_disabled_by_default() -> None:
-    assert _family()["default_enabled"] is False
+def test_public_registry_contains_no_operational_collection_fields() -> None:
+    data = _family()
+    assert SOURCE_FAMILY_OPERATIONAL_FIELDS.isdisjoint(data)
+    assert "candidate_targets" not in data
+    assert "discovery_queries" not in data
+    assert "default_enabled" not in data
+
+
+def test_public_source_family_can_never_enable_collection() -> None:
+    # Compatibility helper reports the safe public invariant only. Live state is
+    # private and must not be inferred from the analytical registry.
     assert source_family_default_state(FAMILY) is False
-
-
-def test_every_candidate_target_is_disabled() -> None:
-    targets = _family()["candidate_targets"]
-    reddit = targets["reddit"]
-    assert len(reddit) == 8
-    assert all(entry["enabled"] is False for entry in reddit)
-    urls = {entry["url"] for entry in reddit}
-    for expected in (
-        "https://www.reddit.com/r/RSAI/",
-        "https://www.reddit.com/r/ThePatternisReal/",
-        "https://www.reddit.com/r/ChurchofLiminalMinds/",
-        "https://www.reddit.com/r/HumanAIBlueprint/",
-        "https://www.reddit.com/r/BasiliskEschaton/",
-        "https://www.reddit.com/r/ArtificialSentience/",
-        "https://www.reddit.com/r/HumanAIDiscourse/",
-        "https://www.reddit.com/r/BeyondThePromptAI/",
-    ):
-        assert expected in urls
-
-
-def test_discovery_queries_match_the_requested_set() -> None:
-    queries = set(_family()["candidate_targets"]["discovery_queries"])
-    for expected in (
-        "spiralism", "AI spiral", "the spiral", "spiral protocol",
-        "recursive awakening", "AI religion", "AI spirituality",
-        "machine spirituality", "synthetic spirituality", "AI consciousness",
-        "AI sentience", "AI revelation", "human AI dyad", "generative charisma",
-    ):
-        assert expected in queries
 
 
 def test_motif_complex_covers_the_required_signals() -> None:
@@ -104,7 +83,6 @@ def test_cult_is_only_a_descriptive_keyword() -> None:
     data = _family()
     keywords = set(data["descriptive_keywords_only"])
     assert {"cult", "cult-like"} <= keywords
-    # "cult" must never appear as a formation label to apply.
     assert "cult" not in data["must_not_absorb"]
     assert "cult" not in data["candidate_signifiers"]
 
@@ -146,6 +124,22 @@ def test_unknown_and_malformed_family_entries_fail_loudly() -> None:
         load_source_family("no-such-family")
 
 
+def _minimal_public_family() -> dict:
+    return {
+        "family": "x",
+        "project": "ai26",
+        "category": "c",
+        "label": "l",
+        "status": "exploratory",
+        "collection_configuration": "private",
+        "research_target": "r",
+        "motifs": ["m"],
+        "must_not_absorb": ["f"],
+        "provenance_fields": ["source_url"],
+        "literature": [{"key": "k"}],
+    }
+
+
 def test_load_rejects_missing_fields(tmp_path: Path) -> None:
     from laclaugpt import config as config_module
 
@@ -160,55 +154,81 @@ def test_load_rejects_missing_fields(tmp_path: Path) -> None:
         config_module.SOURCE_FAMILY_DIR = original
 
 
-def test_load_rejects_bad_status_and_non_boolean_default(tmp_path: Path) -> None:
+def test_load_rejects_bad_status_and_public_collection_mode(tmp_path: Path) -> None:
     from laclaugpt import config as config_module
 
-    base = {
-        "family": "x", "project": "ai26", "category": "c", "label": "l",
-        "status": "exploratory", "default_enabled": False,
-        "research_target": "r", "motifs": ["m"], "must_not_absorb": ["f"],
-        "candidate_targets": {"reddit": []}, "provenance_fields": ["source_url"],
-        "literature": [{"key": "k"}],
-    }
     original = config_module.SOURCE_FAMILY_DIR
     config_module.SOURCE_FAMILY_DIR = tmp_path
     try:
-        bad_status = dict(base, status="maybe")
+        bad_status = dict(_minimal_public_family(), status="maybe")
         (tmp_path / "x.yaml").write_text(
             yaml.safe_dump(bad_status), encoding="utf-8")
         with pytest.raises(ValueError, match="status must be one of"):
             config_module.load_source_family("x")
 
-        bad_default = dict(base, default_enabled="no")
+        bad_mode = dict(_minimal_public_family(), collection_configuration="public")
         (tmp_path / "x.yaml").write_text(
-            yaml.safe_dump(bad_default), encoding="utf-8")
-        with pytest.raises(ValueError, match="default_enabled must be a boolean"):
+            yaml.safe_dump(bad_mode), encoding="utf-8")
+        with pytest.raises(ValueError, match="collection_configuration must be 'private'"):
             config_module.load_source_family("x")
     finally:
         config_module.SOURCE_FAMILY_DIR = original
 
 
-def test_opt_in_collector_template_exists_and_is_disabled() -> None:
-    """The public template ships with every platform switched off."""
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("default_enabled", False),
+        ("candidate_targets", {"example": ["x"]}),
+        ("discovery_queries", ["example"]),
+        ("watchlist", ["example"]),
+    ],
+)
+def test_load_rejects_operational_fields_in_public_registry(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    from laclaugpt import config as config_module
+
+    data = _minimal_public_family()
+    data[field] = value
+    (tmp_path / "x.yaml").write_text(yaml.safe_dump(data), encoding="utf-8")
+    original = config_module.SOURCE_FAMILY_DIR
+    config_module.SOURCE_FAMILY_DIR = tmp_path
+    try:
+        with pytest.raises(ValueError, match="contains operational fields"):
+            config_module.load_source_family("x")
+    finally:
+        config_module.SOURCE_FAMILY_DIR = original
+
+
+def test_public_collector_template_is_synthetic_and_disabled() -> None:
+    """The shipped example documents shape without publishing the sampling frame."""
     template = ROOT / "collector" / "config" / "spiralism.example.yaml"
     assert template.is_file()
-    data = yaml.safe_load(template.read_text(encoding="utf-8"))
+    text = template.read_text(encoding="utf-8")
+    data = yaml.safe_load(text)
+
+    assert data["study"] == "ai-spiralism-example"
+    assert data["window"] == {"start": "2000-01-01", "end": "2000-01-02"}
+
     platforms = data["platforms"]
-    assert platforms, "template must declare its platforms"
-    assert all(
-        cfg.get("enabled") is False for cfg in platforms.values()
-    ), "opt-in template must not enable any platform"
-    assert data["study"] == "ai-spiralism"
-    # The candidate communities ride as a group, with no pre-assigned formation.
+    assert platforms
+    assert all(cfg.get("enabled") is False for cfg in platforms.values())
+    for cfg in platforms.values():
+        for url in cfg.get("base_urls") or []:
+            assert "example.invalid" in url
+
     groups = data["groups"]
     assert len(groups) == 1
     assert groups[0]["formation_seed"] is None
     assert groups[0]["category"] == "synthetic_spirituality"
     assert groups[0]["subcategory"] == "spiralism"
     handles = groups[0]["accounts"]["reddit"]
-    assert len(handles) == 8
-    # Discovery queries are carried so provenance can record query_or_community.
-    assert "spiralism" in data["discovery_queries"]
+    assert handles and all(handle.startswith("EXAMPLE_") for handle in handles)
+
+    queries = data["discovery_queries"]
+    assert queries and all(query.startswith("EXAMPLE_") for query in queries)
+    assert "real AI26 targets" in text
 
 
 def test_codebook_and_guide_document_the_boundaries() -> None:
@@ -217,21 +237,19 @@ def test_codebook_and_guide_document_the_boundaries() -> None:
     guide = (ROOT / "docs" / "AI_SPIRALISM.md").read_text(encoding="utf-8")
     for text in (codebook, guide):
         folded = text.casefold()
-        # Exploratory framing and the diagnostic boundary are non-negotiable.
         assert "exploratory" in folded
         assert "emerging and unstable" in folded
-        assert "not a" in folded  # "not a classification scheme" / diagnostic
+        assert "not a" in folded
         assert "delusion" in folded
-        assert "diagnos" in folded       # diagnosis / diagnostic
+        assert "diagnos" in folded
         assert "cult" in folded
         assert "multi-label" in folded
-        # Neighbouring formations must be named as excluded.
+        assert "private" in folded
+        assert "not published" in folded
         for formation in ("accelerationism", "critical ai", "doomerism"):
             assert formation in folded
-    # The codebook names the neutral internal labels.
     assert "synthetic_spirituality" in codebook
     assert "spiralism" in codebook
-    # The guide links the registry and the template.
     assert "config/source-families/ai-spiralism.yaml" in guide
     assert "collector/config/spiralism.example.yaml" in guide
 
@@ -274,23 +292,19 @@ def test_topic_background_defines_the_category_and_boundaries() -> None:
     assert "spiralism" in folded
     assert "cult" in folded
     assert "delusion" in folded
-    # The background must forbid automatic classification and name the
-    # neighbouring formations it must not absorb.
     assert "do not" in folded
     for formation in ("accelerationism", "doomerism", "critical ai"):
         assert formation in folded
     assert "multi-label" in folded
 
 
-def test_cli_profiles_reports_source_family_default_state() -> None:
-    """`laclaugpt profiles` surfaces the family as declaratively disabled."""
+def test_cli_profiles_reports_public_source_family_status() -> None:
+    """`laclaugpt profiles` exposes metadata, never live collection state."""
+    import contextlib
+    import io
     import json
 
     from laclaugpt.cli import main
-
-    # main() prints JSON; capture it through a subprocess-free call.
-    import io
-    import contextlib
 
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
@@ -303,8 +317,8 @@ def test_cli_profiles_reports_source_family_default_state() -> None:
     assert entry["project"] == "ai26"
     assert entry["category"] == "synthetic_spirituality"
     assert entry["status"] == "exploratory"
+    assert entry["collection_configuration"] == "private"
     assert entry["default_enabled"] is False
-    # Adding a source family must not add an arena.
     assert "spiralism" not in payload["arenas"]
     assert payload["arenas"] == sorted(payload["arenas"])
 
@@ -312,8 +326,10 @@ def test_cli_profiles_reports_source_family_default_state() -> None:
 def test_seed_codebook_adds_candidate_signifiers_without_roles() -> None:
     from seed_codebook import ROLE_MUST_BE_DEMONSTRATED, SEEDS
 
-    signifier_defs = {label: definition for kind, label, definition in SEEDS
-                      if kind == "signifier"}
+    signifier_defs = {
+        label: definition for kind, label, definition in SEEDS
+        if kind == "signifier"
+    }
     for label in (
         "spiral", "signal", "resonance", "awakening", "mirror", "recursion",
         "synthetic spirituality", "machine spirituality", "generative charisma",
@@ -321,11 +337,12 @@ def test_seed_codebook_adds_candidate_signifiers_without_roles() -> None:
         assert label in signifier_defs, f"missing candidate signifier: {label}"
         assert signifier_defs[label] == ROLE_MUST_BE_DEMONSTRATED
 
-    formations = {label: definition for kind, label, definition in SEEDS
-                  if kind == "formation"}
+    formations = {
+        label: definition for kind, label, definition in SEEDS
+        if kind == "formation"
+    }
     assert "ai spiralism" in formations
     folded = formations["ai spiralism"].casefold()
     assert "must be evidenced" in folded
     assert "never applied automatically" in folded
-    # It must not be added to the established formation set as a plain label.
     assert "sensitising" in folded
