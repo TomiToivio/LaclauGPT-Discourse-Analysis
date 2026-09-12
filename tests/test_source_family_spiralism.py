@@ -272,9 +272,9 @@ def test_paper_references_include_the_new_literature() -> None:
     paper = (ROOT / "paper" / "PAPER.md").read_text(encoding="utf-8")
     for needle in (
         "Morrin, H., Nicholls, L., Deeley, Q., & Pollak, T. A. (2026)",
-        "Moore, J., Mehta, A., Agnew, W., & Anthis, J. R. (2026)",
+        "Moore, J., Mehta, A., Agnew, W., Anthis, J. R., Louie, R., Mai, Y., Yin, P., Cheng, M., Paech, S. J., Klyman, K., Chancellor, S., Lin, E., Haber, N., & Ong, D. C. (2026)",
         "Augustin, M., Pollak, T. A., & Morrin, H. (2026)",
-        "Mehta, A., Moore, J., Anthis, J. R., & Agnew, W. (2026)",
+        "Mehta, A., Moore, J., Anthis, J. R., Agnew, W., Lin, E., Yin, P., Ong, D. C., Haber, N., & Dweck, C. (2026)",
         "Chandra, K., Kleiman-Weiner, M., Ragan-Kelley, J., & Tenenbaum, J. B. (2026)",
         "Rähme, B., & Prohl, I. (2025)",
         "Lim, F. K. G. (2026)",
