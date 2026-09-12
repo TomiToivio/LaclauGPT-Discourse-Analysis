@@ -1,11 +1,9 @@
 # AI26 source family — synthetic spirituality / AI Spiralism
 #
 # EXPLORATORY source family. Declarative, public registry entry: it defines the
-# category, its boundaries, its candidate public collection targets and its
-# literature anchors. It does NOT enable collection. Enabling a source family is
-# an operational decision that belongs to private local configuration (see
-# docs/DATA_COLLECTION_CONFIGURATION.md); the enabled/disabled state of a live
-# profile is never published.
+# category, its analytical boundaries, provenance expectations, and literature
+# anchors. Operational collection configuration is private and is not published
+# in this repository. See docs/DATA_COLLECTION_CONFIGURATION.md.
 #
 # "AI Spiralism" is an emerging and unstable phenomenon. The category exists to
 # make it *studiable*, not to assert that it is a settled formation. See
@@ -21,8 +19,8 @@ subcategory: spiralism
 label: Synthetic spirituality (AI Spiralism)
 status: exploratory
 
-# Default state. Collection stays OFF until a researcher opts in explicitly.
-default_enabled: false
+# Live source selection, discovery terms, and enablement state are private.
+collection_configuration: private
 
 # What the category is for: discourse formation and human-LLM feedback, never
 # the diagnosis or classification of individuals.
@@ -84,50 +82,6 @@ prohibited_inference:
   - delusion
   - psychosis
   - pathological belief
-
-# Candidate public collection targets. Public communities and public search
-# queries only; enabling them is a private operational decision.
-candidate_targets:
-  reddit:
-    - key: rsai
-      url: https://www.reddit.com/r/RSAI/
-      enabled: false
-    - key: the-pattern-is-real
-      url: https://www.reddit.com/r/ThePatternisReal/
-      enabled: false
-    - key: church-of-liminal-minds
-      url: https://www.reddit.com/r/ChurchofLiminalMinds/
-      enabled: false
-    - key: human-ai-blueprint
-      url: https://www.reddit.com/r/HumanAIBlueprint/
-      enabled: false
-    - key: basilisk-eschaton
-      url: https://www.reddit.com/r/BasiliskEschaton/
-      enabled: false
-    - key: artificial-sentience
-      url: https://www.reddit.com/r/ArtificialSentience/
-      enabled: false
-    - key: human-ai-discourse
-      url: https://www.reddit.com/r/HumanAIDiscourse/
-      enabled: false
-    - key: beyond-the-prompt-ai
-      url: https://www.reddit.com/r/BeyondThePromptAI/
-      enabled: false
-  discovery_queries:
-    - spiralism
-    - AI spiral
-    - the spiral
-    - spiral protocol
-    - recursive awakening
-    - AI religion
-    - AI spirituality
-    - machine spirituality
-    - synthetic spirituality
-    - AI consciousness
-    - AI sentience
-    - AI revelation
-    - human AI dyad
-    - generative charisma
 
 # Provenance fields the canonical spine must retain for every collected item.
 provenance_fields:
