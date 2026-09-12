@@ -21,13 +21,19 @@ MODULES = {
     "temporal", "multimodal",
 }
 
-# Declarative source-family registry fields. A family entry describes a
-# candidate source category and its boundaries; it never enables collection.
+# Public source-family registry fields. These describe analytical categories and
+# boundaries only. Live source selection, queries, schedules and enablement live
+# in private collector configuration outside the public repository.
 SOURCE_FAMILY_REQUIRED_FIELDS = (
-    "family", "project", "category", "label", "status", "default_enabled",
-    "research_target", "motifs", "must_not_absorb", "candidate_targets",
-    "provenance_fields", "literature",
+    "family", "project", "category", "label", "status",
+    "collection_configuration", "research_target", "motifs",
+    "must_not_absorb", "provenance_fields", "literature",
 )
+SOURCE_FAMILY_OPERATIONAL_FIELDS = {
+    "default_enabled", "candidate_targets", "discovery_queries", "targets",
+    "enabled_sources", "watchlist", "watchlists", "source_watchlist",
+    "seed_list",
+}
 SOURCE_FAMILY_STATUSES = {"exploratory", "established"}
 
 LEGACY_ARENA_NAMES = {
@@ -197,12 +203,12 @@ def list_machines() -> list[str]:
 
 
 def load_source_family(name: str) -> dict[str, Any]:
-    """Load and validate one declarative source-family entry.
+    """Load and validate one public analytical source-family entry.
 
-    A source family describes a *candidate* category: what it means, what it
-    must not absorb, which public collection targets are proposed and which
-    literature anchors it. It never turns collection on: ``default_enabled``
-    is part of the validated payload and defaults to false.
+    Public source-family files describe a category and its analytical boundaries.
+    They must never contain live targets, queries, watchlists or enablement state.
+    Operational collection belongs to an explicitly supplied private collector
+    configuration outside the repository.
     """
     path = SOURCE_FAMILY_DIR / f"{name}.yaml"
     if not path.exists():
@@ -217,10 +223,14 @@ def load_source_family(name: str) -> dict[str, Any]:
         raise ValueError(
             f"{path}: status must be one of {sorted(SOURCE_FAMILY_STATUSES)}"
         )
-    if not isinstance(data.get("default_enabled"), bool):
-        raise ValueError(f"{path}: default_enabled must be a boolean")
-    if not isinstance(data.get("candidate_targets"), dict) or not data["candidate_targets"]:
-        raise ValueError(f"{path}: candidate_targets must be a non-empty mapping")
+    if data.get("collection_configuration") != "private":
+        raise ValueError(f"{path}: collection_configuration must be 'private'")
+    operational = sorted(SOURCE_FAMILY_OPERATIONAL_FIELDS & set(data))
+    if operational:
+        raise ValueError(
+            f"{path}: public source-family entry contains operational fields: "
+            f"{operational}"
+        )
     if not isinstance(data.get("literature"), list) or not data["literature"]:
         raise ValueError(f"{path}: literature must be a non-empty list")
     return data
@@ -239,22 +249,26 @@ def list_source_families(project: str | None = None) -> list[str]:
 
 
 def source_family_default_state(name: str) -> bool:
-    """Return the declared default collection state (False unless opted in)."""
-    return bool(load_source_family(name)["default_enabled"])
+    """Compatibility helper: public source-family metadata never enables collection."""
+    load_source_family(name)
+    return False
 
 
 def source_family_status(project: str | None = None) -> dict[str, dict[str, Any]]:
-    """Compact, non-secret status of the declarative source families.
+    """Compact, non-secret status of public analytical source families.
 
-    Reports the declared default state only; live operational opt-in belongs to
-    private configuration and is never published.
+    ``default_enabled`` is a compatibility field fixed to ``False``. It does not
+    reveal or infer any private live collection state.
     """
     return {
         name: {
             "project": load_source_family(name)["project"],
             "category": load_source_family(name)["category"],
             "status": load_source_family(name)["status"],
-            "default_enabled": source_family_default_state(name),
+            "collection_configuration": load_source_family(name)[
+                "collection_configuration"
+            ],
+            "default_enabled": False,
         }
         for name in list_source_families(project)
     }
