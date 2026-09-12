@@ -6,15 +6,21 @@ Approximate model footprints are kept only to support generic VRAM guards;
 concrete hostnames, GPU inventories and deployment measurements belong in
 machine-local operational notes outside the public repository.
 
-Routing by pipeline stage:
-    summary      -> gemma4:e4b
-    discourse    -> gemma4:26b
-    postprocess  -> gemma4:e2b
-    populism     -> gemma4:26b
-    entities     -> gemma4:e2b
-    sentiment    -> gemma4:e2b
-    topics       -> gemma4:26b
-    temporal     -> gemma4:26b
+Routing by pipeline stage (STAGE_ROUTING, canonical table below):
+    summary      -> e4b   (gemma4:e4b)
+    discourse    -> 12b   (batiai/gemma4-12b:q6)
+    postprocess  -> e2b   (gemma4:e2b)
+    populism     -> 12b   (batiai/gemma4-12b:q6)
+    entities     -> e2b   (gemma4:e2b)
+    sentiment    -> e2b   (gemma4:e2b)
+    topics       -> 12b   (batiai/gemma4-12b:q6)
+    temporal     -> 12b   (batiai/gemma4-12b:q6)
+
+The 12b tier carries the discourse-quality stages (discourse, populism,
+topics, temporal); the e2b/e4b tiers carry the mechanical extraction
+stages. The 26b tier is no longer routed to any stage (see retiering
+note at STAGE_ROUTING) but remains available for the long-text
+escalation override.
 
 Document-length override: very long texts (>8000 chars) escalate e2b/e4b
 one tier to preserve evidence fidelity. GPU memory guard: if a tier does

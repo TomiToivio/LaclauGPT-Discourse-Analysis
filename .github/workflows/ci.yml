@@ -18,9 +18,9 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -31,7 +31,7 @@ jobs:
       - name: Install repository for full offline suite
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[collector,collect,test,dev]"
+          python -m pip install -e ".[collector,collect,test,dev,splitting]"
           python -m pip check
 
       - name: Static Python checks
@@ -62,14 +62,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
 
