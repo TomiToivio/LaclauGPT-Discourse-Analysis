@@ -19,6 +19,7 @@ Design rules (from the collection issue):
 - the AI-ideology project is just one consumer of this spine.
 """
 from __future__ import annotations
+import os
 
 import hashlib
 import json
@@ -34,6 +35,11 @@ COLLECTOR_VERSION = "laclaugpt-collect-1.0"
 
 # Directory roots (overridable for tests). Runtime data lives outside Git.
 COLLECTION_ROOT = Path("collection-data")
+
+# Default UA for RSS fetching. Some hosts (e.g. Reddit) return 429 for
+# generic feedparser library user agents; an identifying research UA is
+# both honest and compatible. Override with LACLAUGPT_RSS_USER_AGENT.
+_DEFAULT_UA = "Mozilla/5.0 (compatible; LaclauGPT-research/1.0; +https://github.com/TomiToivio/LaclauGPT-Discourse-Analysis)"
 
 
 def utcnow_iso() -> str:
@@ -212,10 +218,12 @@ class CollectionStore:
 # ── source adapters ──────────────────────────────────────────────────
 
 def collect_rss(feed_url: str, *, feed_name: str | None = None,
-                fetch_article: bool = False) -> list[CollectRecord]:
+                fetch_article: bool = False,
+                user_agent: str | None = None) -> list[CollectRecord]:
     """RSS/Atom feed entries → records. feedparser is a collector dep."""
     import feedparser  # local import: only RSS path needs it
-    parsed = feedparser.parse(feed_url)
+    agent = user_agent or os.environ.get("LACLAUGPT_RSS_USER_AGENT") or _DEFAULT_UA
+    parsed = feedparser.parse(feed_url, agent=agent)
     records: list[CollectRecord] = []
     for entry in parsed.entries:
         published = ""
