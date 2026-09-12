@@ -21,7 +21,12 @@ the original sources, never against model outputs or summaries.
 - `sources/papers/` — downloaded paper PDFs (collector output)
 - `sources/books/` — canonical theory texts
 - `sources/bibliography/` — BibTeX/RIS exports for the paper pipeline
+- `sources/codebooks/` — reviewable codebooks (committed; these are research
+  semantics, not collected data). They include the exploratory
+  [`ai_spiralism.md`](codebooks/ai_spiralism.md) codebook for the
+  `synthetic_spirituality` source family — a candidate category with explicit
+  boundary rules, not an automatic classifier.
 - Large binaries and copyrighted scans stay local; citations and stable
   identifiers (DOI, archive ID) go in the repo instead.
-- Nothing here is committed; if a source is genuinely redistributable,
-  link it from the docs rather than vendoring it.
+- Nothing here is committed except `README.md` and `codebooks/*.md`; if a source
+  is genuinely redistributable, link it from the docs rather than vendoring it.

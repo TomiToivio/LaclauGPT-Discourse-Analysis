@@ -13,6 +13,7 @@ from laclaugpt.config import (
     list_executions,
     list_machines,
     list_projects,
+    source_family_status,
 )
 
 
@@ -94,6 +95,9 @@ def main(argv: list[str] | None = None) -> int:
             "arenas": list_arenas(),
             "machines": list_machines(),
             "executions": list_executions(),
+            # Declarative source families are candidate categories, not active
+            # collections. Only opted-in families report enabled=True.
+            "source_families": source_family_status(),
         }))
         return 0
     if args.command == "dashboard":

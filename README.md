@@ -383,6 +383,7 @@ The consolidation is intentionally non-destructive:
 - [`docs/HERMES_INTEGRATION.md`](docs/HERMES_INTEGRATION.md) and [`docs/CLAUDE_INTEGRATION.md`](docs/CLAUDE_INTEGRATION.md) document optional agent-caller conventions. Both integrations are restricted to local Ollama open-source models by `laclaugpt.integrations.agent_policy`.
 - [`docs/DATA_PUBLICATION_POLICY.md`](docs/DATA_PUBLICATION_POLICY.md) defines what may be published openly and what remains restricted research data.
 - [`docs/DATA_LIFECYCLE.md`](docs/DATA_LIFECYCLE.md) maps LaclauGPT research data onto its lifecycle from collection through preservation/publication/disposal.
+- [`docs/AI_SPIRALISM.md`](docs/AI_SPIRALISM.md) defines the **exploratory** `synthetic_spirituality` / AI Spiralism source family (registry `config/source-families/ai-spiralism.yaml`, codebook `sources/codebooks/ai_spiralism.md`, opt-in template `collector/config/spiralism.example.yaml`). Collection is disabled by default; the category is a sensitising concept, not a settled formation and not a diagnostic instrument.
 
 ## Author
 

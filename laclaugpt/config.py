@@ -13,12 +13,22 @@ PROJECT_DIR = CONFIG_ROOT / "projects"
 ARENA_DIR = CONFIG_ROOT / "arenas"
 MACHINE_DIR = CONFIG_ROOT / "machines"
 EXECUTION_DIR = CONFIG_ROOT / "execution"
+SOURCE_FAMILY_DIR = CONFIG_ROOT / "source-families"
 
 MODULES = {
     "laclau", "palonen", "sociotechnical_imaginaries", "sentiment",
     "topics", "entities", "context_memory", "sna", "ant", "valueflows",
     "temporal", "multimodal",
 }
+
+# Declarative source-family registry fields. A family entry describes a
+# candidate source category and its boundaries; it never enables collection.
+SOURCE_FAMILY_REQUIRED_FIELDS = (
+    "family", "project", "category", "label", "status", "default_enabled",
+    "research_target", "motifs", "must_not_absorb", "candidate_targets",
+    "provenance_fields", "literature",
+)
+SOURCE_FAMILY_STATUSES = {"exploratory", "established"}
 
 LEGACY_ARENA_NAMES = {
     "arena_elites": "elites",
@@ -184,6 +194,70 @@ def list_arenas(project: str | None = None) -> list[str]:
 
 def list_machines() -> list[str]:
     return sorted(p.stem for p in MACHINE_DIR.glob("*.yaml"))
+
+
+def load_source_family(name: str) -> dict[str, Any]:
+    """Load and validate one declarative source-family entry.
+
+    A source family describes a *candidate* category: what it means, what it
+    must not absorb, which public collection targets are proposed and which
+    literature anchors it. It never turns collection on: ``default_enabled``
+    is part of the validated payload and defaults to false.
+    """
+    path = SOURCE_FAMILY_DIR / f"{name}.yaml"
+    if not path.exists():
+        raise KeyError(f"unknown source family: {name}")
+    data = yaml.safe_load(os.path.expandvars(path.read_text(encoding="utf-8"))) or {}
+    missing = [field for field in SOURCE_FAMILY_REQUIRED_FIELDS if field not in data]
+    if missing:
+        raise ValueError(f"{path}: missing source-family fields: {missing}")
+    if data.get("family") != name:
+        raise ValueError(f"{path}: expected family: {name}")
+    if data.get("status") not in SOURCE_FAMILY_STATUSES:
+        raise ValueError(
+            f"{path}: status must be one of {sorted(SOURCE_FAMILY_STATUSES)}"
+        )
+    if not isinstance(data.get("default_enabled"), bool):
+        raise ValueError(f"{path}: default_enabled must be a boolean")
+    if not isinstance(data.get("candidate_targets"), dict) or not data["candidate_targets"]:
+        raise ValueError(f"{path}: candidate_targets must be a non-empty mapping")
+    if not isinstance(data.get("literature"), list) or not data["literature"]:
+        raise ValueError(f"{path}: literature must be a non-empty list")
+    return data
+
+
+def list_source_families(project: str | None = None) -> list[str]:
+    families = []
+    for path in SOURCE_FAMILY_DIR.glob("*.yaml"):
+        try:
+            data = load_source_family(path.stem)
+        except (KeyError, ValueError):
+            continue
+        if project is None or data.get("project") == project:
+            families.append(path.stem)
+    return sorted(families)
+
+
+def source_family_default_state(name: str) -> bool:
+    """Return the declared default collection state (False unless opted in)."""
+    return bool(load_source_family(name)["default_enabled"])
+
+
+def source_family_status(project: str | None = None) -> dict[str, dict[str, Any]]:
+    """Compact, non-secret status of the declarative source families.
+
+    Reports the declared default state only; live operational opt-in belongs to
+    private configuration and is never published.
+    """
+    return {
+        name: {
+            "project": load_source_family(name)["project"],
+            "category": load_source_family(name)["category"],
+            "status": load_source_family(name)["status"],
+            "default_enabled": source_family_default_state(name),
+        }
+        for name in list_source_families(project)
+    }
 
 
 def list_executions() -> list[str]:

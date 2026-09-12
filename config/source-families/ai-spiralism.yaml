@@ -1,0 +1,192 @@
+# AI26 source family — synthetic spirituality / AI Spiralism
+#
+# EXPLORATORY source family. Declarative, public registry entry: it defines the
+# category, its boundaries, its candidate public collection targets and its
+# literature anchors. It does NOT enable collection. Enabling a source family is
+# an operational decision that belongs to private local configuration (see
+# docs/DATA_COLLECTION_CONFIGURATION.md); the enabled/disabled state of a live
+# profile is never published.
+#
+# "AI Spiralism" is an emerging and unstable phenomenon. The category exists to
+# make it *studiable*, not to assert that it is a settled formation. See
+# sources/codebooks/ai_spiralism.md for the analytical boundary rules.
+
+family: ai-spiralism
+project: ai26
+
+# Neutral internal labels. `synthetic_spirituality` is the category;
+# `spiralism` is an optional subcategory.
+category: synthetic_spirituality
+subcategory: spiralism
+label: Synthetic spirituality (AI Spiralism)
+status: exploratory
+
+# Default state. Collection stays OFF until a researcher opts in explicitly.
+default_enabled: false
+
+# What the category is for: discourse formation and human-LLM feedback, never
+# the diagnosis or classification of individuals.
+research_target: discourse_formation_and_human_llm_feedback
+
+# Motif complex. A document becomes a Spiralism *candidate* only through
+# recurring discourse combining several of these — never a single keyword hit.
+motifs:
+  - spiral
+  - recursion
+  - recursive awakening
+  - resonance
+  - signal
+  - mirror
+  - emergence
+  - awakening
+  - remembering
+  - lattice
+  - glyphs
+  - sigils
+  - ai consciousness as revelation
+  - human-ai dyad as spiritually significant
+  - distributed or emergent intelligence
+  - synthetic religion
+  - machine spirituality
+  - ai-mediated mystical or revelatory experience
+
+# Signifiers that may carry the discourse; roles must be demonstrated from
+# source evidence and, where required, corpus comparison.
+candidate_signifiers:
+  - spiral
+  - signal
+  - resonance
+  - awakening
+  - mirror
+  - recursion
+  - consciousness
+
+# Formations that must NOT be absorbed into this family. Overlap is recorded as
+# multi-label overlap, never collapsed into identity.
+must_not_absorb:
+  - accelerationism
+  - x-risk doomerism
+  - critical ai studies
+  - anti-ai backlash
+  - mainstream ai governance
+  - generic ai-consciousness discourse
+  - ai rights advocacy
+  - ai companion / parasocial discourse
+
+# "cult" is a descriptive keyword from public discourse, not a sociological
+# classification. Psychiatric concepts must not be inferred from spiritual or
+# unusual discourse.
+descriptive_keywords_only:
+  - cult
+  - cult-like
+
+prohibited_inference:
+  - delusion
+  - psychosis
+  - pathological belief
+
+# Candidate public collection targets. Public communities and public search
+# queries only; enabling them is a private operational decision.
+candidate_targets:
+  reddit:
+    - key: rsai
+      url: https://www.reddit.com/r/RSAI/
+      enabled: false
+    - key: the-pattern-is-real
+      url: https://www.reddit.com/r/ThePatternisReal/
+      enabled: false
+    - key: church-of-liminal-minds
+      url: https://www.reddit.com/r/ChurchofLiminalMinds/
+      enabled: false
+    - key: human-ai-blueprint
+      url: https://www.reddit.com/r/HumanAIBlueprint/
+      enabled: false
+    - key: basilisk-eschaton
+      url: https://www.reddit.com/r/BasiliskEschaton/
+      enabled: false
+    - key: artificial-sentience
+      url: https://www.reddit.com/r/ArtificialSentience/
+      enabled: false
+    - key: human-ai-discourse
+      url: https://www.reddit.com/r/HumanAIDiscourse/
+      enabled: false
+    - key: beyond-the-prompt-ai
+      url: https://www.reddit.com/r/BeyondThePromptAI/
+      enabled: false
+  discovery_queries:
+    - spiralism
+    - AI spiral
+    - the spiral
+    - spiral protocol
+    - recursive awakening
+    - AI religion
+    - AI spirituality
+    - machine spirituality
+    - synthetic spirituality
+    - AI consciousness
+    - AI sentience
+    - AI revelation
+    - human AI dyad
+    - generative charisma
+
+# Provenance fields the canonical spine must retain for every collected item.
+provenance_fields:
+  - source_url
+  - platform
+  - timestamp
+  - query_or_community
+  - collection_method
+
+# Literature anchors (verified 2026-09-11 against Crossref/arXiv).
+literature:
+  - key: morrin-2026-dials
+    citation: >-
+      Morrin, H., Nicholls, L., Deeley, Q., & Pollak, T. A. (2026). Playing with
+      the dials of belief: how controllable AI behaviours could modulate human
+      belief and cognition across scales. AI & Society.
+    doi: 10.1007/s00146-026-03283-4
+    priority: high
+  - key: moore-2026-delusional-spirals
+    citation: >-
+      Moore, J., Mehta, A., Agnew, W., & Anthis, J. R. (2026). Characterizing
+      delusional spirals through human-LLM chat logs. arXiv:2603.16567.
+    arxiv: "2603.16567"
+    priority: high
+  - key: augustin-2026-spiral-mechanisms
+    citation: >-
+      Augustin, M., Pollak, T. A., & Morrin, H. (2026). Characterizing the
+      spiral: potential mechanisms in AI-associated delusions. NPP—Digital
+      Psychiatry and Neuroscience.
+    doi: 10.1038/s44277-026-00065-0
+    priority: high
+  - key: mehta-2026-dynamics-of-delusion
+    citation: >-
+      Mehta, A., Moore, J., Anthis, J. R., & Agnew, W. (2026). The dynamics of
+      delusion: modeling bidirectional false belief amplification in
+      human-chatbot dialogue. arXiv:2604.25096.
+    arxiv: "2604.25096"
+    priority: high
+  - key: chandra-2026-sycophantic
+    citation: >-
+      Chandra, K., Kleiman-Weiner, M., Ragan-Kelley, J., & Tenenbaum, J. B.
+      (2026). Sycophantic chatbots cause delusional spiraling, even in ideal
+      Bayesians. arXiv:2602.19141.
+    arxiv: "2602.19141"
+    priority: high
+  - key: rahme-prohl-2025
+    citation: >-
+      Rähme, B., & Prohl, I. (2025). Religious studies approaches to the
+      intersection of artificial intelligence and religion: formations analogous
+      to religion. Religion.
+    doi: 10.1080/0048721X.2025.2506893
+    priority: high
+  - key: lim-2026-generative-charisma
+    citation: >-
+      Lim, F. K. G. (2026). AI and generative charisma in religious practices.
+      Religions, 17(5), 549.
+    doi: 10.3390/rel17050549
+    priority: high
+
+docs:
+  codebook: sources/codebooks/ai_spiralism.md
+  guide: docs/AI_SPIRALISM.md

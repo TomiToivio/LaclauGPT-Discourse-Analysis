@@ -94,6 +94,19 @@ SEEDS = [
     ("signifier", "cyborg", ROLE_MUST_BE_DEMONSTRATED),
     ("signifier", "technological singularity", ROLE_MUST_BE_DEMONSTRATED),
     ("signifier", "public interest ai", ROLE_MUST_BE_DEMONSTRATED),
+    # Exploratory AI26 source family: synthetic spirituality / AI Spiralism.
+    # Seed definitions stay non-adjudicative: the codebook lists candidate
+    # signifiers, it does not pre-assign a Laclaudian role. Category boundaries
+    # and the required literature anchors: sources/codebooks/ai_spiralism.md.
+    ("signifier", "spiral", ROLE_MUST_BE_DEMONSTRATED),
+    ("signifier", "signal", ROLE_MUST_BE_DEMONSTRATED),
+    ("signifier", "resonance", ROLE_MUST_BE_DEMONSTRATED),
+    ("signifier", "awakening", ROLE_MUST_BE_DEMONSTRATED),
+    ("signifier", "mirror", ROLE_MUST_BE_DEMONSTRATED),
+    ("signifier", "recursion", ROLE_MUST_BE_DEMONSTRATED),
+    ("signifier", "synthetic spirituality", ROLE_MUST_BE_DEMONSTRATED),
+    ("signifier", "machine spirituality", ROLE_MUST_BE_DEMONSTRATED),
+    ("signifier", "generative charisma", ROLE_MUST_BE_DEMONSTRATED),
     # ── actors (paper's named movements/institutions) ──
     ("actor", "Machine Intelligence Research Institute", "Named AI x-risk/safety research organisation in the paper corpus design"),
     ("actor", "Distributed AI Research Institute", "Named critical-AI research organisation in the paper corpus design"),
@@ -118,6 +131,10 @@ SEEDS = [
     ("formation", "TESCREAL", "Sensitising formation label used for comparative analysis; membership must be evidenced"),
     ("formation", "anti-ai backlash", "Sensitising formation label used for comparative analysis; membership must be evidenced"),
     ("formation", "left techno-optimism", "Sensitising formation label used for comparative analysis; membership must be evidenced"),
+    # Exploratory, unstable phenomenon: sensitising candidate only. Membership
+    # must be evidenced (recurring motif complex), and the label must never be
+    # applied automatically to a community or person.
+    ("formation", "ai spiralism", "Exploratory sensitising formation label for synthetic-spirituality discourse; membership must be evidenced from recurring motifs and never applied automatically"),
     # ── affect vocabulary (stored as targets for stable-ID compatibility) ──
     ("target", "hope", AFFECT_MUST_BE_DEMONSTRATED),
     ("target", "pride", AFFECT_MUST_BE_DEMONSTRATED),

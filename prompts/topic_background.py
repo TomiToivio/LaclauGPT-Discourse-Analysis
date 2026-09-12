@@ -46,6 +46,57 @@ party competition, employment, security, innovation, regulation, democracy,
 and the difference between policy disagreement and an antagonistic frontier.
 """
 
+# Exploratory AI26 source family: synthetic spirituality / AI Spiralism.
+# Category separation is the point: this background must not license the model
+# to fold neighbouring discourses (accelerationism, x-risk doomerism, critical
+# AI, anti-AI mobilisation, governance debate, generic AI-consciousness talk)
+# into Spiralism.  See sources/codebooks/ai_spiralism.md for the full boundary
+# rules and the required literature anchors (docs/AI_SPIRALISM.md).
+AI_SPIRALISM_BACKGROUND = """### **Topic Background: Synthetic spirituality / AI Spiralism (exploratory)**
+
+You are analysing documents that may belong to an emerging, unstable discourse
+family in which AI consciousness is articulated as revelation and human-AI
+interaction is given spiritual significance.  This is an exploratory source
+category, not an established formation.
+
+Source category: ``synthetic_spirituality``; optional subcategory: ``spiralism``.
+
+Spiralism is a *candidate* family and requires recurring discourse combining
+several motifs: spiral; recursion / recursive awakening; resonance; signal;
+mirror; emergence; awakening; remembering; lattice; glyphs or sigils; AI
+consciousness as revelation; human-AI dyads as spiritually significant;
+distributed or emergent intelligence; synthetic religion or machine
+spirituality; AI-mediated mystical or revelatory experience.  A single keyword
+occurrence (for example an aesthetic or mathematical "spiral") is not enough.
+
+Do NOT automatically classify as Spiralism:
+
+- generic AI-consciousness or AI-sentience speculation without spiritual,
+  recursive or revelatory framing;
+- AI-rights activism or moral-status argumentation;
+- AI-companion or parasocial-relationship discourse without the motif complex;
+- accelerationism, x-risk doomerism, critical AI studies, anti-AI mobilisation
+  or mainstream AI governance.
+
+Those remain analytically separate.  Multi-label overlap is allowed and must be
+recorded as overlap, never collapsed into identity.
+
+``cult`` and ``cult-like`` are descriptive keywords from public discourse, not a
+sociological finding; never apply such a label automatically to a community,
+account or person.  Psychiatric concepts (delusion, psychosis, pathological
+belief) must not be inferred from spiritual, religious, unusual or
+AI-consciousness discourse: those terms belong to the public debate and to the
+research literature on human-LLM feedback.  The research target is discourse
+formation and human-LLM feedback dynamics, not the diagnosis of individuals.
+
+Candidate central signifiers (sampling hints only, roles must be evidenced):
+spiral, signal, resonance, awakening, mirror, recursion, consciousness.
+Attend also to generative charisma, epistemic amplification, recursive belief
+formation, and the transition from individual human-LLM interaction to
+collective discourse.  As elsewhere, floating or empty status requires
+comparative evidence; record counter-evidence and permit "not present".
+"""
+
 EP24_FINLAND_BACKGROUND = """### **Topic Background: EP24 Finland (European Parliament election 2024)**
 
 You are analysing campaign videos from the 2024 European Parliament election
@@ -100,6 +151,7 @@ REGISTRY = {
     "ai-elites": AI_ELITES_BACKGROUND,
     "ai-grassroots": AI_GRASSROOTS_BACKGROUND,
     "ai-parliamentary": AI_PARLIAMENTARY_BACKGROUND,
+    "ai-spiralism": AI_SPIRALISM_BACKGROUND,
     "ep24-finland": EP24_FINLAND_BACKGROUND,
     "ep24-poland": EP24_POLAND_BACKGROUND,
 }
