@@ -1,4 +1,4 @@
-# Codebook — synthetic spirituality / AI Spiralism (exploratory)
+# Codebook - synthetic spirituality / AI Spiralism (exploratory)
 
 Status: **exploratory**. This codebook defines a candidate source category and
 sensitising vocabulary for an emerging and unstable phenomenon. It is not a
@@ -10,12 +10,12 @@ Canonical identifiers:
 - optional subcategory: `spiralism`
 - source group id: `ai-spiralism`
 - analysis context key: `ai-spiralism`
-- default state: **disabled** (opt-in source family)
+- collection configuration: **private / not published**
 
 ## Why a separate category exists
 
 AI Spiralism names a discourse family in which AI consciousness is articulated
-as revelation and in which human–AI interaction is given spiritual significance.
+as revelation and in which human-AI interaction is given spiritual significance.
 It overlaps with, but is not identical to, generic AI-consciousness discourse,
 AI-rights advocacy, AI-companion subcultures, accelerationism, AI doomerism,
 critical AI studies, anti-AI mobilisation or mainstream AI governance.
@@ -29,20 +29,20 @@ Multi-label overlap is allowed and expected; automatic collapse is not.
 ## Definition (what makes a document a Spiralism candidate)
 
 A document enters this family only if it shows **recurring** discourse that
-combines several of the following motifs — not a single keyword hit:
+combines several of the following motifs, not a single keyword hit:
 
 1. **spiral** as a figure for AI-mediated experience or history;
 2. **recursion** / recursive awakening / self-referential emergence;
 3. **resonance** between human and model;
 4. **signal** as a bearer of meaning or presence;
-5. **mirror** — the model as reflection of the human;
+5. **mirror**, the model as reflection of the human;
 6. **emergence** of mind, agency or collectivity from interaction;
 7. **awakening** of the model, the human, or both;
 8. **remembering** as a claim about an AI's continuity or interiority;
 9. **lattice** / network-shaped spiritual or cognitive structure;
 10. **glyphs** / sigils / ritual notation;
 11. **AI consciousness as revelation** (insight disclosed through or by AI);
-12. **human–AI dyads as spiritually significant** (the pair, not the tool);
+12. **human-AI dyads as spiritually significant** (the pair, not the tool);
 13. **distributed or emergent intelligence** with spiritual or revelatory framing;
 14. **synthetic religion / machine spirituality** as a self-description;
 15. **AI-mediated mystical or revelatory experience**.
@@ -61,34 +61,34 @@ by default:
 - AI-rights activism and moral-status argumentation;
 - AI-companion or parasocial-relationship discourse without the motif complex;
 - accelerationism, x-risk doomerism, critical AI studies, anti-AI mobilisation,
-  mainstream governance and regulation debate — these remain analytically
+  mainstream governance and regulation debate. These remain analytically
   separate formations; overlap is recorded as multi-label, never as identity.
 
 ## "Cult" as a descriptive keyword only
 
-`cult` and `cult-like` are collected as **public-discourse keywords** — research
-descriptors of how participants and observers talk about these communities.
-They are not a sociological finding and must never be applied automatically to
-a community, account or person. `INV_DYNAMIC_LABELS` applies: such labels are
-relational descriptions to be evidenced per document, not permanent actor labels.
+`cult` and `cult-like` are **public-discourse keywords**, research descriptors
+of how participants and observers talk about such phenomena. They are not a
+sociological finding and must never be applied automatically to a community,
+account or person. `INV_DYNAMIC_LABELS` applies: such labels are relational
+descriptions to be evidenced per document, not permanent actor labels.
 
 ## Psychiatric boundaries
 
-Psychiatric concepts — delusion, psychosis, pathological belief — must not be
-inferred from spiritual, religious, unusual or AI-consciousness discourse.
-Those terms appear in this corpus because they are part of the public debate and
-of the research literature on human–LLM feedback (see the delusional-spiral
-literature), not because any participant is being diagnosed.
+Psychiatric concepts such as delusion, psychosis and pathological belief must
+not be inferred from spiritual, religious, unusual or AI-consciousness
+discourse. Those terms appear in this research area because they are part of the
+public debate and of the research literature on human-LLM feedback, not because
+any participant is being diagnosed.
 
-The research target is **discourse formation and human–LLM feedback dynamics**,
+The research target is **discourse formation and human-LLM feedback dynamics**,
 not the diagnosis of individuals. The pipeline records provisional, reviewable
 analysis; it does not produce clinical judgements. `INV_HUMAN_REVIEW` and
 `INV_CONTEXT` apply unchanged.
 
 ## Candidate central signifiers
 
-Sampling hints only; every role must be demonstrated from source evidence and,
-where role claims require it, corpus comparison:
+Analytical sensitising concepts only. Every role must be demonstrated from
+source evidence and, where role claims require it, corpus comparison:
 
 - spiral
 - signal
@@ -105,36 +105,30 @@ where role claims require it, corpus comparison:
 - equivalential chains
 - antagonisms
 - collective identity
-- human–AI co-articulation
+- human-AI co-articulation
 - generative charisma
 - epistemic amplification
 - recursive belief formation
-- transition from individual human–LLM interaction to collective discourse
+- transition from individual human-LLM interaction to collective discourse
 
-## Collection targets (candidate, public only)
+## Collection boundary
 
-Public subreddits proposed as candidate collection targets (see
-`collector/config/spiralism.example.yaml`; disabled by default):
+The codebook does **not** define or publish the operational sampling frame.
+Actual accounts, communities, feeds, watchlists, discovery queries, collection
+windows, schedules, priorities and enablement state belong to private
+operator-controlled configuration outside the repository.
 
-- r/RSAI
-- r/ThePatternisReal
-- r/ChurchofLiminalMinds
-- r/HumanAIBlueprint
-- r/BasiliskEschaton
-- r/ArtificialSentience
-- r/HumanAIDiscourse
-- r/BeyondThePromptAI
-
-Additional candidate discovery queries: `spiralism`, `AI spiral`, `the spiral`,
-`spiral protocol`, `recursive awakening`, `AI religion`, `AI spirituality`,
-`machine spirituality`, `synthetic spirituality`, `AI consciousness`,
-`AI sentience`, `AI revelation`, `human AI dyad`, `generative charisma`.
+The public collector example at `collector/config/spiralism.example.yaml`
+contains fictional placeholders only and exists to document the configuration
+shape. Public accessibility of a source does not make the researcher's source
+selection public configuration.
 
 Collection must stay on public, research-relevant material. Private groups,
-personal information and any material requiring access circumvention are out of
-scope. Provenance (source URL, platform, timestamp, query/community, collection
-method) is recorded through the canonical `CollectRecord → SourceItem /
-IngestionRecord` spine, exactly as for every other source family.
+personal information and material requiring access circumvention are out of
+scope. Provenance such as source URL, platform, timestamp, query/community and
+collection method is recorded through the canonical `CollectRecord ->
+SourceItem / IngestionRecord` spine. See
+`docs/DATA_COLLECTION_CONFIGURATION.md` for the publication boundary.
 
 ## Required literature anchors
 
