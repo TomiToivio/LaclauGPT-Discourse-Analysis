@@ -17,6 +17,28 @@ For each theory-facing change:
 5. Report a theory/implementation mismatch explicitly instead of silently changing either side to fit the other.
 6. If the theory definition itself must change, verify it against the original source literature first.
 
+## Python architecture and code placement
+
+Before adding maintained Python code, read [`docs/architecture/PYTHON_ARCHITECTURE.md`](docs/architecture/PYTHON_ARCHITECTURE.md).
+
+The canonical namespace is **`laclaugpt`**. New reusable implementation code should normally live there rather than creating another root-level module or sibling package.
+
+Map new code to one of these subsystem concepts:
+
+1. Data Collection -> `laclaugpt.collection`
+2. Data Storage -> `laclaugpt.storage`
+3. Data Analysis -> `laclaugpt.analysis`
+4. Data Visualization -> `laclaugpt.visualization`
+5. Research Assistant -> `laclaugpt.assistant` (optional)
+6. Simulation Laboratory -> `laclaugpt.simulation` (optional/experimental)
+7. Experimental Laboratory -> `laclaugpt.experimental`
+
+Shared serializable/domain interfaces belong in contracts/domain code; typed runtime composition belongs in configuration; CLI modules should remain thin orchestration adapters.
+
+Do not use compatibility namespaces as templates for new architecture. Root modules, `collector/`, `*_adapter/`, and project-specific runtime scripts may remain during incremental migration, but new business logic should move inward toward the canonical namespace. Core subsystems must not import optional labs, analysis must not depend on collector internals, and collection/storage must not depend on visualization. `tests/architecture/` contains executable guards for these dependency rules.
+
+Experiments remain experimental until they have a defined contract, tests, documentation, acceptable dependency footprint, provenance/error behavior, and a justified destination in a stable subsystem.
+
 ## Non-negotiable invariants
 
 At minimum, preserve these rules:
