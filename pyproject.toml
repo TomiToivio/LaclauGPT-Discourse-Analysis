@@ -12,15 +12,84 @@ license = "CC0-1.0"
 authors = [
   { name = "Tomi Toivio" },
 ]
+# Keep the default install backend-independent and usable for contracts,
+# configuration, artifact handling, and lightweight transformations.
 dependencies = [
   "pydantic>=2.7,<3",
   "PyYAML>=6.0",
   "pandas>=2.1,<3",
-  "ollama>=0.4",
-  "networkx>=3.2",
 ]
 
 [project.optional-dependencies]
+# Canonical subsystem extras. Historical groups below remain as compatibility
+# aliases while imports and deployment documentation migrate incrementally.
+collection = [
+  "websocket-client>=1.8",
+  "tzdata>=2024.1",
+  "feedparser>=6.0",
+  "trafilatura>=1.8",
+]
+storage = [
+  "pymongo>=4.6",
+  "python-arango>=8.0",
+  "redis>=5.0",
+  "duckdb>=1.0",
+  "chromadb>=0.5",
+]
+analysis = [
+  "ollama>=0.4",
+  "networkx>=3.2",
+  "spacy>=3.7",
+  "scikit-learn>=1.4",
+  "gensim>=4.3",
+  "sentence-transformers>=3.0",
+  "statsmodels>=0.14",
+]
+visualization = [
+  "streamlit>=1.57",
+  "plotly>=5.24",
+]
+# These intentionally remain lightweight until optional laboratories expose a
+# stable runtime API. Add dependencies here only when the corresponding package
+# actually requires them merely to use that subsystem.
+assistant = []
+simulation = []
+experiments = [
+  "pycorpdiff>=0.1.0a27,<0.2; python_version >= '3.11'",
+  "scattertext>=0.2.2,<0.3",
+  "convokit>=4.1,<5; python_version < '3.13'",
+  "hypothesaes>=2.0,<3",
+  "textnets>=0.10,<0.11; python_version < '3.14'",
+  "edsl>=1.0,<2",
+]
+all = [
+  "websocket-client>=1.8",
+  "tzdata>=2024.1",
+  "feedparser>=6.0",
+  "trafilatura>=1.8",
+  "pymongo>=4.6",
+  "python-arango>=8.0",
+  "redis>=5.0",
+  "duckdb>=1.0",
+  "chromadb>=0.5",
+  "ollama>=0.4",
+  "networkx>=3.2",
+  "spacy>=3.7",
+  "scikit-learn>=1.4",
+  "gensim>=4.3",
+  "sentence-transformers>=3.0",
+  "statsmodels>=0.14",
+  "streamlit>=1.57",
+  "plotly>=5.24",
+  "pycorpdiff>=0.1.0a27,<0.2; python_version >= '3.11'",
+  "scattertext>=0.2.2,<0.3",
+  "convokit>=4.1,<5; python_version < '3.13'",
+  "hypothesaes>=2.0,<3",
+  "textnets>=0.10,<0.11; python_version < '3.14'",
+  "edsl>=1.0,<2",
+]
+
+# Compatibility extras retained for existing commands/docs.
 splitting = [
   "numpy>=1.26",
   "opencv-python-headless>=4.8,<5",
@@ -63,10 +132,6 @@ services = [
   "duckdb>=1.0",
   "chromadb>=0.5",
 ]
-visualization = [
-  "streamlit>=1.57",
-  "plotly>=5.24",
-]
 parquet = [
   "pyarrow>=15",
 ]
@@ -82,6 +147,8 @@ laclaugpt-collect-bluesky = "collector.bluesky:main"
 
 [tool.setuptools]
 include-package-data = true
+# Compatibility root modules. Do not add new implementation modules here;
+# maintained reusable code belongs under the canonical laclaugpt namespace.
 py-modules = [
   "pipeline",
   "llm",
